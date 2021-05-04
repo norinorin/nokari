@@ -11,7 +11,7 @@ class Events(plugins.Plugin):
     A plugin that handles events.
 
     This plugin will process commands on message edits
-    and delete the responses if the original message was deleted.
+    and delete the responses if the original messages were deleted.
     """
 
     def __init__(self, bot: Bot):
@@ -33,9 +33,11 @@ class Events(plugins.Plugin):
 
     @plugins.listener()
     async def on_message_delete(self, event: GuildMessageDeleteEvent) -> None:
-        resp = self.bot.cache.get_message(self.bot._resp_cache.get(event.message_id, 0))
-
-        if resp is None:
+        if (
+            resp := self.bot.cache.get_message(
+                self.bot._resp_cache.get(event.message_id, 0)
+            )
+        ) is None:
             return
 
         await resp.delete()
