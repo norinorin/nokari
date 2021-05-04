@@ -7,6 +7,13 @@ from lightbulb import Bot, plugins
 
 
 class Events(plugins.Plugin):
+    """
+    A plugin that handles events.
+
+    This plugin will process commands on message edits
+    and delete the responses if the original message was deleted.
+    """
+
     def __init__(self, bot: Bot):
         super().__init__()
         self.bot = bot

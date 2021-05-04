@@ -11,6 +11,10 @@ from nokari.utils import human_timedelta, plural
 
 
 class Meta(plugins.Plugin):
+    """
+    A Plugin with commands that show the metadata related to the bot.
+    """
+
     def __init__(self, bot: Bot):
         super().__init__()
         self.bot = bot

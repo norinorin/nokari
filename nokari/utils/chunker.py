@@ -1,9 +1,18 @@
+"""A module that contains chunking helper functions."""
+
 from typing import Final, Iterator, List
 
 __all__: Final[List[str]] = ["chunks", "simple_chunks"]
 
 
 def chunks(text: str, length: int) -> Iterator[str]:
+    """
+    Chunks the text. This is useful for getting pages
+    that'll be passed to the Paginator object.
+
+    This will yield the chunked text split by newline character
+    or by space.
+    """
     start = 0
     end = 0
     while start + length < len(text):
@@ -21,4 +30,5 @@ def chunks(text: str, length: int) -> Iterator[str]:
 
 
 def simple_chunks(text: str, length: int) -> List[str]:
+    """A lite version of the chunks function"""
     return [text[n : n + length] for n in range(0, len(text), length)]

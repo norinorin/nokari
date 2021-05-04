@@ -1,3 +1,5 @@
+"""A module that contains a custom command handler class implementation."""
+
 import asyncio
 import collections
 import datetime
@@ -22,6 +24,8 @@ _VT = typing.TypeVar("_VT")
 
 
 class FixedSizedDict(collections.MutableMapping[_KT, _VT], typing.Generic[_KT, _VT]):
+    """A fixed sized dict, mainly to cache responses the bot has made."""
+
     def __init__(
         self,
         length: int,
@@ -34,31 +38,44 @@ class FixedSizedDict(collections.MutableMapping[_KT, _VT], typing.Generic[_KT, _
             self.popitem()
 
     def __iter__(self) -> typing.Iterator[typing.Any]:
+        """Returns an iterator of the internal dict."""
         return iter(self._dict)
 
     def __len__(self) -> int:
+        """Returns the length of the internal dict."""
         return len(self._dict)
 
-    def __getitem__(self, k: _KT) -> _VT:
-        return self._dict[k]
+    def __getitem__(self, _k: _KT) -> _VT:
+        """Gets item from the internal dict."""
+        return self._dict[_k]
 
-    def __delitem__(self, k: _KT) -> None:
-        del self._dict[k]
+    def __delitem__(self, _k: _KT) -> None:
+        """Deletes item from the internal dict."""
+        del self._dict[_k]
 
-    def __setitem__(self, k: _KT, v: _VT) -> None:
-        if k not in self and len(self) == self.length:
+    def __setitem__(self, _k: _KT, _v: _VT) -> None:
+        """Puts item to the internal dict."""
+        if _k not in self and len(self) == self.length:
             self.popitem()
-        self._dict[k] = v
+        self._dict[_k] = _v
 
     def __str__(self) -> str:
+        """Returns the stringified internal dict."""
         return str(self._dict)
 
     def __repr__(self) -> str:
+        """Returns the representation of the object."""
         return f"{self.__class__.__name__}(length={self.length}, **{self})"
 
 
 class Nokari(lightbulb.Bot):
+    """The custom command handler class."""
+
     def __init__(self) -> None:
+        """
+        This doesn't take any arguments as we can
+        manually put it when calling the superclass' __init__.
+        """
         super().__init__(
             token=os.getenv("DISCORD_BOT_TOKEN"),
             banner="nokari.assets",
@@ -89,9 +106,6 @@ class Nokari(lightbulb.Bot):
         # Setup logger
         self.setup_logger()
 
-        # Attach event loop
-        self.loop = asyncio.get_event_loop()
-
         # Non-modular commands
         _ = [
             self.add_command(g)
@@ -99,12 +113,31 @@ class Nokari(lightbulb.Bot):
             if isinstance(g, commands.Command)
         ]
 
-    async def on_started(self, event: hikari.StartedEvent) -> None:
-        """Sets the launch time as soon as it connected to Discord gateway"""
-        self.launch_time = datetime.datetime.utcnow()
+        # Set Launch time
+        self.launch_time: typing.Optional[datetime.datetime] = None
+
+    @property
+    def loop(self) -> asyncio.AbstractEventLoop:
+        """Returns an asyncio event loop."""
+        return asyncio.get_event_loop()
+
+    @property
+    def responses_cache(self) -> FixedSizedDict[_KT, _VT]:
+        """Returns a mapping from message ids to its response message ids."""
+        return self._resp_cache
+
+    @property
+    def paginators(self) -> weakref.WeakValueDictionary:
+        """Returns a mapping from message ids to active paginators."""
+        return self._paginators
+
+    async def on_started(self, _: hikari.StartedEvent) -> None:
+        """Sets the launch time as soon as it connected to Discord gateway."""
+        if self.launch_time is None:
+            self.launch_time = datetime.datetime.utcnow()
 
     def setup_logger(self) -> None:
-        """Sets a logger that outputs to a file as well as stdout"""
+        """Sets a logger that outputs to a file as well as stdout."""
         logging.basicConfig(filename="nokari.log", level=logging.INFO)
         self.log = logging.getLogger(self.__class__.__name__)
         console = logging.StreamHandler(sys.stdout)
@@ -112,7 +145,7 @@ class Nokari(lightbulb.Bot):
         self.log.addHandler(console)
 
     async def _resolve_prefix(self, message: hikari.Message) -> typing.Optional[str]:
-        """Case-insensitive prefix resolver"""
+        """Case-insensitive prefix resolver."""
         prefixes = await maybe_await(self.get_prefix, self, message)
 
         if isinstance(prefixes, str):
@@ -123,14 +156,14 @@ class Nokari(lightbulb.Bot):
         if message.content is not None:
             lowered_content = message.content.lower()
             content_length = len(lowered_content)
-            for p in prefixes:
-                if lowered_content.startswith(p):
-                    while (p_length := len(p)) < content_length and (
-                        next_char := lowered_content[p_length : p_length + 1]
+            for prefix in prefixes:
+                if lowered_content.startswith(prefix):
+                    while (prefix_length := len(prefix)) < content_length and (
+                        next_char := lowered_content[prefix_length : prefix_length + 1]
                     ).isspace():
-                        p += next_char
+                        prefix += next_char
                         continue
-                    return p
+                    return prefix
         return None
 
     def get_context(
@@ -140,12 +173,12 @@ class Nokari(lightbulb.Bot):
         invoked_with: str,
         invoked_command: commands.Command,
     ) -> Context:
-        """Gets custom Context object"""
+        """Gets custom Context object."""
         return Context(self, message, prefix, invoked_with, invoked_command)
 
     @property
     def raw_plugins(self) -> typing.List[str]:
-        """Returns the plugins path in Pythonic way"""
+        """Returns the plugins path in Pythonic way."""
         dir_ = "nokari/plugins"
         return [
             f"{dir_.replace('/', '.')}.{ext[:-3]}"
@@ -155,11 +188,15 @@ class Nokari(lightbulb.Bot):
 
     @property
     def brief_uptime(self) -> str:
-        """Returns formatted brief uptime"""
-        return human_timedelta(self.launch_time, append_suffix=False, brief=True)
+        """Returns formatted brief uptime."""
+        return (
+            human_timedelta(self.launch_time, append_suffix=False, brief=True)
+            if self.launch_time is not None
+            else "Not available."
+        )
 
     def load_extensions(self) -> None:
-        """Loads all the plugins"""
+        """Loads all the plugins."""
         for extension in self.raw_plugins:
             try:
                 self.load_extension(extension)
@@ -167,12 +204,14 @@ class Nokari(lightbulb.Bot):
                 print(extension, "is missing load function.")
             except lightbulb.errors.ExtensionAlreadyLoaded:
                 pass
-            except lightbulb.errors.ExtensionError as e:
+            except lightbulb.errors.ExtensionError as _e:
                 print(extension, "failed to load.")
                 print(
                     " ".join(
                         traceback.format_exception(
-                            type(e or e.__cause__), e or e.__cause__, e.__traceback__
+                            type(_e or _e.__cause__),
+                            _e or _e.__cause__,
+                            _e.__traceback__,
                         )
                     )
                 )
@@ -180,17 +219,20 @@ class Nokari(lightbulb.Bot):
 
 @checks.owner_only()
 @commands.command(name="reload")
-async def reload_cog(ctx: Context, *, plugins: str = "*") -> None:
+async def reload_plugin(ctx: Context, *, plugins: str = "*") -> None:
+    """Reloads certain or all the plugins."""
     await ctx.execute_plugins(ctx.bot.reload_extension, plugins)
 
 
 @checks.owner_only()
 @commands.command(name="unload")
-async def unload_cog(ctx: Context, *, plugins: str = "*") -> None:
+async def unload_plugin(ctx: Context, *, plugins: str = "*") -> None:
+    """Unloads certain or all the plugins."""
     await ctx.execute_plugins(ctx.bot.unload_extension, plugins)
 
 
 @checks.owner_only()
 @commands.command(name="load")
-async def load_cog(ctx: Context, *, plugins: str = "*") -> None:
+async def load_plugin(ctx: Context, *, plugins: str = "*") -> None:
+    """Loads certain or all the plugins."""
     await ctx.execute_plugins(ctx.bot.load_extension, plugins)

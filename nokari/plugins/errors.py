@@ -3,6 +3,8 @@ from lightbulb import Bot, plugins
 
 
 class Errors(plugins.Plugin):
+    """A plugin that handles errors."""
+
     def __init__(self, bot: Bot):
         super().__init__()
         self.bot = bot

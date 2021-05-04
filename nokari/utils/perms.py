@@ -1,3 +1,5 @@
+"""A module that contains helper functions for permissions checking."""
+
 import typing
 
 import hikari

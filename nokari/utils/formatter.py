@@ -1,3 +1,5 @@
+"""A module that contains formatting helper functions."""
+
 import datetime
 import typing
 
@@ -7,23 +9,31 @@ __all__: typing.Final[typing.List[str]] = ["plural", "human_timedelta"]
 
 
 class plural:
-    def __init__(self, value: int, format: bool = True) -> None:
+    """This will append s to the word if the value isn't 1."""
+
+    # pylint: disable=invalid-name,too-few-public-methods
+
+    def __init__(self, value: int, _format: bool = True) -> None:
         self.value = value
-        self._format = format
+        self._format = _format
 
     def __format__(self, format_spec: str) -> str:
         v = self.value
         str_v = f"{v:,}" if self._format else str(v)
-        singular, sep, plural = format_spec.partition("|")
-        plural = plural or f"{singular}s"
+        singular, _, _plural = format_spec.partition("|")
+        _plural = _plural or f"{singular}s"
         if abs(v) != 1:
-            return f"{str_v} {plural}"
+            return f"{str_v} {_plural}"
         return f"{str_v} {singular}"
 
 
-def human_join(
-    seq: typing.Sequence[typing.Any], delim: str = ", ", final: str = "or"
+def _human_join(
+    seq: typing.Sequence[str], delim: str = ", ", final: str = "and"
 ) -> str:
+    """
+    Joins all the elements and appends a word before the last element
+    if the elements length > 1.
+    """
     size = len(seq)
     if size == 0:
         return ""
@@ -38,23 +48,22 @@ def human_join(
 
 
 def human_timedelta(
-    dt: datetime.datetime,
+    dt_obj: datetime.datetime,
     *,
     source: typing.Optional[datetime.datetime] = None,
     accuracy: int = 3,
     brief: bool = False,
     append_suffix: bool = True,
 ) -> str:
-    now = source or datetime.datetime.utcnow()
+    """Returns the time delta between 2 datetime objects in a human readable format."""
+    now = (source or datetime.datetime.utcnow()).replace(microsecond=0)
+    dt_obj = dt_obj.replace(microsecond=0)
 
-    now = now.replace(microsecond=0)
-    dt = dt.replace(microsecond=0)
-
-    if dt > now:
-        delta = relativedelta.relativedelta(dt, now)
+    if dt_obj > now:
+        delta = relativedelta.relativedelta(dt_obj, now)
         suffix = ""
     else:
-        delta = relativedelta.relativedelta(now, dt)
+        delta = relativedelta.relativedelta(now, dt_obj)
         suffix = " ago" if append_suffix else ""
 
     attrs = [
@@ -72,30 +81,29 @@ def human_timedelta(
         if not elem:
             continue
 
-        if attr == "day":
-            weeks = delta.weeks
-            if weeks:
-                elem -= weeks * 7
-                if not brief:
-                    output.append(format(plural(weeks), "week"))
-                else:
-                    output.append(f"{weeks}w")
+        if attr == "day" and (weeks := delta.weeks):
+            elem -= weeks * 7
+            if brief:
+                output.append(f"{weeks}w")
+            else:
+                output.append(format(plural(weeks), "week"))
 
         if elem <= 0:
             continue
 
         if brief:
             output.append(f"{elem}{brief_attr}")
-        else:
-            output.append(format(plural(elem), attr))
+            continue
+
+        output.append(format(plural(elem), attr))
 
     if accuracy is not None:
         output = output[:accuracy]
 
     if len(output) == 0:
         return "now"
-    else:
-        if not brief:
-            return human_join(output, final="and") + suffix
-        else:
-            return " ".join(output) + suffix
+
+    if not brief:
+        return _human_join(output) + suffix
+
+    return " ".join(output) + suffix

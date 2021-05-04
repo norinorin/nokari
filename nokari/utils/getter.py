@@ -1,11 +1,13 @@
+"""A module that contains helper functions for searching an element in a sequence."""
+
 from operator import attrgetter
 from typing import Any, Callable, Final, Iterable, List, Optional, TypeVar
 
-T = TypeVar("T")
+_T = TypeVar("_T")
 __all__: Final[List[str]] = ["find", "get"]
 
 
-def find(predicate: Callable[[T], Any], seq: Iterable[T]) -> Optional[T]:
+def find(predicate: Callable[[_T], Any], seq: Iterable[_T]) -> Optional[_T]:
     """Copied from https://github.com/Rapptz/discord.py/blob/master/discord/utils.py"""
 
     for element in seq:
@@ -14,16 +16,16 @@ def find(predicate: Callable[[T], Any], seq: Iterable[T]) -> Optional[T]:
     return None
 
 
-def get(iterable: Iterable[T], **attrs: Any) -> Optional[T]:
+def get(iterable: Iterable[_T], **attrs: Any) -> Optional[_T]:
     """Also copied from discord.py's utils.py"""
     _all = all
     attrget = attrgetter
 
     if len(attrs) == 1:
-        k, v = attrs.popitem()
-        pred = attrget(k.replace("__", "."))
+        _k, _v = attrs.popitem()
+        pred = attrget(_k.replace("__", "."))
         for elem in iterable:
-            if pred(elem) == v:
+            if pred(elem) == _v:
                 return elem
         return None
 

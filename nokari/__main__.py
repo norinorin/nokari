@@ -1,13 +1,14 @@
+"""The main entry of the program"""
+
 import asyncio
 import os
 
-import hikari
 from dotenv import load_dotenv
 
 from nokari.core import Nokari
 
 if os.name != "nt":
-    import uvloop
+    import uvloop  # pylint: disable=import-error
 
     uvloop.install()
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())

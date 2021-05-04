@@ -17,6 +17,8 @@ from nokari.core import Context, Paginator
 
 
 class Admin(plugins.Plugin):
+    """A plugin with restricted commands."""
+
     def __init__(self, bot: Bot):
         super().__init__()
         self.bot = bot
