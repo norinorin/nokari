@@ -24,7 +24,7 @@ def has_guild_perms(
 
         if (
             role.permissions & hikari.Permissions.ADMINISTRATOR
-            or role.permissions & perms
+            or (role.permissions & perms) == perms
         ):
             return True
 

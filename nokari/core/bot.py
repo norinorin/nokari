@@ -29,7 +29,7 @@ class FixedSizedDict(collections.MutableMapping[_KT, _VT], typing.Generic[_KT, _
         **kwargs: typing.Any,
     ) -> None:
         self.length = length
-        self._dict = dict(*args, **kwargs)
+        self._dict: typing.Dict[_KT, _VT] = dict(*args, **kwargs)
         while len(self) > length:
             self.popitem()
 
@@ -39,13 +39,13 @@ class FixedSizedDict(collections.MutableMapping[_KT, _VT], typing.Generic[_KT, _
     def __len__(self) -> int:
         return len(self._dict)
 
-    def __getitem__(self, k: typing.Any) -> typing.Any:
+    def __getitem__(self, k: _KT) -> _VT:
         return self._dict[k]
 
-    def __delitem__(self, k: typing.Any) -> None:
+    def __delitem__(self, k: _KT) -> None:
         del self._dict[k]
 
-    def __setitem__(self, k: typing.Any, v: typing.Any) -> None:
+    def __setitem__(self, k: _KT, v: _VT) -> None:
         if k not in self and len(self) == self.length:
             self.popitem()
         self._dict[k] = v
@@ -62,9 +62,14 @@ class Nokari(lightbulb.Bot):
         super().__init__(
             token=os.getenv("DISCORD_BOT_TOKEN"),
             banner="nokari.assets",
-            intents=hikari.Intents.ALL,
+            intents=hikari.Intents.GUILDS
+            | hikari.Intents.GUILD_EMOJIS
+            | hikari.Intents.GUILD_MESSAGES
+            | hikari.Intents.GUILD_MEMBERS
+            | hikari.Intents.GUILD_MESSAGE_REACTIONS
+            | hikari.Intents.GUILD_PRESENCES,
             insensitive_commands=True,
-            prefix=["hikari", "hikari "],
+            prefix=["hikari", "test"],
             owner_ids=[265080794911866881],
             cache_settings=hikari.CacheSettings(invites=False, voice_states=False),
         )
@@ -115,13 +120,18 @@ class Nokari(lightbulb.Bot):
 
         prefixes.sort(key=len, reverse=True)
 
-        prefix = None
         if message.content is not None:
+            lowered_content = message.content.lower()
+            content_length = len(lowered_content)
             for p in prefixes:
-                if message.content.lower().startswith(p):
-                    prefix = p
-                    break
-        return prefix
+                if lowered_content.startswith(p):
+                    while (p_length := len(p)) < content_length and (
+                        next_char := lowered_content[p_length : p_length + 1]
+                    ).isspace():
+                        p += next_char
+                        continue
+                    return p
+        return None
 
     def get_context(
         self,
