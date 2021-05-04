@@ -1,5 +1,8 @@
-from hikari import (GuildMessageCreateEvent, GuildMessageDeleteEvent,
-                    GuildMessageUpdateEvent)
+from hikari import (
+    GuildMessageCreateEvent,
+    GuildMessageDeleteEvent,
+    GuildMessageUpdateEvent,
+)
 from lightbulb import Bot, plugins
 
 

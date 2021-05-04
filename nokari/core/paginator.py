@@ -1,8 +1,18 @@
 import asyncio
 import enum
 from contextlib import suppress
-from typing import (TYPE_CHECKING, Any, Callable, Coroutine, Dict, Final, List,
-                    Optional, TypeVar, Union)
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Coroutine,
+    Dict,
+    Final,
+    List,
+    Optional,
+    TypeVar,
+    Union,
+)
 
 if TYPE_CHECKING:
     from nokari.core.context import Context
