@@ -56,7 +56,7 @@ class Meta(plugins.Plugin):
             .add_field(
                 name="Total cached members:",
                 value=(
-                    f"{human:,}h & {bots:,}b out of {total_members}\n"
+                    f"{human:,}h & {bots:,}b out of {total_members:,}\n"
                     f"{plural(len(self.bot.cache.get_presences_view())):presence}"
                 ),
                 inline=True,
