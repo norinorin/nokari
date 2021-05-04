@@ -48,7 +48,9 @@ class Context(lightbulb.Context):
         if isinstance(embed, hikari.Embed) and not embed.color:
             embed.color = Color(0x0F000)
 
-        resp = self.bot.cache.get_message(self.bot.resp_cache.get(self.message_id, 0))
+        resp = self.bot.cache.get_message(
+            self.bot.responses_cache.get(self.message_id, 0)
+        )
         if resp is not None and self.edited_timestamp:
             contains_embed_attachments = (
                 resp.embeds
@@ -68,15 +70,15 @@ class Context(lightbulb.Context):
                     await current_paginator.stop(not current_paginator == paginator)
 
                 return await resp.edit(
-                    content=content,
-                    embed=embed,
+                    content=content or None,
+                    embed=embed or None,
                     mentions_everyone=mentions_everyone,
                     user_mentions=user_mentions,
                     role_mentions=role_mentions,
                 )
 
         elif resp is None:
-            self.bot.resp_cache.pop(self.message_id, None)
+            self.bot.responses_cache.pop(self.message_id, None)
 
         resp = await super().respond(
             content=content,
@@ -91,7 +93,7 @@ class Context(lightbulb.Context):
         )
 
         if not (attachment or attachments):
-            self.bot.resp_cache[self.message_id] = resp.id
+            self.bot.responses_cache[self.message_id] = resp.id
 
         return resp
 
