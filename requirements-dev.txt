@@ -1,0 +1,9 @@
+# Formatting
+black
+isort
+
+# Type checking
+mypy
+
+# Linting
+flake8
