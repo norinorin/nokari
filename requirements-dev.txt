@@ -1,6 +1,6 @@
 # Formatting
 black
-isort
+isort[requirements_deprecated_finder]
 
 # Type checking
 mypy
