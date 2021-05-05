@@ -3,7 +3,7 @@ suggestion-mode=yes
 fail-under=9.5
 
 [MESSAGES CONTROL]
-confidence=INFERENCE_FAILURE
+confidence=UNDEFINED
 
 [BASIC]
 argument-naming-style=snake_case
