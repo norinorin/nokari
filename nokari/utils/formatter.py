@@ -13,15 +13,18 @@ class plural:
 
     # pylint: disable=invalid-name,too-few-public-methods
 
-    def __init__(self, value: int, _format: bool = True) -> None:
+    def __init__(
+        self, value: int, _format: bool = True, plural_form: typing.Optional[str] = None
+    ) -> None:
         self.value = value
         self._format = _format
+        self.plural_form = plural_form
 
     def __format__(self, format_spec: str) -> str:
         v = self.value
         str_v = f"{v:,}" if self._format else str(v)
         singular, _, _plural = format_spec.partition("|")
-        _plural = _plural or f"{singular}s"
+        _plural = self.plural_form or _plural or f"{singular}s"
         if abs(v) != 1:
             return f"{str_v} {_plural}"
         return f"{str_v} {singular}"
