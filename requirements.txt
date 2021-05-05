@@ -1,5 +1,6 @@
 hikari
 hikari-lightbulb
 python-dotenv
+python-dateutil
 uvloop
 psutil
