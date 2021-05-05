@@ -9,7 +9,6 @@ from lightbulb import Bot, plugins
 from nokari.core import Context
 from nokari.utils import plural
 
-
 _ErrorHandler = typing.Callable[
     ["Errors", Context, lightbulb.errors.CommandError, hikari.Embed],
     typing.Literal[None],

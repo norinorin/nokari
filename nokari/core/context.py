@@ -4,7 +4,7 @@ import typing
 
 import hikari
 import lightbulb
-from hikari import Color, Message
+from hikari import Message
 from hikari import embeds as embeds_
 from hikari import files, guilds, snowflakes, undefined, users
 
