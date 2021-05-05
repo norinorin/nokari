@@ -13,6 +13,8 @@ __all__: typing.Final[typing.List[str]] = ["cooldown"]
 class CustomCooldown(CooldownManager):
     """Custom CooldownManager class with alternative hashes."""
 
+    # pylint: disable=arguments-differ
+
     def __init__(
         self, *args: typing.Union[float, Bucket], **kwargs: typing.Any
     ) -> None:

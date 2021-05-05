@@ -20,7 +20,7 @@ class Context(lightbulb.Context):
 
     __slots__: typing.Tuple[str] = ("no_embed",)
 
-    async def respond(
+    async def respond(  # pylint: disable=arguments-differ
         self,
         content: undefined.UndefinedOr[typing.Any] = undefined.UNDEFINED,
         *,

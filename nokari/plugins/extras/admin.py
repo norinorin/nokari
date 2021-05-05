@@ -9,10 +9,9 @@ from inspect import getsource
 from io import StringIO
 
 import hikari
-from lightbulb import Bot, checks, commands, plugins
+from lightbulb import Bot, checks, plugins
 
-from nokari import core  # noqa: F401
-from nokari import utils
+from nokari import core, utils
 from nokari.core import Context, Paginator
 
 
@@ -73,7 +72,7 @@ class Admin(plugins.Plugin):
         return parsed, status, fn_name
 
     @checks.owner_only()
-    @commands.command(name="eval")
+    @core.commands.command(name="eval")
     async def _eval(self, ctx: Context, *, cmd: str) -> None:
         """Evaluates Python script"""
         env = {

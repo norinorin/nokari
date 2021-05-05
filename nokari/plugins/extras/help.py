@@ -6,15 +6,13 @@ from lightbulb import Bot, commands
 from lightbulb import help as help_
 from lightbulb import plugins
 
+from nokari import core
 from nokari.core import Command, Context
 from nokari.utils import plural
 
 
-@commands.command(
-    name="help",
-    aliases=["commands", "command"],
-    usage="[category | command | query]",
-    cls=Command,
+@core.commands.command(
+    name="help", aliases=["commands", "command"], usage="[category|command|query]"
 )
 async def _help_cmd(ctx: Context) -> None:
     """
@@ -70,7 +68,7 @@ class CustomHelp(help_.HelpCommand):
                 fmt = f"{parent.name} {fmt}"
         else:
             fmt = command.name if not parent else f"{parent.name} {command.name}"
-        return f"{fmt} {command.usage}" if hasattr(command, "usage") else fmt
+        return f"{fmt} {command.usage}" if command.usage else fmt
 
     async def send_help_overview(self, context: Context) -> None:
         zws = "\u200b"

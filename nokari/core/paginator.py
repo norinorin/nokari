@@ -29,7 +29,9 @@ __all__: Final[List[str]] = ["EmptyPages", "Mode", "Paginator"]
 _T = TypeVar("_T")
 _ButtonCallback = Callable[[], Union[Any, Coroutine[Any, Any, None]]]
 _Pages = List[_T]
-_EventT_co = TypeVar("_EventT_co", bound=hikari.Event, covariant=True)
+_EventT_co = TypeVar(  # pylint: disable=invalid-name
+    "_EventT_co", bound=hikari.Event, covariant=True
+)
 _PredicateT = Callable[[_EventT_co], bool]
 
 
@@ -197,7 +199,9 @@ class Paginator:
 
         for emoji in self._buttons:
             if find(
-                lambda r: str(r.emoji) == emoji and r.is_me, self.message.reactions
+                lambda r: str(r.emoji) == emoji  # pylint: disable=cell-var-from-loop
+                and r.is_me,
+                self.message.reactions,
             ):
                 continue
 

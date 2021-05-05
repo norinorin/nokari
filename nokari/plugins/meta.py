@@ -4,8 +4,9 @@ from collections import Counter
 import hikari
 import lightbulb
 import psutil
-from lightbulb import Bot, checks, commands, plugins
+from lightbulb import Bot, checks, plugins
 
+from nokari import core
 from nokari.core import Context, cooldown
 from nokari.utils import human_timedelta, plural
 
@@ -80,7 +81,7 @@ class Meta(plugins.Plugin):
         embed.add_field(name=name, value=value, inline=True)
 
     @cooldown(10, 1, lightbulb.cooldowns.UserBucket)
-    @commands.command(aliases=["pong", "latency"])
+    @core.commands.command(aliases=["pong", "latency"])
     async def ping(self, ctx: Context) -> None:
         """Shows the WebSocket latency to the Discord gateway"""
         latency = int(ctx.bot.heartbeat_latency * 1000)
@@ -88,7 +89,7 @@ class Meta(plugins.Plugin):
         await ctx.respond(f"Pong? {emoji} {latency}ms")
 
     @cooldown(10, 1, lightbulb.cooldowns.UserBucket)
-    @commands.command()
+    @core.commands.command()
     async def stats(self, ctx: Context, flags: str = "") -> None:
         """Shows the statistic of the bot."""
         embed = hikari.Embed(title="Stats")
