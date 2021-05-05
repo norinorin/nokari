@@ -140,7 +140,7 @@ class Nokari(lightbulb.Bot):
     async def on_started(self, _: hikari.StartedEvent) -> None:
         """Sets the launch time as soon as it connected to Discord gateway."""
         if self.launch_time is None:
-            self.launch_time = datetime.datetime.now(tz=datetime.timezone.utc)
+            self.launch_time = datetime.datetime.utcnow()
 
     def setup_logger(self) -> None:
         """Sets a logger that outputs to a file as well as stdout."""
@@ -184,7 +184,7 @@ class Nokari(lightbulb.Bot):
 
     @property
     def raw_plugins(self) -> typing.List[str]:
-        """Returns the plugins path in Pythonic way."""
+        """Returns the Pythonic plugins path."""
         return [
             f"{path.strip('/').replace('/', '.')}.{file[:-3]}"
             for path, folders, files in os.walk("nokari/plugins/")
