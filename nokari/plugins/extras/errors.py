@@ -48,7 +48,7 @@ class Errors(plugins.Plugin):
         embed = hikari.Embed()
         author = event.message.author
         embed.set_author(
-            name=event.message.author.username,
+            name=author.username,
             icon=author.avatar_url or author.default_avatar_url,
         )
         error = event.exception or event.exception.__cause__
