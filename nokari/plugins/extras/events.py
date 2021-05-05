@@ -35,7 +35,7 @@ class Events(plugins.Plugin):
     async def on_message_delete(self, event: GuildMessageDeleteEvent) -> None:
         if (
             resp := self.bot.cache.get_message(
-                self.bot._resp_cache.get(event.message_id, 0)
+                self.bot._resp_cache.pop(event.message_id, 0)
             )
         ) is None:
             return
