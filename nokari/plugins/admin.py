@@ -28,6 +28,10 @@ class Admin(plugins.Plugin):
         body: typing.Union[typing.List[ast.AST], typing.List[ast.stmt]]
     ) -> None:
         """A staticmethod that automatically returns the last expression."""
+
+        if not body:
+            return
+
         if isinstance(body[-1], ast.Expr):
             body[-1] = ast.Return(body[-1].value)
             ast.fix_missing_locations(body[-1])
