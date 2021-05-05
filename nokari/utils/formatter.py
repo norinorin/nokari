@@ -38,16 +38,15 @@ def _human_join(
     if the elements length > 1.
     """
     size = len(seq)
-    if size == 0:
-        return ""
-
-    if size == 1:
-        return seq[0]
-
-    if size == 2:
-        return f"{seq[0]} {final} {seq[1]}"
-
-    return delim.join(seq[:-1]) + f" {final} {seq[-1]}"
+    return (
+        ""
+        if size == 0
+        else seq[0]
+        if size == 1
+        else f"{seq[0]} {final} {seq[1]}"
+        if size == 2
+        else delim.join(seq[:-1]) + f" {final} {seq[-1]}"
+    )
 
 
 def human_timedelta(
