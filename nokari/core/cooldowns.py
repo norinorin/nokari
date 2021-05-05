@@ -13,8 +13,6 @@ __all__: typing.Final[typing.List[str]] = ["cooldown"]
 class CustomCooldown(CooldownManager):
     """Custom CooldownManager class with alternative hashes."""
 
-    # pylint: disable=arguments-differ
-
     def __init__(
         self, *args: typing.Union[float, Bucket], **kwargs: typing.Any
     ) -> None:
@@ -25,15 +23,15 @@ class CustomCooldown(CooldownManager):
         self.alter_length: int = kwargs.get("alter_length", 0)
         self.alter_usages: int = kwargs.get("alter_usages", 1)
 
-    def add_cooldown(self, ctx: Context) -> None:
-        cooldown_hash = self.bucket.extract_hash(ctx)
+    def add_cooldown(self, context: Context) -> None:
+        cooldown_hash = self.bucket.extract_hash(context)
         cooldown_bucket = self.cooldowns.get(cooldown_hash)
         if cooldown_bucket is not None:
             cooldown_status = cooldown_bucket.acquire()
             if cooldown_status == CooldownStatus.ACTIVE:
                 raise errors.CommandIsOnCooldown(
                     "This command is on cooldown",
-                    command=ctx.command,
+                    command=context.command,
                     retry_in=(cooldown_bucket.start_time + cooldown_bucket.length)
                     - time.perf_counter(),
                 )
