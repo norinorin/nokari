@@ -26,7 +26,7 @@ class Admin(plugins.Plugin):
     def insert_returns(
         body: typing.Union[typing.List[ast.AST], typing.List[ast.stmt]]
     ) -> None:
-        """A staticmethod that automatically returns the last expression."""
+        """A static method that prepends a return statement at the last expression."""
 
         if not body:
             return
@@ -47,7 +47,7 @@ class Admin(plugins.Plugin):
 
     @staticmethod
     def clean_code(code: str) -> typing.Tuple[ast.AST, bool, str]:
-        """Clean the codeblock and remove the no-return flag."""
+        """Cleans the codeblock and removes the no-return flag."""
         code = code.lstrip("`")
         if code.startswith("py\n"):
             code = code[3:]
@@ -138,6 +138,8 @@ class Admin(plugins.Plugin):
                     del texts
                     del stdout
                     del result
+                    del chunked_output
+                    del chunked_return_value
 
                     paginator = Paginator.default(ctx)
                     paginator.add_page(pages)
