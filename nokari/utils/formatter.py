@@ -56,7 +56,9 @@ def human_timedelta(
     append_suffix: bool = True,
 ) -> str:
     """Returns the time delta between 2 datetime objects in a human readable format."""
-    now = (source or datetime.datetime.utcnow()).replace(microsecond=0)
+    now = (source or datetime.datetime.now(tz=datetime.timezone.utc)).replace(
+        microsecond=0
+    )
     dt_obj = dt_obj.replace(microsecond=0)
 
     if dt_obj > now:

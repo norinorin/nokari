@@ -117,6 +117,11 @@ class Nokari(lightbulb.Bot):
         self.launch_time: typing.Optional[datetime.datetime] = None
 
     @property
+    def default_color(self) -> hikari.Color:
+        """Returns the dominant color of the bot's avatar"""
+        return hikari.Color.from_rgb(251, 172, 37)
+
+    @property
     def loop(self) -> asyncio.AbstractEventLoop:
         """Returns an asyncio event loop."""
         return asyncio.get_event_loop()
@@ -134,7 +139,7 @@ class Nokari(lightbulb.Bot):
     async def on_started(self, _: hikari.StartedEvent) -> None:
         """Sets the launch time as soon as it connected to Discord gateway."""
         if self.launch_time is None:
-            self.launch_time = datetime.datetime.utcnow()
+            self.launch_time = datetime.datetime.now(tz=datetime.timezone.utc)
 
     def setup_logger(self) -> None:
         """Sets a logger that outputs to a file as well as stdout."""
@@ -179,11 +184,11 @@ class Nokari(lightbulb.Bot):
     @property
     def raw_plugins(self) -> typing.List[str]:
         """Returns the plugins path in Pythonic way."""
-        dir_ = "nokari/plugins"
         return [
-            f"{dir_.replace('/', '.')}.{ext[:-3]}"
-            for ext in os.listdir(dir_)
-            if ext.endswith(".py")
+            f"{path.strip('/').replace('/', '.')}.{file[:-3]}"
+            for path, folders, files in os.walk("nokari/plugins/")
+            for file in files
+            if file.endswith(".py") and "__pycache__" not in path
         ]
 
     @property

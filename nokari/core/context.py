@@ -137,3 +137,17 @@ class Context(lightbulb.Context):
         loaded = "\n".join(f"+ {i}" for i in plugins_set ^ {x[0] for x in failed})
         failed = "\n".join(f"- {c} {e}" for c, e in failed)
         return self.respond(f"```diff\n{loaded}\n{failed}```")
+
+    @property
+    def color(self) -> hikari.Colour:
+        """
+        Returns the top role color of the bot itself if has one,
+        otherwise the default color
+        """
+        return (
+            color
+            if self.me
+            and self.me.top_role
+            and (color := self.me.top_role.color) != hikari.Colour.from_rgb(0, 0, 0)
+            else self.bot.default_color
+        )
