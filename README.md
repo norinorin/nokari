@@ -1,5 +1,5 @@
 # Nokari
-This is a rewrite of [Nokari](https://top.gg/bot/725081925311529031). There are still a lot of things to be done.
+This is a rewrite of [Nokari](https://top.gg/bot/725081925311529031). There are still a lot of things to be done. I'm still working on the internal logic, so the bot basically has no functionality yet.
 
 ## Invite Link
 [Click here](https://discord.com/oauth2/authorize?client_id=725081925311529031&permissions=1609953143&scope=bot)
