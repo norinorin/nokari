@@ -12,7 +12,6 @@ if typing.TYPE_CHECKING:
     from nokari.core.paginator import Paginator
 
 __all__: typing.Final[typing.List[str]] = ["Context"]
-_ContextArguments = typing.Union[lightbulb.Bot, Message, str, lightbulb.Command]
 
 
 class Context(lightbulb.Context):

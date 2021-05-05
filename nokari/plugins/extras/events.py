@@ -26,8 +26,10 @@ class Events(plugins.Plugin):
         ):
             return
 
-        message_create_event = GuildMessageCreateEvent(
-            app=event.app, message=message, shard=event.shard
+        message_create_event = (
+            GuildMessageCreateEvent(  # pylint: disable=abstract-class-instantiated
+                app=event.app, message=message, shard=event.shard
+            )
         )
         await self.bot.process_commands_for_event(message_create_event)
 
@@ -35,7 +37,7 @@ class Events(plugins.Plugin):
     async def on_message_delete(self, event: GuildMessageDeleteEvent) -> None:
         if (
             resp := self.bot.cache.get_message(
-                self.bot._resp_cache.pop(event.message_id, 0)
+                self.bot.responses_cache.pop(event.message_id, 0)
             )
         ) is None:
             return

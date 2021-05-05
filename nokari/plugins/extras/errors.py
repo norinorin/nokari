@@ -7,21 +7,20 @@ import lightbulb
 from lightbulb import Bot, plugins
 
 from nokari.core import Context
-from nokari.utils import plural
 
 _ErrorHandler = typing.Callable[
-    ["Errors", Context, lightbulb.errors.CommandError, hikari.Embed],
+    [Context, lightbulb.errors.CommandError, hikari.Embed],
     typing.Literal[None],
 ]
 
 
 def aliases(
-    *aliases: str,
+    *aliases_: str,
 ) -> typing.Callable[[_ErrorHandler], _ErrorHandler]:
     def decorator(
         func: _ErrorHandler,
     ) -> _ErrorHandler:
-        func.__aliases__ = aliases  # type: ignore
+        func.__aliases__ = aliases_  # type: ignore
         return func
 
     return decorator
@@ -63,8 +62,8 @@ class Errors(plugins.Plugin):
             "Ignoring exception in command %s", event.command, exc_info=error
         )
 
+    @staticmethod
     def handle_not_enough_arguments(
-        self,
         ctx: Context,
         error: lightbulb.errors.NotEnoughArguments,
         embed: hikari.Embed,
@@ -73,11 +72,11 @@ class Errors(plugins.Plugin):
         embed.description = "Please pass in the required argument"
         embed.add_field(
             name="Usage:",
-            value=f"`{ctx.prefix}{self.bot.help_command.get_command_signature(error.command)}`",
+            value=f"`{ctx.prefix}{ctx.bot.help_command.get_command_signature(error.command)}`",
         )
 
+    @staticmethod
     def handle_command_is_on_cooldown(
-        self,
         ctx: Context,
         error: lightbulb.errors.CommandIsOnCooldown,
         embed: hikari.Embed,
@@ -88,8 +87,8 @@ class Errors(plugins.Plugin):
             text=f"Please try again in {round(error.retry_after, 2)} seconds"
         )
 
+    @staticmethod
     def handle_command_invocation_error(
-        self,
         ctx: Context,
         error: lightbulb.errors.CommandInvocationError,
         embed: hikari.Embed,
@@ -97,24 +96,30 @@ class Errors(plugins.Plugin):
         """Handles CommandInvocationError error"""
         embed.description = str(error.original)
 
+    @staticmethod
     def handle_missing_required_permission(
-        self,
         ctx: Context,
         error: lightbulb.errors.MissingRequiredPermission,
         embed: hikari.Embed,
     ) -> None:
         """Handles MissingRequiredPermissions error"""
-        embed.description = f"You're missing {', '.join(i.replace('_', ' ').lower() for i in error.missing_perms)} permission{'s' * (len(error.missing_perms) > 1)} to invoke this command"
+        perms = ", ".join(i.replace("_", " ").lower() for i in error.missing_perms)
+        plural = f"permission{'s' * (len(error.missing_perms) > 1)}"
+        embed.description = f"You're missing {perms} {plural} to invoke this command"
 
+    @staticmethod
     def handle_bot_missing_required_permission(
-        self,
         ctx: Context,
         error: lightbulb.errors.BotMissingRequiredPermission,
         embed: hikari.Embed,
     ) -> None:
         """Handles BotMissingPermission error"""
-        embed.description = f"I'm missing {', '.join(i.replace('_', ' ').lower() for i in error.missing_perms)} permission{'s' * (len(error.missing_perms) > 1)}"
+        perms = ", ".join(i.replace("_", " ").lower() for i in error.missing_perms)
+        embed.description = (
+            f"I'm missing {perms} permission{'s' * (len(error.missing_perms) > 1)}"
+        )
 
+    @staticmethod
     @aliases(
         "CommandSyntaxError",
         "CheckFailure",
@@ -126,7 +131,6 @@ class Errors(plugins.Plugin):
         "MissingRequiredRole",
     )
     def handle_converter_failure(
-        self,
         ctx: Context,
         error: lightbulb.errors.ConverterFailure,
         embed: hikari.Embed,

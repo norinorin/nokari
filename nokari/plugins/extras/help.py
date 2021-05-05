@@ -26,7 +26,8 @@ async def _help_cmd(ctx: Context) -> None:
 
 
 class CustomHelp(help_.HelpCommand):
-    def get_prefix(self, context: Context) -> str:
+    @staticmethod
+    def get_prefix(context: Context) -> str:
         """
         Returns the cleaned prefix if it's no longer than 10 chars,
         otherwise returns the clean mention of the bot itself.
@@ -37,13 +38,15 @@ class CustomHelp(help_.HelpCommand):
 
         return f"{prefix} "
 
-    def get_command_description(self, command: Command) -> str:
+    @staticmethod
+    def get_command_description(command: Command) -> str:
         """
         Returns the first line of the docstring of the command.
         """
         return help_.get_help_text(command).split("\n")[0] or "No description..."
 
-    def get_embed(self, context: Context) -> hikari.Embed:
+    @staticmethod
+    def get_embed(context: Context) -> hikari.Embed:
         """
         Returns a default help Embed.
         This will not return the same Embed object if called multiple times.
@@ -57,7 +60,8 @@ class CustomHelp(help_.HelpCommand):
         )
         return embed
 
-    def get_command_signature(self, command: commands.Command) -> str:
+    @staticmethod
+    def get_command_signature(command: commands.Command) -> str:
         """
         Gets the command signature for a command or a command group.
         """
@@ -90,20 +94,23 @@ class CustomHelp(help_.HelpCommand):
 
         return " ".join(items)
 
-    async def send_help_overview(self, context: Context) -> None:
+    @staticmethod
+    async def send_help_overview(context: Context) -> None:
         zws = "\u200b"
-        help_ = context.invoked_with
-        prefix = self.get_prefix(context)
-        embed = self.get_embed(context)
+        invoked_with = context.invoked_with
+        prefix = CustomHelp.get_prefix(context)
+        embed = CustomHelp.get_embed(context)
         embed.title = "Category List"
         embed.description = (
-            f"This is the help command, you could either do `{prefix}{help_} [category]` to get list of commands of a category or `{prefix}{help_} [command]` "
-            f"to get more information about a command or `{prefix}{help_} [query]` to search commands.\n\n"
+            f"This is the help command, you could either do `{prefix}{invoked_with} [category]`"
+            f" to get list of commands of a category or `{prefix}{invoked_with} [command]` "
+            "to get more information about a command or"
+            f"`{prefix}{invoked_with} [query]` to search commands.\n\n"
             "Everything that wrapped inside: \n- `[]` is optional\n- `<>` is required\n"
             "Bear in mind that you're not supposed to pass the `[]` and `<>`\n\n"
         )
 
-        embed._footer.text = "For more information, do help <category>"  # type: ignore
+        embed.footer.text = "For more information, do help <category>"  # type: ignore
 
         for name, plugin in context.bot.plugins.items():
             if plugin.__module__.startswith("nokari.plugins.extras."):
@@ -111,25 +118,29 @@ class CustomHelp(help_.HelpCommand):
 
             embed.add_field(
                 name=name,
-                value=f"```{prefix.replace('`', zws+'`')}{help_} {name}```",
+                value=f"```{prefix.replace('`', zws+'`')}{invoked_with} {name}```",
                 inline=True,
             )
 
         embed.add_field(
             name="Links:",
-            value="[Invite](https://discord.com/oauth2/authorize?client_id=725081925311529031&permissions=1609953143&scope=bot 'Click this to invite me') | [Vote](https://top.gg/bot/725081925311529031/vote 'Click this to vote me') | [Support Server](https://discord.com/invite/4KPMCum 'Click this to join the support server!')",
+            value="[Invite](https://discord.com/oauth2/authorize?client_id=7250819253115290"
+            "31&permissions=1609953143&scope=bot 'Click this to invite me') | [Vote](https:"
+            "//top.gg/bot/725081925311529031/vote 'Click this to vote me') | [Support Server]"
+            "(https://discord.com/invite/4KPMCum 'Click this to join the support server!')",
             inline=False,
         )
 
         await context.respond(embed=embed)
 
-    async def send_plugin_help(self, context: Context, plugin: plugins.Plugin) -> None:
+    @staticmethod
+    async def send_plugin_help(context: Context, plugin: plugins.Plugin) -> None:
         if (
             plugin.__module__.startswith("nokari.plugins.extras.")
             and context.author.id not in context.bot.owner_ids
         ):
-            return await self.send_error_message(
-                await self.object_not_found(context, plugin)
+            return await CustomHelp.send_error_message(
+                await CustomHelp.object_not_found(context, plugin)
             )
 
         entries = await help_.filter_commands(context, plugin._commands.values())
@@ -144,55 +155,57 @@ class CustomHelp(help_.HelpCommand):
             else "You lack permissions to run any command in this category"
         )
 
-        embed = self.get_embed(context)
+        embed = CustomHelp.get_embed(context)
         embed.title = f"{plugin.name} Commands"
         embed.description = help_text
         await context.respond(embed=embed)
 
+    @staticmethod
     def common_command_formatting(
-        self, context: Context, embed: hikari.Embed, command: commands.Command
+        context: Context, embed: hikari.Embed, command: commands.Command
     ) -> None:
-        embed.title = self.get_command_signature(command)
+        embed.title = CustomHelp.get_command_signature(command)
         embed.description = help_.get_help_text(command) or "No help found..."
         if command.__class__ is commands.Command:
-            embed._footer.text = "Got confused? Be sure to join the support server!"  # type: ignore
+            embed.footer.text = "Got confused? Be sure to join the support server!"  # type: ignore
 
-    async def send_command_help(
-        self, context: Context, command: commands.Command
-    ) -> None:
-        embed = self.get_embed(context)
-        self.common_command_formatting(context, embed, command)
+    @staticmethod
+    async def send_command_help(context: Context, command: commands.Command) -> None:
+        embed = CustomHelp.get_embed(context)
+        CustomHelp.common_command_formatting(context, embed, command)
         await context.respond(embed=embed)
 
-    async def send_group_help(self, context: Context, group: commands.Group) -> None:
+    @staticmethod
+    async def send_group_help(context: Context, group: commands.Group) -> None:
         subcommands = group.subcommands
         if len(subcommands) == 0:
-            return await self.send_command_help(context, group)
+            return await CustomHelp.send_command_help(context, group)
 
         entries = await help_.filter_commands(context, subcommands)
         if len(entries) == 0:
-            return await self.send_command_help(context, group)
+            return await CustomHelp.send_command_help(context, group)
 
-        embed = self.get_embed(context)
-        self.common_command_formatting(context, embed, group)
+        embed = CustomHelp.get_embed(context)
+        CustomHelp.common_command_formatting(context, embed, group)
 
         for subcommand in subcommands:
             embed.add_field(
-                name=self.get_command_signature(subcommand),
-                value=self.get_command_description(subcommand),
+                name=CustomHelp.get_command_signature(subcommand),
+                value=CustomHelp.get_command_description(subcommand),
                 inline=False,
             )
 
         await context.respond(embed=embed)
 
+    @staticmethod
     async def query(
-        self, context: Context, iterable: typing.Iterable[commands.Command]
+        context: Context, iterable: typing.Iterable[commands.Command]
     ) -> typing.Optional[hikari.Embed]:
-        query = self.get_arg(context)
+        query = CustomHelp.get_arg(context)
         queries = [i.lower() for i in query.split()]
 
         def fmt(c: commands.Command) -> str:
-            return f'{c}{"".join(c.aliases)}{self.get_command_description(c)}'
+            return f'{c}{"".join(c.aliases)}{CustomHelp.get_command_description(c)}'
 
         matches = [
             y
@@ -229,7 +242,7 @@ class CustomHelp(help_.HelpCommand):
         ]
 
         if len(matched_plugins) == 1:  # To make plugin queries case-insensitive
-            return await self.send_plugin_help(context, matched_plugins[0])
+            return await CustomHelp.send_plugin_help(context, matched_plugins[0])
 
         if len(matches) == 1:  # Just send the object if there's only 1 result
             return await context.send_help(context.bot.get_command(matches[0]))
@@ -237,18 +250,21 @@ class CustomHelp(help_.HelpCommand):
         matches.extend([i.__class__.__name__ for i in matched_plugins])
         matches.sort(key=lambda x: (x, len(x)))
         matches = {f"`{i}`" for i in matches}
-        embed = self.get_embed(context)
+        embed = CustomHelp.get_embed(context)
         embed.title = f'{plural(len(matches)):result} on "{query}"'
         embed.description = ", ".join(matches) or "Oops, seems there's nothing found"
         return embed
 
-    def get_arg(self, context: Context) -> str:
+    @staticmethod
+    def get_arg(context: Context) -> str:
         return context.message.content[
             len(f"{context.prefix}{context.invoked_with}") :
         ].strip()
 
-    async def object_not_found(self, context: Context, obj: commands.Command) -> None:
-        embed = await self.query(
+    # pylint: disable=arguments-differ
+    @staticmethod
+    async def object_not_found(context: Context, obj: commands.Command) -> None:
+        embed = await CustomHelp.query(
             context,
             context.bot.commands
             if obj.__class__ is not commands.Group

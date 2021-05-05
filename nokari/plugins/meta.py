@@ -4,7 +4,7 @@ from collections import Counter
 import hikari
 import lightbulb
 import psutil
-from lightbulb import Bot, checks, plugins
+from lightbulb import Bot, plugins
 
 from nokari import core
 from nokari.core import Context, cooldown
@@ -41,17 +41,24 @@ class Meta(plugins.Plugin):
             ]
         )
         bots, human = counter[True], counter[False]
-
+        boot_time = human_timedelta(
+            datetime.datetime.utcfromtimestamp(psutil.boot_time()),
+            append_suffix=False,
+            brief=True,
+        )
+        total_servers = len(self.bot.cache.get_available_guilds_view()) + len(
+            self.bot.cache.get_unavailable_guilds_view()
+        )
         (
             embed.add_field(
                 name="Uptime:",
-                value=f"Bot: {self.bot.brief_uptime}\nServer: {human_timedelta(datetime.datetime.utcfromtimestamp(psutil.boot_time()), append_suffix=False, brief=True)}",
+                value=f"Bot: {self.bot.brief_uptime}\nServer: {boot_time}",
                 inline=True,
             )
             .add_field(name="Channels:", value=channels, inline=True)
             .add_field(
                 name="Total servers:",
-                value=f"{len(self.bot.cache.get_available_guilds_view()) + len(self.bot.cache.get_unavailable_guilds_view()):,}",
+                value=f"{total_servers:,}",
                 inline=True,
             )
             .add_field(
@@ -76,7 +83,10 @@ class Meta(plugins.Plugin):
             value = f"{round(memory_full_info.uss / 1024** 2, 2)}MiB"
         else:
             name = "RSS / USS:"
-            value = f"{round(memory_full_info.rss / 1024 ** 2, 2)}MiB / {round(memory_full_info.uss / 1024** 2, 2)}MiB"
+            value = (
+                f"{round(memory_full_info.rss / 1024 ** 2, 2)}MiB "
+                f"/ {round(memory_full_info.uss / 1024** 2, 2)}MiB"
+            )
 
         embed.add_field(name=name, value=value, inline=True)
 

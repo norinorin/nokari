@@ -71,6 +71,7 @@ class Admin(plugins.Plugin):
 
         return parsed, status, fn_name
 
+    # pylint: disable=too-many-locals,exec-used,too-many-statements
     @checks.owner_only()
     @core.commands.command(name="eval")
     async def _eval(self, ctx: Context, *, cmd: str) -> None:
@@ -146,13 +147,13 @@ class Admin(plugins.Plugin):
 
                     await paginator.start()
 
-        except Exception as error:
+        except Exception:
             timedelta = time.monotonic() - t0
             measured_time = f"⏲️ {timedelta * 1000}ms"
             if not status:
                 try:
                     traceback_info = re.sub(
-                        f'"[\W\w]+\/{__name__}\.py"',
+                        fr'"[\W\w]+\/{__name__}\.py"',
                         '"/dev/eval.py"',
                         traceback.format_exc(),
                     )

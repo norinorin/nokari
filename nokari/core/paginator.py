@@ -23,6 +23,7 @@ from lightbulb.utils import find, maybe_await
 from nokari.utils import has_guild_perms
 
 if TYPE_CHECKING:
+    # pylint: disable=cyclic-import
     from nokari.core.context import Context
 
 __all__: Final[List[str]] = ["EmptyPages", "Mode", "Paginator"]
