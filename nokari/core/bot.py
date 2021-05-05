@@ -189,7 +189,9 @@ class Nokari(lightbulb.Bot):
             f"{path.strip('/').replace('/', '.')}.{file[:-3]}"
             for path, folders, files in os.walk("nokari/plugins/")
             for file in files
-            if file.endswith(".py") and "__pycache__" not in path
+            if file.endswith(".py")
+            and "__pycache__" not in path
+            and "__init__" not in file
         ]
 
     @property
