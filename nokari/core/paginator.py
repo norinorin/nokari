@@ -18,9 +18,9 @@ from typing import (
 
 import hikari
 from hikari import snowflakes, undefined
-from lightbulb.utils import maybe_await
+from lightbulb.utils import maybe_await, find
 
-from nokari.utils import find, has_guild_perms
+from nokari.utils import has_guild_perms
 
 if TYPE_CHECKING:
     from nokari.core.context import Context

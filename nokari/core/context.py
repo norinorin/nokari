@@ -46,7 +46,7 @@ class Context(lightbulb.Context):
     ) -> Message:
         """Overrides respond method for command invoke on message edits support."""
         if isinstance(embed, hikari.Embed) and not embed.color:
-            embed.color = Color(0x0F000)
+            embed.color = self.color
 
         resp = self.bot.cache.get_message(
             self.bot.responses_cache.get(self.message_id, 0)
