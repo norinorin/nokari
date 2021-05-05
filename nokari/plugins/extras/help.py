@@ -1,4 +1,5 @@
 import datetime
+import inspect
 import typing
 
 import hikari
@@ -60,6 +61,7 @@ class CustomHelp(help_.HelpCommand):
         """
         Gets the command signature for a command or a command group.
         """
+
         parent = command.parent
         if len(command.aliases) > 0:
             aliases = "|".join(command.aliases)
@@ -68,7 +70,25 @@ class CustomHelp(help_.HelpCommand):
                 fmt = f"{parent.name} {fmt}"
         else:
             fmt = command.name if not parent else f"{parent.name} {command.name}"
-        return f"{fmt} {command.usage}" if command.usage else fmt
+
+        items = [fmt]
+
+        if command.usage:
+            items.append(command.usage)
+        else:
+            for argname, arginfo in command.arg_details.args.items():
+                if arginfo.ignore:
+                    continue
+
+                if arginfo.default is inspect.Parameter.empty:
+                    items.append(f"<{argname}>")
+                else:
+                    items.append(f"[{argname}={arginfo.default}]")
+
+                if arginfo.argtype is inspect.Parameter.KEYWORD_ONLY:
+                    break
+
+        return " ".join(items)
 
     async def send_help_overview(self, context: Context) -> None:
         zws = "\u200b"

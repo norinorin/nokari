@@ -15,6 +15,7 @@ import lightbulb
 from lightbulb import checks, commands
 from lightbulb.utils import maybe_await
 
+from nokari.core.commands import command
 from nokari.core.context import Context
 from nokari.utils import human_timedelta
 
@@ -223,21 +224,21 @@ class Nokari(lightbulb.Bot):
 
 
 @checks.owner_only()
-@commands.command(name="reload")
+@command(name="reload")
 async def reload_plugin(ctx: Context, *, plugins: str = "*") -> None:
     """Reloads certain or all the plugins."""
     await ctx.execute_plugins(ctx.bot.reload_extension, plugins)
 
 
 @checks.owner_only()
-@commands.command(name="unload")
+@command(name="unload")
 async def unload_plugin(ctx: Context, *, plugins: str = "*") -> None:
     """Unloads certain or all the plugins."""
     await ctx.execute_plugins(ctx.bot.unload_extension, plugins)
 
 
 @checks.owner_only()
-@commands.command(name="load")
+@command(name="load")
 async def load_plugin(ctx: Context, *, plugins: str = "*") -> None:
     """Loads certain or all the plugins."""
     await ctx.execute_plugins(ctx.bot.load_extension, plugins)
