@@ -23,4 +23,7 @@ ignore-imports=no
 min-similarity-lines=4
 
 [CLASSES]
-exclude-protected=_help_cmd,_commands,_identify
+exclude-protected=_help_cmd,_commands,_identify,_default_key
+
+[DESIGN]
+max-parents=8

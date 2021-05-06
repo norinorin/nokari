@@ -60,7 +60,7 @@ class Paginator:
 
     # pylint: disable=too-many-instance-attributes
 
-    __slots__ = (
+    __slots__: List[str] = [
         "allowed_mentions",
         "ctx",
         "_pages",
@@ -76,7 +76,7 @@ class Paginator:
         "mentions_everyone",
         "user_mentions",
         "role_mentions",
-    )
+    ]
 
     def __init__(
         self,

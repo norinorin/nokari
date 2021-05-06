@@ -59,7 +59,9 @@ class Errors(plugins.Plugin):
             await event.context.respond(embed=embed)
 
         self.bot.log.error(
-            "Ignoring exception in command %s", event.command, exc_info=error
+            "Ignoring exception in command %s",
+            event.command and event.command.qualified_name,
+            exc_info=error,
         )
 
     @staticmethod
@@ -121,7 +123,7 @@ class Errors(plugins.Plugin):
 
     @staticmethod
     @aliases(
-        "CommandSyntaxError",
+        "UnclosedQuotes",
         "CheckFailure",
         "OnlyInGuild",
         "OnlyInDM",
@@ -129,6 +131,9 @@ class Errors(plugins.Plugin):
         "HumanOnly",
         "NSFWChannelOnly",
         "MissingRequiredRole",
+        "UnexpectedQuoteError",
+        "InvalidEndOfQuotedStringError",
+        "ExpectedClosingQuoteError",
     )
     def handle_converter_failure(
         ctx: Context,
