@@ -139,9 +139,7 @@ class CustomHelp(help_.HelpCommand):
             plugin.__module__.startswith("nokari.plugins.extras.")
             and context.author.id not in context.bot.owner_ids
         ):
-            return await CustomHelp.send_error_message(
-                await CustomHelp.object_not_found(context, plugin)
-            )
+            return await CustomHelp.object_not_found(context, "")
 
         entries = await help_.filter_commands(context, plugin._commands.values())
         command_names = sorted(
@@ -171,12 +169,20 @@ class CustomHelp(help_.HelpCommand):
 
     @staticmethod
     async def send_command_help(context: Context, command: commands.Command) -> None:
+        if command not in await help_.filter_commands(context, context.bot.commands):
+            await CustomHelp.object_not_found(context, "")
+            return
+
         embed = CustomHelp.get_embed(context)
         CustomHelp.common_command_formatting(context, embed, command)
         await context.respond(embed=embed)
 
     @staticmethod
     async def send_group_help(context: Context, group: commands.Group) -> None:
+        if group not in await help_.filter_commands(context, context.bot.commands):
+            await CustomHelp.object_not_found(context, "")
+            return
+
         subcommands = group.subcommands
         if len(subcommands) == 0:
             return await CustomHelp.send_command_help(context, group)
@@ -198,11 +204,15 @@ class CustomHelp(help_.HelpCommand):
         await context.respond(embed=embed)
 
     @staticmethod
-    async def query(
-        context: Context, iterable: typing.Iterable[commands.Command]
-    ) -> typing.Optional[hikari.Embed]:
+    async def query(context: Context) -> typing.Optional[hikari.Embed]:
         query = CustomHelp.get_arg(context)
         queries = [i.lower() for i in query.split()]
+
+        cmd = context.bot.get_command(query)
+
+        iterable = (
+            cmd.subcommands if hasattr(cmd, "subcommands") else context.bot.commands
+        )
 
         def fmt(c: commands.Command) -> str:
             return f'{c}{"".join(c.aliases)}{CustomHelp.get_command_description(c)}'
@@ -222,6 +232,7 @@ class CustomHelp(help_.HelpCommand):
         if len(matched_plugins) == 1:  # To make plugin queries case-insensitive
             return await CustomHelp.send_plugin_help(context, matched_plugins[0])
 
+        # todo: fuzzy string matching
         matches = [
             y
             for z in [
@@ -262,15 +273,9 @@ class CustomHelp(help_.HelpCommand):
             len(f"{context.prefix}{context.invoked_with}") :
         ].strip()
 
-    # pylint: disable=arguments-differ
     @staticmethod
-    async def object_not_found(context: Context, obj: commands.Command) -> None:
-        embed = await CustomHelp.query(
-            context,
-            context.bot.commands
-            if obj.__class__ is not commands.Group
-            else obj.subcommands,
-        )
+    async def object_not_found(context: Context, _: str) -> None:
+        embed = await CustomHelp.query(context)
 
         if embed is None:
             return
