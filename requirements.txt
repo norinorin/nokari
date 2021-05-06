@@ -1,4 +1,4 @@
-hikari
+git+https://github.com/hikari-py/hikari@master
 hikari-lightbulb
 python-dotenv
 python-dateutil
