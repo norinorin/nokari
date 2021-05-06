@@ -74,7 +74,7 @@ class _Parser:
             self.current_key: []
         }
 
-    def finalize(self) -> None:
+    def finish(self) -> Parsed:
         params = self.parser.params
         data = self.data
 
@@ -93,6 +93,8 @@ class _Parser:
                 data[k] = True if is_flag and val == [] else " ".join(val)
             else:
                 data[k] = val
+
+        return Parsed(self)
 
 
 class ArgumentOptions(TypedDict, total=False):
@@ -272,5 +274,4 @@ class ArgumentParser:
 
             self.append(parser, argument)
 
-        parser.finalize()
-        return Parsed(parser)
+        return parser.finish()
