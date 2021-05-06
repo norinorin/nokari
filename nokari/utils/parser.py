@@ -45,11 +45,7 @@ class Parsed:
         self.__dict__.update(**{k: v for k, v in data.items() if k is not None})
 
     def __repr__(self) -> str:
-        attrs = " ".join(
-            f"{k}={v!r}"
-            for k, v in self.__dict__.items()
-            if k and not k.startswith("_")
-        )
+        attrs = " ".join(f"{k}={v!r}" for k, v in self.__dict__.items())
         return f"<{self.__class__.__name__} {attrs}>"
 
     def __getitem__(self, key: Any) -> Any:
@@ -239,9 +235,7 @@ class ArgumentParser:
         while not view.eof:
             view.skip_char(" ")
 
-            pass_ = False
-            if view.buffer[view.index : view.index + 2] == '"-':
-                pass_ = True
+            pass_ = view.buffer[view.index : view.index + 2] == '"-'
 
             try:
                 index = view.index
