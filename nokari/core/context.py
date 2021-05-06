@@ -17,8 +17,6 @@ __all__: typing.Final[typing.List[str]] = ["Context"]
 class Context(lightbulb.Context):
     """Custom Context class with overriden methods."""
 
-    __slots__: typing.Tuple[str] = ("no_embed",)
-
     async def respond(  # pylint: disable=arguments-differ
         self,
         content: undefined.UndefinedOr[typing.Any] = undefined.UNDEFINED,
