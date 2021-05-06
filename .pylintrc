@@ -23,4 +23,4 @@ ignore-imports=no
 min-similarity-lines=4
 
 [CLASSES]
-exclude-protected=_help_cmd,_commands
+exclude-protected=_help_cmd,_commands,_identify

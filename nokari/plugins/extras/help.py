@@ -207,28 +207,6 @@ class CustomHelp(help_.HelpCommand):
         def fmt(c: commands.Command) -> str:
             return f'{c}{"".join(c.aliases)}{CustomHelp.get_command_description(c)}'
 
-        matches = [
-            y
-            for z in [
-                x
-                for x in [
-                    [
-                        c.qualified_name
-                        for i in queries
-                        if i
-                        in (
-                            fmt(c)
-                            if not isinstance(c, commands.Group)
-                            else "".join(fmt(cmd) for cmd in c.subcommands)
-                        )
-                    ]
-                    for c in await help_.filter_commands(context, iterable)
-                ]
-                if x
-            ]
-            for y in z
-        ]
-
         matched_plugins = [
             a
             for i in queries
@@ -244,9 +222,32 @@ class CustomHelp(help_.HelpCommand):
         if len(matched_plugins) == 1:  # To make plugin queries case-insensitive
             return await CustomHelp.send_plugin_help(context, matched_plugins[0])
 
-        if len(matches) == 1:  # Just send the object if there's only 1 result
-            return await context.send_help(context.bot.get_command(matches[0]))
+        matches = [
+            y
+            for z in [
+                x
+                for x in [
+                    [
+                        c
+                        for i in queries
+                        if i
+                        in (
+                            fmt(c)
+                            if not isinstance(c, commands.Group)
+                            else "".join(fmt(cmd) for cmd in c.subcommands)
+                        )
+                    ]
+                    for c in await help_.filter_commands(context, iterable)
+                ]
+                if x
+            ]
+            for y in z
+        ]
 
+        if len(matches) == 1:  # Just send the object if there's only 1 result
+            return await context.send_help(matches[0])
+
+        matches = [c.qualified_name for c in matches]
         matches.extend([i.__class__.__name__ for i in matched_plugins])
         matches.sort(key=lambda x: (x, len(x)))
         matches = {f"`{i}`" for i in matches}

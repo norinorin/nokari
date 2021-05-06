@@ -16,9 +16,7 @@ def source(obj: typing.Any) -> str:
     return "\n".join(i[indent:] for i in _s)
 
 
-SOURCE = source(
-    hikari.impl.shard.GatewayShardImpl._identify  # pylint: disable=protected-access
-)
+SOURCE = source(hikari.impl.shard.GatewayShardImpl._identify)
 
 patched = re.sub(
     r'([\'"]\$browser[\'"]:\s*f?[\'"]).+([\'"])',  # hh this regex
@@ -36,5 +34,4 @@ exec(  # pylint: disable=exec-used
     loc,
 )
 
-# pylint: disable=protected-access
 hikari.impl.shard.GatewayShardImpl._identify = loc["_identify"]  # type: ignore
