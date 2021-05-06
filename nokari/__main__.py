@@ -18,7 +18,7 @@ load_dotenv()
 if "DISCORD_BOT_TOKEN" not in os.environ:
     raise RuntimeError("DISCORD_BOT_TOKEN env variable must be set.")
 
-if "DISCORD_BROWSER" in os.environ:
+if "DISCORD_MOBILE_INDICATOR" in os.environ:
     import nokari.utils.monkey_patch
 
     del nokari.utils.monkey_patch
