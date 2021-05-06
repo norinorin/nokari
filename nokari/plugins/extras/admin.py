@@ -12,7 +12,7 @@ import hikari
 from lightbulb import Bot, checks, plugins
 
 from nokari import core, utils
-from nokari.core import Context, Paginator
+from nokari.core import Context
 
 
 class Admin(plugins.Plugin):
@@ -151,7 +151,7 @@ class Admin(plugins.Plugin):
                     del chunked_output
                     del chunked_return_value
 
-                    paginator = Paginator.default(ctx)
+                    paginator = utils.Paginator.default(ctx)
                     paginator.add_page(pages)
 
                     await paginator.start()

@@ -9,8 +9,7 @@ from hikari import embeds as embeds_
 from hikari import files, guilds, snowflakes, undefined, users
 
 if typing.TYPE_CHECKING:
-    # pylint: disable=cyclic-import
-    from nokari.core.paginator import Paginator
+    from nokari.utils.paginator import Paginator
 
 __all__: typing.Final[typing.List[str]] = ["Context"]
 

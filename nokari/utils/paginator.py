@@ -20,7 +20,7 @@ import hikari
 from hikari import snowflakes, undefined
 from lightbulb.utils import find, maybe_await
 
-from nokari.utils import has_guild_perms
+from .perms import has_guild_perms
 
 if TYPE_CHECKING:
     # pylint: disable=cyclic-import
