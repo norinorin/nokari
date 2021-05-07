@@ -21,7 +21,9 @@ class Command(commands.Command):
         """The custom command signature if specified."""
 
 
-_CommandCallback = typing.Callable[..., typing.Any]
+_CommandCallbackT = typing.TypeVar(
+    "_CommandCallbackT", bound=typing.Callable[..., typing.Any]
+)
 
 
 def command(
@@ -31,13 +33,13 @@ def command(
     aliases: typing.Optional[typing.Sequence[str]] = None,
     hidden: bool = False,
     **kwargs: typing.Any,
-) -> typing.Callable[[_CommandCallback], _CommandCallback]:
+) -> typing.Callable[[_CommandCallbackT], _CommandCallbackT]:
     """
     A custom decorator that takes arbitrary kwargs and passes it
     when instantiating the Command object.
     """
 
-    def decorate(func: _CommandCallback) -> commands.Command:
+    def decorate(func: _CommandCallbackT) -> commands.Command:
         return cls(
             func,
             name or func.__name__,
