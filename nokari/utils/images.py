@@ -75,13 +75,14 @@ def right_fade(im: Image.Image, rad: int = 100) -> Image.Image:
         fill=0,
     )
 
-    blurred_mask = mask.filter(ImageFilter.GaussianBlur(radius=rad)).crop(
-        box=(
-            int(rad / 2),
-            int(rad / 2),
-            m_w - int(rad / 2),
-            m_h - int(rad / 2),
+    im.putalpha(
+        mask.filter(ImageFilter.GaussianBlur(radius=rad)).crop(
+            box=(
+                rad // 2,
+                rad // 2,
+                m_w - rad // 2,
+                m_h - rad // 2,
+            )
         )
     )
-    im.putalpha(blurred_mask)
     return im

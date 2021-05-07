@@ -280,8 +280,11 @@ class SpotifyCardGenerator:
         )
         canvas = Image.new("RGB", (width, height), rgbs[0])
 
+        base_rad = width * 0.0609375
+        delta = self.WIDTH - width
         canvas_fade = right_fade(
-            canvas.crop((0, 0, height, height)), int(height * 0.185)
+            canvas.crop((0, 0, height, height)),
+            int(base_rad - (delta / self.SIDE_GAP / 2)),
         )
 
         canvas.paste(img, (width - height, 0), img)
@@ -335,22 +338,19 @@ class SpotifyCardGenerator:
 
         base_y = self.SIDE_GAP + self.SIDE_GAP // 2
         inc = self.SIDE_GAP // 10
-        y1 = base_y + inc
-        y2 = base_y - inc
+        y1 = max_ = base_y + inc
+        y2 = min_ = base_y - inc
 
         if hidden:
             y1, y2 = y2, y1
 
-        max_ = max(y1, y2)
-        min_ = min(y1, y2)
-
         draw.line(
-            ((width - max_ + abs(y2 - y1), y1), (width - max_ - 1, y2)),
+            ((width - (max_ * 2 - min_), y1), (width - max_ + 1, y2)),
             fill=lighter_color,
             width=inc,
         )
         draw.line(
-            ((width - max_ + 1, y2), (width - min_, y1)), fill=lighter_color, width=inc
+            ((width - max_ - 1, y2), (width - min_, y1)), fill=lighter_color, width=inc
         )
 
         round_corners(canvas, self.SIDE_GAP)
