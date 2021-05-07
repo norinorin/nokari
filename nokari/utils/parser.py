@@ -11,6 +11,7 @@ from typing import (
     TypedDict,
     Union,
 )
+from types import SimpleNamespace
 
 from nokari.utils.view import StringView, UnexpectedQuoteError
 
@@ -18,34 +19,9 @@ if TYPE_CHECKING:
     from nokari.core.context import Context
 
 __all__: Final[List[str]] = [
-    "Parsed",
     "ArgumentParser",
     "ArgumentOptions",
 ]
-
-
-# pylint: disable=too-few-public-methods
-class Parsed:
-    def __init__(self, parser: "_Parser") -> None:
-        data = parser.data
-        _default_key = parser.parser._default_name
-        data["remainder"] = data[_default_key]
-
-        for key in data.keys():
-            if key is None:
-                continue
-
-            if "-" in key:
-                data[key.replace("-", "_")] = data.pop(key)
-
-        self.__dict__.update(**{k: v for k, v in data.items() if k is not None})
-
-    def __repr__(self) -> str:
-        attrs = " ".join(f"{k}={v!r}" for k, v in self.__dict__.items())
-        return f"<{self.__class__.__name__} {attrs}>"
-
-    def __getitem__(self, key: Any) -> Any:
-        return self.__dict__[key]
 
 
 # pylint: disable=too-few-public-methods
@@ -66,27 +42,27 @@ class _Parser:
             self.current_key: []
         }
 
-    def finish(self) -> Parsed:
+    def finish(self) -> SimpleNamespace:
         params = self.parser.params
         data = self.data
 
         if self.parser._default_key is None:
-            remainder = data[None]
+            remainder = data.pop(None)
             if isinstance(remainder, list):
-                data[None] = " ".join(remainder)
+                data["remainder"] = " ".join(remainder)
 
         for v in params.values():
             k = v["name"]
+            is_flag = v.get("argmax", -1) == 0 if v else -1
+            val = data.pop(k, False if is_flag else None)
             if k is not None:
                 k = k.replace("-", "_")
-            is_flag = v.get("argmax", -1) == 0 if v else -1
-            val = data.get(k, False if is_flag else None)
             if isinstance(val, list):
                 data[k] = True if is_flag and val == [] else " ".join(val)
             else:
                 data[k] = val
 
-        return Parsed(self)
+        return SimpleNamespace(**{k: v for k, v in data.items() if k is not None})
 
 
 class ArgumentOptions(TypedDict, total=False):
@@ -217,10 +193,12 @@ class ArgumentParser:
             if max_length != -1 and count >= max_length:
                 parser.current_key = self._default_name
 
-    def convert(self, ctx: "Context", argument: str) -> Coroutine[Any, Any, Parsed]:
+    def convert(
+        self, ctx: "Context", argument: str
+    ) -> Coroutine[Any, Any, SimpleNamespace]:
         return self.parse(argument)
 
-    async def parse(self, argument: str) -> Parsed:
+    async def parse(self, argument: str) -> SimpleNamespace:
         """
         There's no reason for this method to be async.
         But it might be useful in the future.

@@ -21,15 +21,6 @@ class Admin(plugins.Plugin):
     def __init__(self, bot: Bot):
         super().__init__()
         self.bot = bot
-        self._spotify_card_parser_test = utils.ArgumentParser(
-            {
-                "s": utils.ArgumentOptions(name="style", argmax=1),
-                "h": utils.ArgumentOptions(name="hidden", argmax=0),
-                "c": utils.ArgumentOptions(name="card", argmax=0),
-                "t": utils.ArgumentOptions(name="time", argmax=0),
-                "cl": utils.ArgumentOptions(name="colour", aliases=["color"], argmax=1),
-            }
-        )
 
     @staticmethod
     def insert_returns(
@@ -178,11 +169,6 @@ Error: ```py
                 except hikari.HTTPResponseError:
                     await ctx.message.add_reaction("❌")
                     self.bot.logger.error(traceback_info)
-
-    @checks.owner_only()
-    @core.commands.command()
-    async def parse(self, ctx: Context, *, argument: str) -> None:
-        await ctx.respond(await self._spotify_card_parser_test.parse(argument))
 
 
 def load(bot: Bot) -> None:

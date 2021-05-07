@@ -6,3 +6,5 @@ from .paginator import *
 from .parser import *
 from .perms import *
 from .view import *
+from .algorithm import *
+from .spotify import *

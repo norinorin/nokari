@@ -4,3 +4,8 @@ python-dotenv
 python-dateutil
 uvloop
 psutil
+pillow
+numpy
+numexpr
+lru-dict
+colorthief

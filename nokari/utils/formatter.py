@@ -1,11 +1,12 @@
 """A module that contains formatting helper functions."""
 
 import datetime
+import re
 import typing
 
 from dateutil import relativedelta
 
-__all__: typing.Final[typing.List[str]] = ["plural", "human_timedelta"]
+__all__: typing.Final[typing.List[str]] = ["plural", "human_timedelta", "get_timestamp"]
 
 
 class plural:
@@ -109,3 +110,12 @@ def human_timedelta(
         return _human_join(output) + suffix
 
     return " ".join(output) + suffix
+
+
+def get_timestamp(timedelta: datetime.timedelta) -> str:
+    """Gets the timestamp string of a timedelta object"""
+    out = re.sub(" days?, ", ":", str(timedelta)).split(":")
+    out = ":".join(f"{int(float(x)):02d}" for x in out)
+    while out.startswith("00:") and len(out) > 5:
+        out = out[3:]
+    return re.sub(r"^0(\d:)", r"\1", out)

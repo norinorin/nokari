@@ -10,6 +10,7 @@ import traceback
 import typing
 import weakref
 
+import aiohttp
 import hikari
 import lightbulb
 from lightbulb import checks, commands
@@ -126,6 +127,11 @@ class Nokari(lightbulb.Bot):
     def loop(self) -> asyncio.AbstractEventLoop:
         """Returns an asyncio event loop."""
         return asyncio.get_event_loop()
+
+    @property
+    def session(self) -> typing.Optional[aiohttp.ClientSession]:
+        """Returns a ClientSession"""
+        return self._rest._client_session
 
     @property
     def responses_cache(self) -> FixedSizedDict[_KT, _VT]:
