@@ -31,16 +31,12 @@ class Parsed:
         _default_key = parser.parser._default_name
         data["remainder"] = data[_default_key]
 
-        dash_keys = []
-        for key in data:
+        for key in data.keys():
             if key is None:
                 continue
 
             if "-" in key:
-                dash_keys.append(key)
-
-        for key in dash_keys:
-            data[key.replace("-", "_")] = data.pop(key)
+                data[key.replace("-", "_")] = data.pop(key)
 
         self.__dict__.update(**{k: v for k, v in data.items() if k is not None})
 
@@ -120,14 +116,14 @@ class ArgumentParser:
         """
         Parameters
         ----------
-        params: dict
+        params: Dict[str, ArgumentOptions]
             A mapping from short flag to its options.
         force: bool
             If set to False, invalid flags/options will be remainder,
             otherwise they're ignored. Defaults to False.
         replace: bool
             If set to True, it'll replace the existing key,
-            otherwise it'll be remainder.
+            otherwise it'll get appended as remainder. Defaults to True
         append_remainder_to: Optional[str]
             Append the remainder to the set key. Defaults to None.
         """
