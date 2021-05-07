@@ -13,12 +13,11 @@ def chunks(text: str, length: int) -> Iterator[str]:
     This will yield the chunked text split by newline character
     or by space.
     """
-    start = 0
-    end = 0
-    while start + length < len(text):
-        sliced = text[start - 1 : start + length]
+    start, end = 1, 0
+    while (end := start + length) < len(text):
+        sliced = text[start - 1 : end]
         cue = "\n" if "\n" in sliced else " "
-        end = text.rfind(cue, start, start + length + 1)
+        end = text.rfind(cue, start, end + 1)
         if end - start > length or end < 0:
             start -= 1
             end = start + length
