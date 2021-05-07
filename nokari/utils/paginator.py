@@ -188,8 +188,7 @@ class Paginator:
         self._task = self.loop.create_task(self._run_paginator(**kwargs))
 
         with suppress(asyncio.CancelledError):
-            if self._task is not None:
-                return await self._task
+            return await self._task  # type: ignore
 
         return None
 
@@ -199,10 +198,10 @@ class Paginator:
             return
 
         for emoji in self._buttons:
+            # pylint: disable=cell-var-from-loop
             if find(
-                lambda r: str(r.emoji) == emoji  # pylint: disable=cell-var-from-loop
-                and r.is_me,
                 self.message.reactions,
+                lambda r: str(r.emoji) == emoji and r.is_me,
             ):
                 continue
 
@@ -262,7 +261,8 @@ class Paginator:
                     )
 
                 done, pending = await asyncio.wait(
-                    events, return_when=asyncio.FIRST_COMPLETED
+                    [self.loop.create_task(event) for event in events],
+                    return_when=asyncio.FIRST_COMPLETED,
                 )
 
                 try:

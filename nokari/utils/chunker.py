@@ -17,7 +17,7 @@ def chunks(text: str, length: int) -> Iterator[str]:
     end = 0
     while start + length < len(text):
         sliced = text[start - 1 : start + length]
-        cue = "\n" if sliced.count("\n") > 0 else " "
+        cue = "\n" if "\n" in sliced else " "
         end = text.rfind(cue, start, start + length + 1)
         if end - start > length or end < 0:
             start -= 1
