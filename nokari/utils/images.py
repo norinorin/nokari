@@ -11,7 +11,7 @@ U_CHAR_OVERFLOW: int = 2 << 7
 __all__: typing.Final[typing.List[str]] = [
     "has_transparency",
     "round_corners",
-    "get_cominant_color",
+    "get_dominant_color",
     "right_fade",
 ]
 

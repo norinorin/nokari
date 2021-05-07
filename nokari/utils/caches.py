@@ -10,10 +10,10 @@ _FuncT = typing.TypeVar("_FuncT", bound=typing.Callable[..., typing.Any])
 
 
 def _resolve_coro_and_store(
-    cache: LRU, key: str, coro: typing.Coroutine
+    cache_: LRU, key: str, coro: typing.Coroutine, /
 ) -> typing.Coroutine:
     async def wrapper() -> typing.Any:
-        cache[key] = value = await coro
+        cache_[key] = value = await coro
         return value
 
     return wrapper()
@@ -55,6 +55,7 @@ def cache(size: int) -> typing.Callable[[_FuncT], _FuncT]:
 
             if _is_coro:
 
+                # pylint: disable=function-redefined
                 async def wrapper() -> typing.Coroutine:
                     return res
 

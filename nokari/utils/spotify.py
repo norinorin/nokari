@@ -1,6 +1,5 @@
 """A module that contains a Spotify card generation implementation."""
 
-import asyncio
 import datetime
 import typing
 from io import BytesIO
@@ -25,6 +24,7 @@ class NoSpotifyPresenceError(Exception):
     """Raised when the member doesn't have Spotify presence"""
 
 
+# pylint: disable=too-few-public-methods
 class _SpotifyCardMetadata(typing.TypedDict):
     font_color: _RGB
     alt_color: _RGB
@@ -45,9 +45,10 @@ class Spotify:
     def title(self) -> str:
         return self._act.details or ""
 
+    # pylint: disable=consider-using-ternary
     @property
     def album(self) -> str:
-        return self._act.assets and self._act.assets.large_text or "Local Files"
+        return (self._act.assets and self._act.assets.large_text) or "Local Files"
 
     @property
     def artists(self) -> str:
@@ -181,6 +182,7 @@ class SpotifyCardGenerator:
 
         return dom_color, palette
 
+    # pylint: disable=too-many-arguments, too-many-locals
     async def _generate_base_card1(
         self,
         album_url: str,
@@ -257,6 +259,7 @@ class SpotifyCardGenerator:
             font_color=font_color, alt_color=get_alt_color(rgbs[0]), height=raw_height
         )
 
+    # pylint: disable=too-many-arguments, too-many-locals
     async def _generate_base_card2(
         self,
         album_url: str,
@@ -360,7 +363,8 @@ class SpotifyCardGenerator:
             font_color=font_color, alt_color=lighter_color, height=raw_height
         )
 
-    def _shorten_text(self, font: ImageFont, text: str, threshold: int) -> str:
+    @staticmethod
+    def _shorten_text(font: ImageFont, text: str, threshold: int) -> str:
         width, _ = font.getsize(text)
         dot, _ = font.getsize("...")
         if width < threshold:
@@ -438,17 +442,18 @@ class SpotifyCardGenerator:
                 self.SIDE_GAP // 10,
                 (*alt_color, 255),
             ).crop((0, 0, int(rectangle_length), 10))
-            bar = self._generate_rounded_rectangle(
+            total_bar = self._generate_rounded_rectangle(
                 (width - self.SIDE_GAP * 2, text_gap),
                 self.SIDE_GAP // 10,
                 (*alt_color, 150),
             )
 
-            for _bar in (bar, elapsed_bar):
+            # pylint: disable=blacklisted-name
+            for bar in (total_bar, elapsed_bar):
                 canvas.paste(
-                    _bar,
+                    bar,
                     (self.SIDE_GAP, height - self.SIDE_GAP * 2 - self.SIDE_GAP // 2),
-                    _bar,
+                    bar,
                 )
 
             r = int(self.SIDE_GAP * 0.3)
@@ -476,9 +481,8 @@ class SpotifyCardGenerator:
 
     __call__ = generate_spotify_card
 
-    def _get_spotify_act(
-        self, member: hikari.Member
-    ) -> typing.Optional[hikari.RichActivity]:
+    @staticmethod
+    def _get_spotify_act(member: hikari.Member) -> typing.Optional[hikari.RichActivity]:
         if not member.presence or not member.presence.activities:
             return None
 

@@ -4,6 +4,7 @@ import typing
 __all__: typing.Final[typing.List[str]] = ["get_luminance", "get_alt_color"]
 
 
+# pylint: disable=keyword-arg-before-vararg
 def get_luminance(
     rgb: typing.Optional[typing.Sequence[int]] = None, *args: int
 ) -> float:
