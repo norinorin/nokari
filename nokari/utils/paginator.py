@@ -221,7 +221,7 @@ class Paginator:
         Runs the internal loop. This shouldn't get called.
         For general use, call Paginator.start() instead.
 
-        This method will returns a message if return_message was set to True.
+        This method will return a message if return_message was set to True.
         """
         message_check = message_check or (
             lambda x: x.author_id == self.ctx.author.id
