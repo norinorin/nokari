@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -11,7 +12,6 @@ from typing import (
     TypedDict,
     Union,
 )
-from types import SimpleNamespace
 
 from nokari.utils.view import StringView, UnexpectedQuoteError
 

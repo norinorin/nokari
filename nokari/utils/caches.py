@@ -5,18 +5,7 @@ from functools import wraps
 
 from lru import LRU
 
-
 _FuncT = typing.TypeVar("_FuncT", bound=typing.Callable[..., typing.Any])
-
-
-def _resolve_coro_and_store(
-    cache_: LRU, key: str, coro: typing.Coroutine, /
-) -> typing.Coroutine:
-    async def wrapper() -> typing.Any:
-        cache_[key] = value = await coro
-        return value
-
-    return wrapper()
 
 
 def _get_key(args: typing.Tuple[typing.Any, ...]) -> str:

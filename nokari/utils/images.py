@@ -2,10 +2,9 @@
 
 import typing
 
-import numpy
 import numexpr
+import numpy
 from PIL import Image, ImageDraw, ImageFilter
-
 
 U_CHAR_OVERFLOW: int = 2 << 7
 __all__: typing.Final[typing.List[str]] = [

@@ -4,17 +4,16 @@ import datetime
 import typing
 from io import BytesIO
 
-import numpy
 import hikari
+import numpy
 from colorthief import ColorThief
 from lightbulb import Bot, utils
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-from .algorithm import get_luminance, get_alt_color
-from .images import has_transparency, round_corners, right_fade, get_dominant_color
+from .algorithm import get_alt_color, get_luminance
 from .caches import cache
 from .formatter import get_timestamp as format_time
-
+from .images import get_dominant_color, has_transparency, right_fade, round_corners
 
 _RGB = typing.Tuple[int, ...]
 _RGBs = typing.List[_RGB]

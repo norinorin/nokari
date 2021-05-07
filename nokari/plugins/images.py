@@ -1,13 +1,13 @@
-import typing
 import time
+import typing
 from io import BytesIO
 
 import hikari
 import lightbulb
-from lightbulb import Bot, plugins, converters, Context
+from lightbulb import Bot, Context, converters, plugins
 
-from nokari.utils.spotify import SpotifyCardGenerator, NoSpotifyPresenceError
 from nokari import core, utils
+from nokari.utils.spotify import NoSpotifyPresenceError, SpotifyCardGenerator
 
 
 class Images(plugins.Plugin):
