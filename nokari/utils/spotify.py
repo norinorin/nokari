@@ -128,6 +128,8 @@ class SpotifyCardGenerator:
 
                 return rgbs, img
 
+    cache = _get_album_and_colors.cache  # type: ignore
+
     @staticmethod
     def _get_colors(image: BytesIO, mode: str = "full") -> typing.Tuple[_RGB, _RGBs]:
         """Returns the dominant color as well as other colors present in the image"""
