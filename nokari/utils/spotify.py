@@ -213,17 +213,14 @@ class SpotifyCardGenerator:
     # pylint: disable=too-many-arguments, too-many-locals
     async def _generate_base_card1(
         self,
-        album_url: str,
+        album_cover_url: str,
         artist: str,
         title: str,
-        album_title: str,
+        album: str,
         hidden: bool,
         color_mode: str,
     ) -> typing.Tuple[Image.Image, typing.Optional[_SpotifyCardMetadata]]:
-        # IDK how else to suppress jedi, gotta do this
-        title, artist = title, artist
-
-        album_title = f"on {album_title}"
+        album = f"on {album}"
 
         title_width = self.C1_BOLD_FONT.getsize(title)[0]
 
@@ -235,17 +232,19 @@ class SpotifyCardGenerator:
             height -= self.SIDE_GAP
 
         rgbs, im = await self._get_album_and_colors(
-            album_url, height, color_mode or "downscale"
+            album_cover_url, height, color_mode or "downscale"
         )
         width = (
             width if (width := title_width + raw_height) > self.WIDTH else self.WIDTH
         )
 
-        def wrapper() -> typing.Tuple[
-            Image.Image, typing.Optional[_SpotifyCardMetadata]
-        ]:
-            nonlocal rgbs, title, artist, im, album_title
-
+        def wrapper(
+            title: str,
+            artist: str,
+            album: str,
+            rgbs: typing.Tuple[typing.Tuple[_RGB, _RGBs]],
+            im: Image.Image,
+        ) -> typing.Tuple[Image.Image, typing.Optional[_SpotifyCardMetadata]]:
             canvas = Image.new("RGB", (width, height), rgbs[0])
 
             round_corners(im, self.SIDE_GAP)
@@ -256,25 +255,24 @@ class SpotifyCardGenerator:
 
             text_area = width - raw_height
 
-            artist, album_title = [
-                self._shorten_text(self.BIG_FONT, i, text_area)
-                for i in (artist, album_title)
+            artist, album = [
+                self._shorten_text(self.BIG_FONT, i, text_area) for i in (artist, album)
             ]
 
-            font_color = self._get_font_color(*rgbs)
+            font_color = self._get_font_color(*rgbs)  # type: ignore
 
             draw = ImageDraw.Draw(canvas)
 
             title_c_map = self._get_char_size_map(title, draw, self.C1_BOLD_FONT)
             artist_c_map = self._get_char_size_map(artist, draw, self.BIG_FONT)
-            album_c_map = self._get_char_size_map(album_title, draw, self.BIG_FONT)
+            album_c_map = self._get_char_size_map(album, draw, self.BIG_FONT)
 
             threshold = min(
                 [
                     sum([map_[c][0] for c in text])
                     for map_, text in (
                         (artist_c_map, artist),
-                        (album_c_map, album_title),
+                        (album_c_map, album),
                     )
                 ]
                 + [title_width]
@@ -282,7 +280,7 @@ class SpotifyCardGenerator:
 
             title_h = self._get_height_from_text(title, title_c_map, threshold)
             artist_h = self._get_height_from_text(artist, artist_c_map, threshold)
-            album_h = self._get_height_from_text(album_title, album_c_map, threshold)
+            album_h = self._get_height_from_text(album, album_c_map, threshold)
 
             outer_gap = (album_cover_size - title_h - artist_h - album_h) // 4
 
@@ -306,7 +304,7 @@ class SpotifyCardGenerator:
 
             draw.text(
                 (raw_height - self.SIDE_GAP, album_y),
-                album_title,
+                album,
                 font=self.BIG_FONT,
                 fill=font_color,
             )
@@ -318,25 +316,24 @@ class SpotifyCardGenerator:
 
             return canvas, _SpotifyCardMetadata(
                 font_color=font_color,
-                alt_color=get_alt_color(rgbs[0]),
+                alt_color=get_alt_color(typing.cast(typing.Tuple[int, ...], rgbs[0])),
                 height=raw_height,
             )
 
-        return await self.loop.run_in_executor(self.bot.executor, wrapper)
+        return await self.loop.run_in_executor(
+            self.bot.executor, wrapper, artist, album, title, rgbs, im
+        )
 
     # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
     async def _generate_base_card2(
         self,
-        album_url: str,
+        album_cover_url: str,
         artist: str,
         title: str,
-        album_title: str,
+        album: str,
         hidden: bool,
         color_mode: str,
     ) -> typing.Tuple[Image.Image, typing.Optional[_SpotifyCardMetadata]]:
-        # IDK how else to suppress jedi, gotta do this
-        artist, title, album_title = artist, title, album_title
-
         width = self.WIDTH
 
         height = raw_height = 425
@@ -348,14 +345,12 @@ class SpotifyCardGenerator:
             height -= decrement
 
         rgbs, im = await self._get_album_and_colors(
-            album_url, height, color_mode or "top-bottom blur"
+            album_cover_url, height, color_mode or "top-bottom blur"
         )
 
-        def wrapper() -> typing.Tuple[
-            Image.Image, typing.Optional[_SpotifyCardMetadata]
-        ]:
-            nonlocal artist, title, album_title
-
+        def wrapper(
+            artist: str, title: str, album: str
+        ) -> typing.Tuple[Image.Image, typing.Optional[_SpotifyCardMetadata]]:
             canvas = Image.new("RGB", (width, height), rgbs[0])
 
             base_rad = width * 0.0609375
@@ -404,7 +399,7 @@ class SpotifyCardGenerator:
             spotify_text = "Spotify \u2022"
 
             spotify_album_c_mapping = self._get_char_size_map(
-                spotify_text + album_title, draw, font=self.SMALL_FONT
+                spotify_text + album, draw, font=self.SMALL_FONT
             )
 
             spotify_width = sum(
@@ -413,10 +408,10 @@ class SpotifyCardGenerator:
 
             album_x = decrement + spotify_width + spotify_album_c_mapping[" "][0]
 
-            if album_title != "Local Files":
-                album_title = self._shorten_text(
+            if album != "Local Files":
+                album = self._shorten_text(
                     self.SMALL_FONT,
-                    f"{album_title}",
+                    f"{album}",
                     text_area - album_x - decrement + self.SIDE_GAP * 3,
                 )
 
@@ -431,7 +426,7 @@ class SpotifyCardGenerator:
                     album_x,
                     self.SIDE_GAP,
                 ),
-                album_title,
+                album,
                 font=self.SMALL_FONT,
                 fill=alt_color,
             )
@@ -486,7 +481,9 @@ class SpotifyCardGenerator:
                 font_color=font_color, alt_color=lighter_color, height=raw_height
             )
 
-        return await self.loop.run_in_executor(self.bot.executor, wrapper)
+        return await self.loop.run_in_executor(
+            self.bot.executor, wrapper, artist, album, title
+        )
 
     @staticmethod
     def _shorten_text(font: ImageFont, text: str, threshold: int) -> str:
@@ -510,12 +507,12 @@ class SpotifyCardGenerator:
 
         spotify = Spotify(act)
         timestamp = self._get_timestamp(act)
-        album_url = (
+        album_cover_url = (
             spotify.album_cover_url
             or (member.avatar_url or member.default_avatar_url).url
         )
 
-        return timestamp, album_url, spotify.artists, spotify.title, spotify.album
+        return timestamp, album_cover_url, spotify.artists, spotify.title, spotify.album
 
     async def generate_spotify_card(
         self,
