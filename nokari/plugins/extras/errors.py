@@ -4,7 +4,7 @@ from string import capwords
 
 import hikari
 import lightbulb
-from lightbulb import Bot, plugins
+from lightbulb import Bot, plugins, utils
 
 from nokari.core import Context
 
@@ -50,7 +50,19 @@ class Errors(plugins.Plugin):
             icon=author.avatar_url or author.default_avatar_url,
         )
         error = event.exception or event.exception.__cause__
-        func = self.handlers.get(error.__class__.__name__)
+        func = self.handlers.get(
+            error.__class__.__name__,
+            self.handlers.get(
+                parent.__name__  # pylint: disable=used-before-assignment
+                if (
+                    parent := utils.find(
+                        error.__class__.__mro__,
+                        lambda cls: cls.__name__ in self.handlers,
+                    )
+                )
+                else None
+            ),
+        )
 
         if func:
             func(event.context, error, embed)
@@ -131,9 +143,7 @@ class Errors(plugins.Plugin):
         "HumanOnly",
         "NSFWChannelOnly",
         "MissingRequiredRole",
-        "UnexpectedQuoteError",
-        "InvalidEndOfQuotedStringError",
-        "ExpectedClosingQuoteError",
+        "_BaseError",  # Errors raised in view.py
     )
     def handle_converter_failure(
         ctx: Context,
