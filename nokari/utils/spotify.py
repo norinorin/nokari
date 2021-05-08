@@ -239,8 +239,8 @@ class SpotifyCardGenerator:
         )
 
         def wrapper(
-            title: str,
             artist: str,
+            title: str,
             album: str,
             rgbs: typing.Tuple[typing.Tuple[_RGB, _RGBs]],
             im: Image.Image,
@@ -321,7 +321,7 @@ class SpotifyCardGenerator:
             )
 
         return await self.loop.run_in_executor(
-            self.bot.executor, wrapper, artist, album, title, rgbs, im
+            self.bot.executor, wrapper, artist, title, album, rgbs, im
         )
 
     # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
@@ -482,7 +482,7 @@ class SpotifyCardGenerator:
             )
 
         return await self.loop.run_in_executor(
-            self.bot.executor, wrapper, artist, album, title
+            self.bot.executor, wrapper, artist, title, album
         )
 
     @staticmethod
