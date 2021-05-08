@@ -45,16 +45,18 @@ class Images(plugins.Plugin):
         if member.is_bot:
             return await ctx.send("I won't make a card for bots >:(")
 
-        style = (args.style or "").replace("fixed", "2").replace("dynamic", "1") or "2"
+        style_map = {
+            "dynamic": "1",
+            "fixed": "2",
+            **{s: s for n in range(1, 3) if (s := str(n))},
+        }
+        style = style_map.get(args.style, "2")
 
         try:
             async with self.bot.rest.trigger_typing(ctx.channel_id):
                 with BytesIO() as fp:
                     im = await self._spotify_card_generator(
-                        member,
-                        args.hidden,
-                        args.colour,
-                        style,
+                        member, args.hidden, args.colour, style
                     )
                     im.save(fp, "PNG")
                     fp.seek(0)
