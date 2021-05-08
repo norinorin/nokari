@@ -3,7 +3,6 @@
 import datetime
 import typing
 from io import BytesIO
-from string import ascii_letters
 
 import hikari
 import numpy
@@ -11,8 +10,8 @@ from colorthief import ColorThief
 from lightbulb import Bot, utils
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
+from . import caches
 from .algorithm import get_alt_color, get_luminance
-from .caches import cache
 from .formatter import get_timestamp as format_time
 from .images import get_dominant_color, has_transparency, right_fade, round_corners
 
@@ -113,7 +112,7 @@ class SpotifyCardGenerator:
         round_corners(rectangle, rad)
         return rectangle
 
-    @cache(20)
+    @caches.cache(20)
     async def _get_album_and_colors(
         self, album_url: str, height: int, mode: str
     ) -> typing.Tuple[typing.Tuple[_RGB, _RGBs], Image.Image]:
@@ -316,7 +315,7 @@ class SpotifyCardGenerator:
             font_color=font_color, alt_color=get_alt_color(rgbs[0]), height=raw_height
         )
 
-    # pylint: disable=too-many-arguments, too-many-locals
+    # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
     async def _generate_base_card2(
         self,
         album_url: str,
