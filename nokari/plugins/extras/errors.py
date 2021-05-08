@@ -8,18 +8,21 @@ from lightbulb import Bot, plugins, utils
 
 from nokari.core import Context
 
-_ErrorHandler = typing.Callable[
-    [Context, lightbulb.errors.CommandError, hikari.Embed],
-    typing.Literal[None],
-]
+_ErrorHandlerT = typing.TypeVar(
+    "_ErrorHandlerT",
+    bound=typing.Callable[
+        [Context, lightbulb.errors.CommandError, hikari.Embed],
+        typing.Literal[None],
+    ],
+)
 
 
 def aliases(
     *aliases_: str,
-) -> typing.Callable[[_ErrorHandler], _ErrorHandler]:
+) -> typing.Callable[[_ErrorHandlerT], _ErrorHandlerT]:
     def decorator(
-        func: _ErrorHandler,
-    ) -> _ErrorHandler:
+        func: _ErrorHandlerT,
+    ) -> _ErrorHandlerT:
         func.__aliases__ = aliases_  # type: ignore
         return func
 
