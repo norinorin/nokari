@@ -3,6 +3,7 @@
 import datetime
 import typing
 from io import BytesIO
+from string import ascii_letters
 
 import hikari
 import numpy
@@ -183,6 +184,36 @@ class SpotifyCardGenerator:
 
         return dom_color, palette
 
+    @staticmethod
+    def _get_char_size_map(
+        text: str, draw: ImageDraw, font: ImageFont
+    ) -> typing.Dict[str, typing.Tuple[int, int]]:
+        map_ = {}
+        for char in set(text):
+            map_[char] = draw.textsize(char, font=font)
+
+        return map_
+
+    @staticmethod
+    def _get_height_from_text(
+        text: str,
+        map_: typing.Dict[str, typing.Tuple[int, int]],
+        threshold: typing.Union[int, float] = float("inf"),
+    ) -> int:
+        w = h = 0
+        for char in text:
+            if w >= threshold:
+                break
+
+            char_size = map_[char]
+
+            w += char_size[0]
+
+            if char_size[1] > h:
+                h = char_size[1]
+
+        return h
+
     # pylint: disable=too-many-arguments, too-many-locals
     async def _generate_base_card1(
         self,
@@ -230,22 +261,47 @@ class SpotifyCardGenerator:
 
         draw = ImageDraw.Draw(canvas)
 
+        title_c_map = self._get_char_size_map(title, draw, self.C1_BOLD_FONT)
+        artist_c_map = self._get_char_size_map(artist, draw, self.BIG_FONT)
+        album_c_map = self._get_char_size_map(album_title, draw, self.BIG_FONT)
+
+        threshold = min(
+            [
+                sum([map_[c][0] for c in text])
+                for map_, text in (
+                    (title_c_map, title),
+                    (artist_c_map, artist),
+                    (album_c_map, album_title),
+                )
+            ]
+        )
+
+        title_h = self._get_height_from_text(title, title_c_map, threshold)
+        artist_h = self._get_height_from_text(artist, artist_c_map, threshold)
+        album_h = self._get_height_from_text(album_title, album_c_map, threshold)
+
+        outer_gap = (album_cover_size - title_h - artist_h * 2 - album_h) // 2
+
+        title_y = self.SIDE_GAP + outer_gap
+        artist_y = title_y + title_h
+        album_y = artist_y + artist_h
+
         draw.text(
-            (raw_height - self.SIDE_GAP, self.SIDE_GAP),
+            (raw_height - self.SIDE_GAP, title_y),
             title,
             font=self.C1_BOLD_FONT,
             fill=font_color,
         )
 
         draw.text(
-            (raw_height - self.SIDE_GAP, self.SIDE_GAP * 3.5),
+            (raw_height - self.SIDE_GAP, artist_y),
             artist,
             font=self.BIG_FONT,
             fill=font_color,
         )
 
         draw.text(
-            (raw_height - self.SIDE_GAP, raw_height - self.SIDE_GAP * 4),
+            (raw_height - self.SIDE_GAP, album_y),
             album_title,
             font=self.BIG_FONT,
             fill=font_color,
@@ -418,19 +474,26 @@ class SpotifyCardGenerator:
         text_gap = 10
         if style == "1":
             y = height - self.SIDE_GAP // 2
+
             rectangle_length = timestamp[2] / 100 * width
+
             coord = [(0, y), (rectangle_length, height)]
             draw.rectangle(coord, fill=font_color)
+
             coord = [(rectangle_length, y), (width, height)]
             draw.rectangle(coord, fill=alt_color)
-            y = height * 4 / 5
+
+            w, h = draw.textsize(timestamp[1], font=self.SMALL_FONT)
+
+            y -= text_gap + h
+
             draw.text(
                 (text_gap, y),
                 timestamp[0],
                 font=self.SMALL_FONT,
                 fill=font_color,
             )
-            w, _ = draw.textsize(timestamp[1], font=self.SMALL_FONT)
+
             draw.text(
                 (width - w - text_gap, y),
                 timestamp[1],
