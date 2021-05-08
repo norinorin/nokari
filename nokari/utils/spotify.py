@@ -187,11 +187,7 @@ class SpotifyCardGenerator:
     def _get_char_size_map(
         text: str, draw: ImageDraw, font: ImageFont
     ) -> typing.Dict[str, typing.Tuple[int, int]]:
-        map_ = {}
-        for char in set(text):
-            map_[char] = draw.textsize(char, font=font)
-
-        return map_
+        return {char: draw.textsize(char, font=font) for char in set(text)}
 
     @staticmethod
     def _get_height_from_text(
