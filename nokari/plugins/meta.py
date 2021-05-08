@@ -65,7 +65,7 @@ class Meta(plugins.Plugin):
                 name="Total cached members:",
                 value=(
                     f"{human:,}h & {bots:,}b out of {total_members:,}\n"
-                    f"{plural(len(self.bot.cache.get_presences_view())):presence}"
+                    f"{plural(sum(len(i) for i in self.bot.cache.get_presences_view().iterator())):presence}"
                 ),
                 inline=True,
             )
