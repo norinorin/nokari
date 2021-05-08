@@ -42,8 +42,6 @@ class EmptyPages(Exception):
     yet Paginator.start() is called.
     """
 
-    ...
-
 
 class Mode(enum.Enum):
     """
