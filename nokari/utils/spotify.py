@@ -306,8 +306,9 @@ class SpotifyCardGenerator:
 
         alt_color.append(font_color)
 
+        # cast to bool to suppress numpy deprecation warning.
         alt_color, lighter_color, font_color = sorted(
-            alt_color, key=get_luminance, reverse=get_luminance(rgbs[0]) > 128
+            alt_color, key=get_luminance, reverse=bool(get_luminance(rgbs[0]) > 128)
         )
 
         data = numpy.array(Image.open("nokari/assets/media/Spotify-50px.png"))
