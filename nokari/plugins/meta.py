@@ -33,6 +33,7 @@ class Meta(plugins.Plugin):
                 c.type for c in self.bot.cache.get_guild_channels_view().iterator()
             ).items()
         )
+        presences = sum(len(i) for i in self.bot.cache.get_presences_view().iterator())
         counter = Counter(
             [
                 m.is_bot
@@ -65,7 +66,7 @@ class Meta(plugins.Plugin):
                 name="Total cached members:",
                 value=(
                     f"{human:,}h & {bots:,}b out of {total_members:,}\n"
-                    f"{plural(sum(len(i) for i in self.bot.cache.get_presences_view().iterator())):presence}"
+                    f"{plural(presences):presence}"
                 ),
                 inline=True,
             )

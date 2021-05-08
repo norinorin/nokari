@@ -5,7 +5,6 @@ import collections
 import datetime
 import logging
 import os
-import sys
 import traceback
 import typing
 import weakref
@@ -150,11 +149,13 @@ class Nokari(lightbulb.Bot):
 
     def setup_logger(self) -> None:
         """Sets a logger that outputs to a file as well as stdout."""
-        logging.basicConfig(filename="nokari.log", level=logging.INFO)
         self.log = logging.getLogger(self.__class__.__name__)
-        console = logging.StreamHandler(sys.stdout)
-        console.setLevel(logging.INFO)
-        self.log.addHandler(console)
+
+        file_handler = logging.handlers.TimedRotatingFileHandler(  # type: ignore
+            "nokari.log", when="D", interval=7
+        )
+        file_handler.setLevel(logging.INFO)
+        self.log.addHandler(file_handler)
 
     async def _resolve_prefix(self, message: hikari.Message) -> typing.Optional[str]:
         """Case-insensitive prefix resolver."""

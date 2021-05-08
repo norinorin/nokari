@@ -1,4 +1,12 @@
+# cache
 __pycache__/
-.env
 .mypy_cache/
+
+# env variables
+.env
+
+# vsc config
 .vscode/
+
+# log files
+nokari.log
