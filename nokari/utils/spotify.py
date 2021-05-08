@@ -269,18 +269,18 @@ class SpotifyCardGenerator:
             [
                 sum([map_[c][0] for c in text])
                 for map_, text in (
-                    (title_c_map, title),
                     (artist_c_map, artist),
                     (album_c_map, album_title),
                 )
             ]
+            + [title_width]
         )
 
         title_h = self._get_height_from_text(title, title_c_map, threshold)
         artist_h = self._get_height_from_text(artist, artist_c_map, threshold)
         album_h = self._get_height_from_text(album_title, album_c_map, threshold)
 
-        outer_gap = (album_cover_size - title_h - artist_h * 2 - album_h) // 2
+        outer_gap = (album_cover_size - title_h - artist_h - album_h) // 4
 
         title_y = self.SIDE_GAP + outer_gap
         artist_y = title_y + title_h
@@ -327,19 +327,25 @@ class SpotifyCardGenerator:
         color_mode: str,
     ) -> typing.Tuple[Image.Image, typing.Optional[_SpotifyCardMetadata]]:
         width = self.WIDTH
+
         height = raw_height = 425
+
+        decrement = int(self.SIDE_GAP * 2.5)
 
         if hidden:
             width -= self.SIDE_GAP * 2
-            height -= int(self.SIDE_GAP * 2.5)
+            height -= decrement
 
         rgbs, img = await self._get_album_and_colors(
             album_url, height, color_mode or "top-bottom blur"
         )
+
         canvas = Image.new("RGB", (width, height), rgbs[0])
 
         base_rad = width * 0.0609375
+
         delta = self.WIDTH - width
+
         canvas_fade = right_fade(
             canvas.crop((0, 0, height, height)),
             int(base_rad - (delta / self.SIDE_GAP / 2)),
@@ -381,19 +387,56 @@ class SpotifyCardGenerator:
 
         spotify_text = "Spotify \u2022"
 
+        spotify_album_c_mapping = self._get_char_size_map(
+            spotify_text + album_title, draw, font=self.SMALL_FONT
+        )
+
+        spotify_width = sum([spotify_album_c_mapping[char][0] for char in spotify_text])
+
+        album_x = decrement + spotify_width + spotify_album_c_mapping[" "][0]
+
         if album_title != "Local Files":
             album_title = self._shorten_text(
-                self.SMALL_FONT, f"{album_title}", width - height - 330
+                self.SMALL_FONT,
+                f"{album_title}",
+                text_area - album_x - decrement + self.SIDE_GAP * 3,
             )
 
         draw.text(
-            (120, self.SIDE_GAP), spotify_text, font=self.SMALL_FONT, fill=lighter_color
+            (decrement, self.SIDE_GAP),
+            spotify_text,
+            font=self.SMALL_FONT,
+            fill=lighter_color,
         )
         draw.text(
-            (280, self.SIDE_GAP), album_title, font=self.SMALL_FONT, fill=alt_color
+            (
+                album_x,
+                self.SIDE_GAP,
+            ),
+            album_title,
+            font=self.SMALL_FONT,
+            fill=alt_color,
         )
-        draw.text((self.SIDE_GAP, 110), title, font=self.C2_BOLD_FONT, fill=font_color)
-        draw.text((self.SIDE_GAP, 190), artist, font=self.BIG_FONT, fill=alt_color)
+
+        title_h = draw.textsize(title, font=self.C2_BOLD_FONT)[1]
+        artist_h = draw.textsize(artist, font=self.BIG_FONT)[1]
+
+        outer_gap = (
+            raw_height
+            - decrement
+            - title_h
+            - artist_h
+            - self.SIDE_GAP * 2
+            - max([i[1] for i in spotify_album_c_mapping.values()])
+        ) // 4
+
+        title_y = self.SIDE_GAP * 2 + outer_gap
+        artist_y = title_y + title_h + outer_gap
+
+        draw.text(
+            (self.SIDE_GAP, title_y), title, font=self.C2_BOLD_FONT, fill=font_color
+        )
+        draw.text((self.SIDE_GAP, artist_y), artist, font=self.BIG_FONT, fill=alt_color)
 
         base_y = self.SIDE_GAP + self.SIDE_GAP // 2
         inc = self.SIDE_GAP // 10
