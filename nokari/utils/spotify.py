@@ -70,6 +70,7 @@ class SpotifyCardGenerator:
 
     def __init__(self, bot: Bot) -> None:
         self.bot = bot
+        self.loop = bot.loop
 
     @staticmethod
     def _get_timestamp(act: hikari.RichActivity) -> typing.Tuple[str, str, float]:
@@ -219,6 +220,9 @@ class SpotifyCardGenerator:
         hidden: bool,
         color_mode: str,
     ) -> typing.Tuple[Image.Image, typing.Optional[_SpotifyCardMetadata]]:
+        # IDK how else to suppress jedi, gotta do this
+        title, artist = title, artist
+
         album_title = f"on {album_title}"
 
         title_width = self.C1_BOLD_FONT.getsize(title)[0]
@@ -237,79 +241,88 @@ class SpotifyCardGenerator:
             width if (width := title_width + raw_height) > self.WIDTH else self.WIDTH
         )
 
-        canvas = Image.new("RGB", (width, height), rgbs[0])
+        def wrapper() -> typing.Tuple[
+            Image.Image, typing.Optional[_SpotifyCardMetadata]
+        ]:
+            nonlocal rgbs, title, artist, im, album_title
 
-        round_corners(im, self.SIDE_GAP)
+            canvas = Image.new("RGB", (width, height), rgbs[0])
 
-        im = im.resize((album_cover_size,) * 2)
+            round_corners(im, self.SIDE_GAP)
 
-        canvas.paste(im, (self.SIDE_GAP,) * 2, im)
+            im = im.resize((album_cover_size,) * 2)
 
-        text_area = width - raw_height
+            canvas.paste(im, (self.SIDE_GAP,) * 2, im)
 
-        artist, album_title = [
-            self._shorten_text(self.BIG_FONT, i, text_area)
-            for i in (artist, album_title)
-        ]
+            text_area = width - raw_height
 
-        font_color = self._get_font_color(*rgbs)
-
-        draw = ImageDraw.Draw(canvas)
-
-        title_c_map = self._get_char_size_map(title, draw, self.C1_BOLD_FONT)
-        artist_c_map = self._get_char_size_map(artist, draw, self.BIG_FONT)
-        album_c_map = self._get_char_size_map(album_title, draw, self.BIG_FONT)
-
-        threshold = min(
-            [
-                sum([map_[c][0] for c in text])
-                for map_, text in (
-                    (artist_c_map, artist),
-                    (album_c_map, album_title),
-                )
+            artist, album_title = [
+                self._shorten_text(self.BIG_FONT, i, text_area)
+                for i in (artist, album_title)
             ]
-            + [title_width]
-        )
 
-        title_h = self._get_height_from_text(title, title_c_map, threshold)
-        artist_h = self._get_height_from_text(artist, artist_c_map, threshold)
-        album_h = self._get_height_from_text(album_title, album_c_map, threshold)
+            font_color = self._get_font_color(*rgbs)
 
-        outer_gap = (album_cover_size - title_h - artist_h - album_h) // 4
+            draw = ImageDraw.Draw(canvas)
 
-        title_y = self.SIDE_GAP + outer_gap
-        artist_y = title_y + title_h
-        album_y = artist_y + artist_h
+            title_c_map = self._get_char_size_map(title, draw, self.C1_BOLD_FONT)
+            artist_c_map = self._get_char_size_map(artist, draw, self.BIG_FONT)
+            album_c_map = self._get_char_size_map(album_title, draw, self.BIG_FONT)
 
-        draw.text(
-            (raw_height - self.SIDE_GAP, title_y),
-            title,
-            font=self.C1_BOLD_FONT,
-            fill=font_color,
-        )
+            threshold = min(
+                [
+                    sum([map_[c][0] for c in text])
+                    for map_, text in (
+                        (artist_c_map, artist),
+                        (album_c_map, album_title),
+                    )
+                ]
+                + [title_width]
+            )
 
-        draw.text(
-            (raw_height - self.SIDE_GAP, artist_y),
-            artist,
-            font=self.BIG_FONT,
-            fill=font_color,
-        )
+            title_h = self._get_height_from_text(title, title_c_map, threshold)
+            artist_h = self._get_height_from_text(artist, artist_c_map, threshold)
+            album_h = self._get_height_from_text(album_title, album_c_map, threshold)
 
-        draw.text(
-            (raw_height - self.SIDE_GAP, album_y),
-            album_title,
-            font=self.BIG_FONT,
-            fill=font_color,
-        )
+            outer_gap = (album_cover_size - title_h - artist_h - album_h) // 4
 
-        round_corners(canvas, self.SIDE_GAP // 2)
+            title_y = self.SIDE_GAP + outer_gap
+            artist_y = title_y + title_h
+            album_y = artist_y + artist_h
 
-        if hidden:
-            return canvas, None
+            draw.text(
+                (raw_height - self.SIDE_GAP, title_y),
+                title,
+                font=self.C1_BOLD_FONT,
+                fill=font_color,
+            )
 
-        return canvas, _SpotifyCardMetadata(
-            font_color=font_color, alt_color=get_alt_color(rgbs[0]), height=raw_height
-        )
+            draw.text(
+                (raw_height - self.SIDE_GAP, artist_y),
+                artist,
+                font=self.BIG_FONT,
+                fill=font_color,
+            )
+
+            draw.text(
+                (raw_height - self.SIDE_GAP, album_y),
+                album_title,
+                font=self.BIG_FONT,
+                fill=font_color,
+            )
+
+            round_corners(canvas, self.SIDE_GAP // 2)
+
+            if hidden:
+                return canvas, None
+
+            return canvas, _SpotifyCardMetadata(
+                font_color=font_color,
+                alt_color=get_alt_color(rgbs[0]),
+                height=raw_height,
+            )
+
+        return await self.loop.run_in_executor(self.bot.executor, wrapper)
 
     # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
     async def _generate_base_card2(
@@ -321,6 +334,9 @@ class SpotifyCardGenerator:
         hidden: bool,
         color_mode: str,
     ) -> typing.Tuple[Image.Image, typing.Optional[_SpotifyCardMetadata]]:
+        # IDK how else to suppress jedi, gotta do this
+        artist, title, album_title = artist, title, album_title
+
         width = self.WIDTH
 
         height = raw_height = 425
@@ -331,133 +347,146 @@ class SpotifyCardGenerator:
             width -= self.SIDE_GAP * 2
             height -= decrement
 
-        rgbs, img = await self._get_album_and_colors(
+        rgbs, im = await self._get_album_and_colors(
             album_url, height, color_mode or "top-bottom blur"
         )
 
-        canvas = Image.new("RGB", (width, height), rgbs[0])
+        def wrapper() -> typing.Tuple[
+            Image.Image, typing.Optional[_SpotifyCardMetadata]
+        ]:
+            nonlocal artist, title, album_title
 
-        base_rad = width * 0.0609375
+            canvas = Image.new("RGB", (width, height), rgbs[0])
 
-        delta = self.WIDTH - width
+            base_rad = width * 0.0609375
 
-        canvas_fade = right_fade(
-            canvas.crop((0, 0, height, height)),
-            int(base_rad - (delta / self.SIDE_GAP / 2)),
-        )
+            delta = self.WIDTH - width
 
-        canvas.paste(img, (width - height, 0), img)
-
-        canvas.paste(canvas_fade, (width - height, 0), canvas_fade)
-
-        text_area = width - height - self.SIDE_GAP * 2
-
-        title, artist = [
-            self._shorten_text(f, t, text_area)
-            for f, t in ((self.C2_BOLD_FONT, title), (self.BIG_FONT, artist))
-        ]
-
-        font_color = self._get_font_color(*rgbs)
-
-        alt_color = [get_alt_color(font_color, i, rgbs[0]) for i in (20, 30)]
-
-        alt_color.append(font_color)
-
-        # cast to bool to suppress numpy deprecation warning.
-        alt_color, lighter_color, font_color = sorted(
-            alt_color, key=get_luminance, reverse=bool(get_luminance(rgbs[0]) > 128)
-        )
-
-        data = numpy.array(Image.open("nokari/assets/media/Spotify-50px.png"))
-
-        non_transparent_areas = data.T[-1] > 0
-
-        data[..., :-1][non_transparent_areas.T] = lighter_color
-
-        spotify_logo = Image.fromarray(data)
-
-        canvas.paste(spotify_logo, (self.SIDE_GAP,) * 2, spotify_logo)
-
-        draw = ImageDraw.Draw(canvas)
-
-        spotify_text = "Spotify \u2022"
-
-        spotify_album_c_mapping = self._get_char_size_map(
-            spotify_text + album_title, draw, font=self.SMALL_FONT
-        )
-
-        spotify_width = sum([spotify_album_c_mapping[char][0] for char in spotify_text])
-
-        album_x = decrement + spotify_width + spotify_album_c_mapping[" "][0]
-
-        if album_title != "Local Files":
-            album_title = self._shorten_text(
-                self.SMALL_FONT,
-                f"{album_title}",
-                text_area - album_x - decrement + self.SIDE_GAP * 3,
+            canvas_fade = right_fade(
+                canvas.crop((0, 0, height, height)),
+                int(base_rad - (delta / self.SIDE_GAP / 2)),
             )
 
-        draw.text(
-            (decrement, self.SIDE_GAP),
-            spotify_text,
-            font=self.SMALL_FONT,
-            fill=lighter_color,
-        )
-        draw.text(
-            (
-                album_x,
-                self.SIDE_GAP,
-            ),
-            album_title,
-            font=self.SMALL_FONT,
-            fill=alt_color,
-        )
+            canvas.paste(im, (width - height, 0), im)
 
-        title_h = draw.textsize(title, font=self.C2_BOLD_FONT)[1]
-        artist_h = draw.textsize(artist, font=self.BIG_FONT)[1]
+            canvas.paste(canvas_fade, (width - height, 0), canvas_fade)
 
-        outer_gap = (
-            raw_height
-            - decrement
-            - title_h
-            - artist_h
-            - self.SIDE_GAP * 2
-            - max([i[1] for i in spotify_album_c_mapping.values()])
-        ) // 4
+            text_area = width - height - self.SIDE_GAP * 2
 
-        title_y = self.SIDE_GAP * 2 + outer_gap
-        artist_y = title_y + title_h + outer_gap
+            title, artist = [
+                self._shorten_text(f, t, text_area)
+                for f, t in ((self.C2_BOLD_FONT, title), (self.BIG_FONT, artist))
+            ]
 
-        draw.text(
-            (self.SIDE_GAP, title_y), title, font=self.C2_BOLD_FONT, fill=font_color
-        )
-        draw.text((self.SIDE_GAP, artist_y), artist, font=self.BIG_FONT, fill=alt_color)
+            font_color = self._get_font_color(*rgbs)
 
-        base_y = self.SIDE_GAP + self.SIDE_GAP // 2
-        inc = self.SIDE_GAP // 10
-        y1 = max_ = base_y + inc
-        y2 = min_ = base_y - inc
+            alt_color = [get_alt_color(font_color, i, rgbs[0]) for i in (20, 30)]
 
-        if hidden:
-            y1, y2 = y2, y1
+            alt_color.append(font_color)
 
-        draw.line(
-            ((width - (max_ * 2 - min_), y1), (width - max_ + 1, y2)),
-            fill=lighter_color,
-            width=inc,
-        )
-        draw.line(
-            ((width - max_ - 1, y2), (width - min_, y1)), fill=lighter_color, width=inc
-        )
+            # cast to bool to suppress numpy deprecation warning.
+            alt_color, lighter_color, font_color = sorted(
+                alt_color, key=get_luminance, reverse=bool(get_luminance(rgbs[0]) > 128)
+            )
 
-        round_corners(canvas, self.SIDE_GAP)
+            data = numpy.array(Image.open("nokari/assets/media/Spotify-50px.png"))
 
-        if hidden:
-            return canvas, None
+            non_transparent_areas = data.T[-1] > 0
 
-        return canvas, _SpotifyCardMetadata(
-            font_color=font_color, alt_color=lighter_color, height=raw_height
-        )
+            data[..., :-1][non_transparent_areas.T] = lighter_color
+
+            spotify_logo = Image.fromarray(data)
+
+            canvas.paste(spotify_logo, (self.SIDE_GAP,) * 2, spotify_logo)
+
+            draw = ImageDraw.Draw(canvas)
+
+            spotify_text = "Spotify \u2022"
+
+            spotify_album_c_mapping = self._get_char_size_map(
+                spotify_text + album_title, draw, font=self.SMALL_FONT
+            )
+
+            spotify_width = sum(
+                [spotify_album_c_mapping[char][0] for char in spotify_text]
+            )
+
+            album_x = decrement + spotify_width + spotify_album_c_mapping[" "][0]
+
+            if album_title != "Local Files":
+                album_title = self._shorten_text(
+                    self.SMALL_FONT,
+                    f"{album_title}",
+                    text_area - album_x - decrement + self.SIDE_GAP * 3,
+                )
+
+            draw.text(
+                (decrement, self.SIDE_GAP),
+                spotify_text,
+                font=self.SMALL_FONT,
+                fill=lighter_color,
+            )
+            draw.text(
+                (
+                    album_x,
+                    self.SIDE_GAP,
+                ),
+                album_title,
+                font=self.SMALL_FONT,
+                fill=alt_color,
+            )
+
+            title_h = draw.textsize(title, font=self.C2_BOLD_FONT)[1]
+            artist_h = draw.textsize(artist, font=self.BIG_FONT)[1]
+
+            outer_gap = (
+                raw_height
+                - decrement
+                - title_h
+                - artist_h
+                - self.SIDE_GAP * 2
+                - max([i[1] for i in spotify_album_c_mapping.values()])
+            ) // 4
+
+            title_y = self.SIDE_GAP * 2 + outer_gap
+            artist_y = title_y + title_h + outer_gap
+
+            draw.text(
+                (self.SIDE_GAP, title_y), title, font=self.C2_BOLD_FONT, fill=font_color
+            )
+            draw.text(
+                (self.SIDE_GAP, artist_y), artist, font=self.BIG_FONT, fill=alt_color
+            )
+
+            base_y = self.SIDE_GAP + self.SIDE_GAP // 2
+            inc = self.SIDE_GAP // 10
+            y1 = max_ = base_y + inc
+            y2 = min_ = base_y - inc
+
+            if hidden:
+                y1, y2 = y2, y1
+
+            draw.line(
+                ((width - (max_ * 2 - min_), y1), (width - max_ + 1, y2)),
+                fill=lighter_color,
+                width=inc,
+            )
+            draw.line(
+                ((width - max_ - 1, y2), (width - min_, y1)),
+                fill=lighter_color,
+                width=inc,
+            )
+
+            round_corners(canvas, self.SIDE_GAP)
+
+            if hidden:
+                return canvas, None
+
+            return canvas, _SpotifyCardMetadata(
+                font_color=font_color, alt_color=lighter_color, height=raw_height
+            )
+
+        return await self.loop.run_in_executor(self.bot.executor, wrapper)
 
     @staticmethod
     def _shorten_text(font: ImageFont, text: str, threshold: int) -> str:
@@ -490,97 +519,109 @@ class SpotifyCardGenerator:
 
     async def generate_spotify_card(
         self,
+        buffer: BytesIO,
         member: hikari.Member,
         hidden: bool,
         color_mode: str,
         style: str = "2",
-    ) -> Image.Image:
+    ) -> None:
         func = f"_generate_base_card{style}"
         timestamp, *args = self._get_data(member)
         canvas, data = await getattr(self, func)(*(tuple(args) + (hidden, color_mode)))
 
-        if data is None:
-            return canvas
+        if data is not None:
 
-        draw = ImageDraw.Draw(canvas)
-        width = canvas.size[0]
-        font_color, alt_color, height = (
-            data["font_color"],
-            data["alt_color"],
-            data["height"],
-        )
-        text_gap = 10
-        if style == "1":
-            y = height - self.SIDE_GAP // 2
-
-            rectangle_length = timestamp[2] / 100 * width
-
-            coord = [(0, y), (rectangle_length, height)]
-            draw.rectangle(coord, fill=font_color)
-
-            coord = [(rectangle_length, y), (width, height)]
-            draw.rectangle(coord, fill=alt_color)
-
-            w, h = draw.textsize(timestamp[1], font=self.SMALL_FONT)
-
-            y -= text_gap + h
-
-            draw.text(
-                (text_gap, y),
-                timestamp[0],
-                font=self.SMALL_FONT,
-                fill=font_color,
-            )
-
-            draw.text(
-                (width - w - text_gap, y),
-                timestamp[1],
-                font=self.SMALL_FONT,
-                fill=font_color,
-            )
-        else:
-            rectangle_length = timestamp[2] / 100 * (width - 100)
-            elapsed_bar = self._generate_rounded_rectangle(
-                (width - self.SIDE_GAP * 2, text_gap),
-                self.SIDE_GAP // 10,
-                (*alt_color, 255),
-            ).crop((0, 0, int(rectangle_length), 10))
-            total_bar = self._generate_rounded_rectangle(
-                (width - self.SIDE_GAP * 2, text_gap),
-                self.SIDE_GAP // 10,
-                (*alt_color, 150),
-            )
-
-            # pylint: disable=blacklisted-name
-            for bar in (total_bar, elapsed_bar):
-                canvas.paste(
-                    bar,
-                    (self.SIDE_GAP, height - self.SIDE_GAP * 2 - self.SIDE_GAP // 2),
-                    bar,
+            def wrapper() -> Image.Image:
+                draw = ImageDraw.Draw(canvas)
+                width = canvas.size[0]
+                font_color, alt_color, height = (
+                    data["font_color"],
+                    data["alt_color"],
+                    data["height"],
                 )
+                text_gap = 10
+                if style == "1":
+                    y = height - self.SIDE_GAP // 2
 
-            r = int(self.SIDE_GAP * 0.3)
-            x = rectangle_length + self.SIDE_GAP
-            y = height - r - self.SIDE_GAP * 2 - self.SIDE_GAP // 10
-            top_left = (x - r, y - r)
-            bot_right = (x + r, y + r)
-            draw.ellipse((top_left, bot_right), fill=font_color)
+                    rectangle_length = timestamp[2] / 100 * width
 
-            draw.text(
-                (self.SIDE_GAP, height - self.SIDE_GAP * 2),
-                timestamp[0],
-                font=self.SMALL_FONT,
-                fill=alt_color,
-            )
-            w, _ = draw.textsize(timestamp[1], font=self.SMALL_FONT)
-            draw.text(
-                (width - w - self.SIDE_GAP, height - self.SIDE_GAP * 2),
-                timestamp[1],
-                font=self.SMALL_FONT,
-                fill=alt_color,
-            )
+                    coord = [(0, y), (rectangle_length, height)]
+                    draw.rectangle(coord, fill=font_color)
 
-        return canvas
+                    coord = [(rectangle_length, y), (width, height)]
+                    draw.rectangle(coord, fill=alt_color)
+
+                    w, h = draw.textsize(timestamp[1], font=self.SMALL_FONT)
+
+                    y -= text_gap + h
+
+                    draw.text(
+                        (text_gap, y),
+                        timestamp[0],
+                        font=self.SMALL_FONT,
+                        fill=font_color,
+                    )
+
+                    draw.text(
+                        (width - w - text_gap, y),
+                        timestamp[1],
+                        font=self.SMALL_FONT,
+                        fill=font_color,
+                    )
+                else:
+                    rectangle_length = timestamp[2] / 100 * (width - 100)
+                    elapsed_bar = self._generate_rounded_rectangle(
+                        (width - self.SIDE_GAP * 2, text_gap),
+                        self.SIDE_GAP // 10,
+                        (*alt_color, 255),
+                    ).crop((0, 0, int(rectangle_length), 10))
+                    total_bar = self._generate_rounded_rectangle(
+                        (width - self.SIDE_GAP * 2, text_gap),
+                        self.SIDE_GAP // 10,
+                        (*alt_color, 150),
+                    )
+
+                    # pylint: disable=blacklisted-name
+                    for bar in (total_bar, elapsed_bar):
+                        canvas.paste(
+                            bar,
+                            (
+                                self.SIDE_GAP,
+                                height - self.SIDE_GAP * 2 - self.SIDE_GAP // 2,
+                            ),
+                            bar,
+                        )
+
+                    r = int(self.SIDE_GAP * 0.3)
+                    x = rectangle_length + self.SIDE_GAP
+                    y = height - r - self.SIDE_GAP * 2 - self.SIDE_GAP // 10
+                    top_left = (x - r, y - r)
+                    bot_right = (x + r, y + r)
+                    draw.ellipse((top_left, bot_right), fill=font_color)
+
+                    draw.text(
+                        (self.SIDE_GAP, height - self.SIDE_GAP * 2),
+                        timestamp[0],
+                        font=self.SMALL_FONT,
+                        fill=alt_color,
+                    )
+                    w, _ = draw.textsize(timestamp[1], font=self.SMALL_FONT)
+                    draw.text(
+                        (width - w - self.SIDE_GAP, height - self.SIDE_GAP * 2),
+                        timestamp[1],
+                        font=self.SMALL_FONT,
+                        fill=alt_color,
+                    )
+
+                return canvas
+
+            canvas = await self.loop.run_in_executor(self.bot.executor, wrapper)
+
+        def save() -> None:
+            canvas.save(buffer, "PNG")
+            buffer.seek(0)
+
+        await self.loop.run_in_executor(self.bot.executor, save)
 
     __call__ = generate_spotify_card
 

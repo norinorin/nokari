@@ -55,11 +55,10 @@ class Images(plugins.Plugin):
         try:
             async with self.bot.rest.trigger_typing(ctx.channel_id):
                 with BytesIO() as fp:
-                    im = await self._spotify_card_generator(
-                        member, args.hidden, args.colour, style
+                    await self._spotify_card_generator(
+                        fp, member, args.hidden, args.colour, style
                     )
-                    im.save(fp, "PNG")
-                    fp.seek(0)
+
                     kwargs: typing.Dict[str, typing.Any] = {
                         "attachment": hikari.Bytes(fp, f"{member}-card.png")
                     }
