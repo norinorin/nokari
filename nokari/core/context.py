@@ -89,8 +89,7 @@ class Context(lightbulb.Context):
             role_mentions=role_mentions,
         )
 
-        if not (attachment or attachments):
-            self.bot.responses_cache[self.message_id] = resp.id
+        self.bot.responses_cache[self.message_id] = resp.id
 
         return resp
 
