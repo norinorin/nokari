@@ -40,19 +40,18 @@ def cache(size: int) -> typing.Callable[[_FuncT], _FuncT]:
 
                     return wrapper()
 
-                return temp
+                res = _cache[key] = temp
+            else:
+                if _is_coro:
 
-            if _is_coro:
+                    async def wrapper() -> typing.Coroutine:
+                        return res
 
-                # pylint: disable=function-redefined
-                async def wrapper() -> typing.Coroutine:
-                    return res
-
-                return wrapper()
+                    return wrapper()
 
             return res
 
-        wrapper.cache = LRU(size)  # type: ignore
+        wrapper.cache = _cache  # type: ignore
         return typing.cast(_FuncT, wrapper)
 
     return decorator
