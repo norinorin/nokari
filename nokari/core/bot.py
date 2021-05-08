@@ -25,7 +25,7 @@ _KT = typing.TypeVar("_KT")
 _VT = typing.TypeVar("_VT")
 
 
-class FixedSizedDict(collections.MutableMapping[_KT, _VT], typing.Generic[_KT, _VT]):
+class FixedSizeDict(collections.MutableMapping[_KT, _VT], typing.Generic[_KT, _VT]):
     """A fixed sized dict, mainly to cache responses the bot has made."""
 
     def __init__(
@@ -94,7 +94,7 @@ class Nokari(lightbulb.Bot):
         )
 
         # Responses cache
-        self._resp_cache: FixedSizedDict = FixedSizedDict(1024)
+        self._resp_cache: FixedSizeDict = FixedSizeDict(1024)
 
         # load extensions
         self.load_extensions()
@@ -134,7 +134,7 @@ class Nokari(lightbulb.Bot):
         return self._rest._client_session
 
     @property
-    def responses_cache(self) -> FixedSizedDict[_KT, _VT]:
+    def responses_cache(self) -> FixedSizeDict[_KT, _VT]:
         """Returns a mapping from message ids to its response message ids."""
         return self._resp_cache
 
