@@ -137,12 +137,7 @@ class Errors(plugins.Plugin):
     @aliases(
         "UnclosedQuotes",
         "CheckFailure",
-        "OnlyInGuild",
-        "OnlyInDM",
-        "BotOnly",
-        "HumanOnly",
-        "NSFWChannelOnly",
-        "MissingRequiredRole",
+        "CommandSyntaxError",
         "_BaseError",  # Errors raised in view.py
     )
     def handle_converter_failure(
