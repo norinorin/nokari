@@ -33,10 +33,7 @@ def get_alt_color(
     mode = Y < 128
     ret = []
     for i in rgb:
-        if i < 20:
-            i = 20
-
-        i = min(255, int(i * lighten)) if mode else max(0, int(i * darken))
-        ret.append(i)
+        i = min(i, 20)
+        ret.append(min(255, int(i * lighten)) if mode else max(0, int(i * darken)))
 
     return tuple(ret)
