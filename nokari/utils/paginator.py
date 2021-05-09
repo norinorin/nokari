@@ -20,7 +20,7 @@ import hikari
 from hikari import snowflakes, undefined
 from lightbulb.utils import find, maybe_await
 
-from .perms import has_guild_perms
+from .perms import has_channel_perms
 
 if TYPE_CHECKING:
     # pylint: disable=cyclic-import
@@ -279,11 +279,7 @@ class Paginator:
                 if (
                     self.mode is Mode.REMOVE
                     and self.ctx.me is not None
-                    and has_guild_perms(  # todo: check channel permissions
-                        self.ctx.bot,
-                        self.ctx.me,
-                        hikari.Permissions.MANAGE_MESSAGES,
-                    )
+                    and self.ctx.has_channel_perms(hikari.Permissions.MANAGE_MESSAGES)
                     and result.member
                 ):
                     await self.message.remove_reaction(result.emoji, result.member)  # type: ignore
@@ -324,11 +320,7 @@ class Paginator:
         if (
             self.is_paginated
             and self.ctx.me
-            and not has_guild_perms(  # todo: check channel permissions
-                self.ctx.bot,
-                self.ctx.me,
-                hikari.Permissions.ADD_REACTIONS,
-            )
+            and not self.ctx.has_channel_perms(hikari.Permissions.ADD_REACTIONS)
         ):
             raise RuntimeError("I have no permissions to add reactions.")
 

@@ -8,6 +8,8 @@ from hikari import Message
 from hikari import embeds as embeds_
 from hikari import files, guilds, snowflakes, undefined, users
 
+from nokari.utils.perms import has_channel_perms, has_guild_perms
+
 if typing.TYPE_CHECKING:
     from nokari.utils.paginator import Paginator
 
@@ -147,3 +149,24 @@ class Context(lightbulb.Context):
             and (color := self.me.top_role.color) != hikari.Colour.from_rgb(0, 0, 0)
             else self.bot.default_color
         )
+
+    def has_guild_perms(
+        self, perms: hikari.Permissions, member: typing.Optional[hikari.Member] = None
+    ) -> bool:
+        """Returns whether or not a member has certain guild permissions"""
+        if member is None:
+            member = self.me
+
+        return has_guild_perms(self.bot, member, perms)  # type: ignore
+
+    def has_channel_perms(
+        self, perms: hikari.Permissions, member: typing.Optional[hikari.Member] = None
+    ) -> bool:
+        """
+        Returns whether or not a member has certain permissions,
+        taking channel overwrites into account.
+        """
+        if member is None:
+            member = self.me
+
+        return has_channel_perms(self.bot, member, self.channel, perms)  # type: ignore
