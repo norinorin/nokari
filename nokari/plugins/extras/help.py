@@ -46,11 +46,8 @@ class CustomHelp(help_.HelpCommand):
         return help_.get_help_text(command).split("\n")[0] or "No description..."
 
     @staticmethod
-    def get_embed(context: Context) -> hikari.Embed:
-        """
-        Returns a default help Embed.
-        This will not return the same Embed object if called multiple times.
-        """
+    def get_base_embed(context: Context) -> hikari.Embed:
+        """Returns the base help Embed."""
         embed = hikari.Embed(
             timestamp=datetime.datetime.now(tz=datetime.timezone.utc),
             color=context.color,
@@ -99,7 +96,7 @@ class CustomHelp(help_.HelpCommand):
         zws = "\u200b"
         invoked_with = context.invoked_with
         prefix = CustomHelp.get_prefix(context)
-        embed = CustomHelp.get_embed(context)
+        embed = CustomHelp.get_base_embed(context)
         embed.title = "Category List"
         embed.description = (
             f"This is the help command, you could either do `{prefix}{invoked_with} [category]`"
@@ -153,7 +150,7 @@ class CustomHelp(help_.HelpCommand):
             else "You lack permissions to run any command in this category"
         )
 
-        embed = CustomHelp.get_embed(context)
+        embed = CustomHelp.get_base_embed(context)
         embed.title = f"{plugin.name} Commands"
         embed.description = help_text
         await context.respond(embed=embed)
@@ -173,7 +170,7 @@ class CustomHelp(help_.HelpCommand):
             await CustomHelp.object_not_found(context, "")
             return
 
-        embed = CustomHelp.get_embed(context)
+        embed = CustomHelp.get_base_embed(context)
         CustomHelp.common_command_formatting(context, embed, command)
         await context.respond(embed=embed)
 
@@ -191,7 +188,7 @@ class CustomHelp(help_.HelpCommand):
         if len(entries) == 0:
             return await CustomHelp.send_command_help(context, group)
 
-        embed = CustomHelp.get_embed(context)
+        embed = CustomHelp.get_base_embed(context)
         CustomHelp.common_command_formatting(context, embed, group)
 
         for subcommand in subcommands:
@@ -262,7 +259,7 @@ class CustomHelp(help_.HelpCommand):
         matches.extend([i.__class__.__name__ for i in matched_plugins])
         matches.sort(key=lambda x: (x, len(x)))
         matches = {f"`{i}`" for i in matches}
-        embed = CustomHelp.get_embed(context)
+        embed = CustomHelp.get_base_embed(context)
         embed.title = f'{plural(len(matches)):result} on "{query}"'
         embed.description = ", ".join(matches) or "Oops, seems there's nothing found"
         return embed
