@@ -157,6 +157,7 @@ class Context(lightbulb.Context):
         if member is None:
             member = self.me
 
+        # pylint: disable=no-value-for-parameter
         return has_guild_perms(self.bot, member, perms)  # type: ignore
 
     def has_channel_perms(
@@ -169,4 +170,5 @@ class Context(lightbulb.Context):
         if member is None:
             member = self.me
 
+        # pylint: disable=no-value-for-parameter
         return has_channel_perms(self.bot, member, self.channel, perms)  # type: ignore

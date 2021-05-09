@@ -3,7 +3,7 @@ import asyncio
 import typing
 from functools import wraps
 
-from lru import LRU
+from lru import LRU  # pylint: disable=no-name-in-module
 
 _FuncT = typing.TypeVar("_FuncT", bound=typing.Callable[..., typing.Any])
 

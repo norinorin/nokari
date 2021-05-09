@@ -4,7 +4,6 @@ import typing
 from functools import wraps
 
 import hikari
-from lightbulb import utils
 
 __all__: typing.Final[typing.List[str]] = [
     "get_guild_perms",
