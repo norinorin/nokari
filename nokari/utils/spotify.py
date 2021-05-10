@@ -114,25 +114,28 @@ class SpotifyCardGenerator:
         return rectangle
 
     @caches.cache(20)
-    async def _get_album_and_colors(
-        self, album_url: str, height: int, mode: str
-    ) -> typing.Tuple[typing.Tuple[_RGB, _RGBs], Image.Image]:
-        """Downloads the album and gets its colors"""
-
+    async def _get_album(self, album_url: str) -> bytes:
         if self.bot.session is None:
             raise RuntimeError("Missing ClientSession...")
 
         async with self.bot.session.get(album_url) as r:
-            with BytesIO(await r.read()) as album_cover:
-                rgbs = self._get_colors(album_cover, mode)
-                img = Image.open(album_cover).convert("RGBA").resize((height, height))
+            return await r.read()
 
-                return rgbs, img
+    async def _get_album_and_colors(
+        self, album_url: str, height: int, mode: str
+    ) -> typing.Tuple[typing.Tuple[_RGB, _RGBs], Image.Image]:
+        album = BytesIO(await self._get_album(album_url))
+        return self._get_colors(album, mode, album_url), Image.open(album).convert(
+            "RGBA"
+        ).resize((height,) * 2)
 
-    cache = _get_album_and_colors.cache  # type: ignore
-
-    @staticmethod
-    def _get_colors(image: BytesIO, mode: str = "full") -> typing.Tuple[_RGB, _RGBs]:
+    @caches.cache(20)
+    def _get_colors(
+        self,
+        image: BytesIO,
+        mode: str = "full",
+        image_url: str = "",  # necessary for caching
+    ) -> typing.Tuple[_RGB, _RGBs]:
         """Returns the dominant color as well as other colors present in the image"""
 
         def get_palette() -> _RGBs:
@@ -184,6 +187,9 @@ class SpotifyCardGenerator:
 
         return dom_color, palette
 
+    album_cache = _get_album.cache  # type: ignore
+    color_cache = _get_colors.cache  # type: ignore
+
     @staticmethod
     def _get_char_size_map(
         text: str, draw: ImageDraw, font: ImageFont
@@ -234,6 +240,7 @@ class SpotifyCardGenerator:
         rgbs, im = await self._get_album_and_colors(
             album_cover_url, height, color_mode or "downscale"
         )
+
         width = (
             width if (width := title_width + raw_height) > self.WIDTH else self.WIDTH
         )
