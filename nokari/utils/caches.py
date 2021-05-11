@@ -21,12 +21,20 @@ def _get_key(args: typing.Tuple[typing.Any, ...]) -> str:
 
 def cache(size: int) -> typing.Callable[[_FuncT], _FuncT]:
     def decorator(func: _FuncT) -> _FuncT:
+        _is_static_method = isinstance(func, staticmethod)
+
+        if _is_static_method:
+            func = func.__get__(decorator)
+
         _is_coro = asyncio.iscoroutinefunction(func)
         _cache = LRU(size)
 
         @wraps(func)
         def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
             key = _get_key(args)
+            if _is_static_method:
+                _, *args = args
+
             try:
                 res = _cache[key]
             except KeyError:
