@@ -15,7 +15,7 @@ class Images(plugins.Plugin):
     def __init__(self, bot: Bot) -> None:
         super().__init__()
         self.bot = bot
-        self._spotify_card_generator = SpotifyCardGenerator(bot)
+        self.spotify_card_generator = SpotifyCardGenerator(bot)
         self._spotify_card_argument_parser = utils.ArgumentParser(
             {
                 "s": utils.ArgumentOptions(name="style", argmax=1),
@@ -60,7 +60,7 @@ class Images(plugins.Plugin):
         try:
             async with self.bot.rest.trigger_typing(ctx.channel_id):
                 with BytesIO() as fp:
-                    await self._spotify_card_generator(
+                    await self.spotify_card_generator(
                         fp, member, args.hidden, args.colour, style
                     )
 

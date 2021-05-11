@@ -96,13 +96,10 @@ class Meta(plugins.Plugin):
         if not images:
             return
 
-        spotify_card_gen = images._spotify_card_generator
-        cached_albums = len(spotify_card_gen.album_cache)
-        cached_colors = len(spotify_card_gen.color_cache)
-
         embed.add_field(
             name="Spotify cache",
-            value=f"Albums: {cached_albums}\nColors: {cached_colors}",
+            value=f"Albums: {len(images.spotify_card_generator.album_cache)}\n"
+            f"Colors: {len(images.spotify_card_generator.color_cache)}",
         )
 
     @cooldown(10, 1, lightbulb.cooldowns.UserBucket)
