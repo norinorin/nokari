@@ -130,8 +130,8 @@ class SpotifyCardGenerator:
         ).resize((height,) * 2)
 
     @caches.cache(20)
+    @staticmethod
     def _get_colors(
-        self,
         image: BytesIO,
         mode: str = "full",
         image_url: str = "",  # necessary for caching
