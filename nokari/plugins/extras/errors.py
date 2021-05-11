@@ -53,13 +53,14 @@ class Errors(plugins.Plugin):
             icon=author.avatar_url or author.default_avatar_url,
         )
         error = event.exception or event.exception.__cause__
+        class_t = t if (t := error.__class__) is not type else error
         func = self.handlers.get(
-            error.__class__.__name__,
+            class_t.__name__,
             self.handlers.get(
                 parent.__name__  # pylint: disable=used-before-assignment
                 if (
                     parent := utils.find(
-                        error.__class__.__mro__,
+                        class_t.__mro__,
                         lambda cls: cls.__name__ in self.handlers,
                     )
                 )
