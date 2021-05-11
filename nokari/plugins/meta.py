@@ -91,6 +91,20 @@ class Meta(plugins.Plugin):
 
         embed.add_field(name=name, value=value, inline=True)
 
+        images = self.bot.get_plugin("Images")
+
+        if not images:
+            return
+
+        spotify_card_gen = images._spotify_card_generator
+        cached_albums = len(spotify_card_gen.album_cache)
+        cached_colors = len(spotify_card_gen.color_cache)
+
+        embed.add_field(
+            name="Spotify cache",
+            value=f"Albums: {cached_albums}\nColors: {cached_colors}",
+        )
+
     @cooldown(10, 1, lightbulb.cooldowns.UserBucket)
     @core.commands.command(aliases=["pong", "latency"])
     async def ping(self, ctx: Context) -> None:
