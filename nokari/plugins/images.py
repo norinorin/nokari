@@ -5,6 +5,7 @@ from io import BytesIO
 import hikari
 import lightbulb
 from lightbulb import Bot, Context, converters, plugins
+from lightbulb.errors import ConverterFailure
 
 from nokari import core, utils
 from nokari.utils.spotify import NoSpotifyPresenceError, SpotifyCardGenerator
@@ -34,16 +35,20 @@ class Images(plugins.Plugin):
         if args.time:
             t0 = time.perf_counter()
 
-        member = (
-            await converters.member_converter(
-                converters.WrappedArg(args.remainder, ctx)
+        try:
+            member = (
+                await converters.member_converter(
+                    converters.WrappedArg(args.remainder, ctx)
+                )
+                if args.remainder
+                else ctx.member
             )
-            if args.remainder
-            else ctx.member
-        )
+        except ConverterFailure as e:
+            # re-raise the error with a text
+            raise ConverterFailure(f"Member {args.remainder!r} wasn't found...") from e
 
         if member.is_bot:
-            return await ctx.send("I won't make a card for bots >:(")
+            return await ctx.respond("I won't make a card for bots >:(")
 
         style_map = {
             "dynamic": "1",
