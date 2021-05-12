@@ -15,6 +15,7 @@ import lightbulb
 from lightbulb import checks, commands
 from lightbulb.utils import maybe_await
 
+from nokari.core.cache import Cache
 from nokari.core.commands import command
 from nokari.core.context import Context
 from nokari.utils import human_timedelta
@@ -89,7 +90,11 @@ class Nokari(lightbulb.Bot):
             insensitive_commands=True,
             prefix=["hikari", "test"],
             owner_ids=[265080794911866881],
-            cache_settings=hikari.CacheSettings(invites=False, voice_states=False),
+        )
+
+        # Custom cache
+        self._cache = self._event_manager._cache = Cache(
+            self, hikari.CacheSettings(invites=False, voice_states=False)
         )
 
         # Responses cache

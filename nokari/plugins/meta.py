@@ -27,11 +27,14 @@ class Meta(plugins.Plugin):
             g.member_count
             for g in self.bot.cache.get_available_guilds_view().iterator()
         )
-        channels = "\n".join(
-            f"{v} {str(k).split('_', 2)[-1].lower()}"
-            for k, v in Counter(
-                c.type for c in self.bot.cache.get_guild_channels_view().iterator()
-            ).items()
+        channels = (
+            "\n".join(
+                f"{v} {str(k).split('_', 2)[-1].lower()}"
+                for k, v in Counter(
+                    c.type for c in self.bot.cache.get_guild_channels_view().iterator()
+                ).items()
+            )
+            or "No cached channels..."
         )
         presences = sum(len(i) for i in self.bot.cache.get_presences_view().iterator())
         counter = Counter(
