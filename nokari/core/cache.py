@@ -1,6 +1,6 @@
-from hikari import ActivityType, presences, guilds
-from hikari.internal import cache
+from hikari import ActivityType, guilds, presences
 from hikari.impl.cache import CacheImpl
+from hikari.internal import cache
 from lightbulb import utils
 
 

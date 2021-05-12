@@ -46,9 +46,7 @@ async def member_converter(arg: WrappedArg) -> hikari.Member:
         if msg.member is not None:
             return msg.member
 
-        member = arg.context.guild.get_member(msg.author.id)
-
-        if member is not None:
+        if (member := arg.context.guild.get_member(msg.author.id)) is not None:
             return member
 
     return await member_converter_(arg)

@@ -53,8 +53,9 @@ class _Parser:
 
         for v in params.values():
             k = v["name"]
-            is_flag = v.get("argmax", -1) == 0 if v else -1
+            is_flag = v.get("argmax", -1) == 0 if v else False
             val = data.pop(k, False if is_flag else None)
+
             if k is not None:
                 k = k.replace("-", "_")
             if isinstance(val, list):
@@ -139,30 +140,29 @@ class ArgumentParser:
         names = self.valid_names
         temp_dict: Optional[ArgumentOptions] = ArgumentOptions(name=None)
         if argument[0] == "-" and argument[1] != "-":
-            if (
-                (temp_dict := params.get(key))
-                # case where we only want long flags
-                and temp_dict["name"] != key
-            ):
+            if (temp_dict := params.get(key)) and temp_dict["name"] != key:
                 if temp_dict.get("argmax", -1) == 0:
-                    # return if it's just a flag
                     data[temp_dict["name"]] = True
                     return False
             elif temp_dict and temp_dict["name"] == key:
                 temp_dict = dict(name=None)
-            elif allow_sf and (joined_flags := self.short_flags & set(key)):
-                for f in joined_flags:
-                    argument = argument.replace(f, "")
+            elif allow_sf and (flags := any([i for i in self.short_flags if i in key])):
+                for f in self.short_flags:
+                    if f not in argument:
+                        continue
+
+                    argument = argument.replace(f, "", 1)
                     data[params[f]["name"]] = True
 
-                if argument == "-":
+                argument = argument[1:]
+                if not argument:
                     return False
 
-                temp_dict = params.get(argument[1:])
+                temp_dict = params.get(argument)
 
         elif argument.startswith("--") and argument[2] != "-":
             if key in names:
-                for _, v in params.items():
+                for v in params.values():
                     if key == v["name"] or key in v["aliases"]:
                         temp_dict = v
                         break
@@ -172,9 +172,8 @@ class ArgumentParser:
 
         if (temp_dict["name"] is None and not self.force) or (
             (temp_dict["name"] in data and not self.replace)
-            and (lst := data[self._default_name])
         ):
-            if isinstance(lst, list):
+            if isinstance((lst := data[self._default_name]), list):
                 lst.append(argument)
             return False
 
