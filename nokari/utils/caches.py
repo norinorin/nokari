@@ -24,7 +24,7 @@ def cache(size: int) -> typing.Callable[[_FuncT], _FuncT]:
         _is_static_method = isinstance(func, staticmethod)
 
         if _is_static_method:
-            func = func.__get__(decorator)
+            func = func.__get__(decorator)  # type: ignore
 
         _is_coro = asyncio.iscoroutinefunction(func)
         _cache = LRU(size)
@@ -33,7 +33,7 @@ def cache(size: int) -> typing.Callable[[_FuncT], _FuncT]:
         def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
             key = _get_key(args)
             if _is_static_method:
-                _, *args = args
+                args = args[1:]
 
             try:
                 res = _cache[key]

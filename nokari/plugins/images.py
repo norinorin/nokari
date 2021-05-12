@@ -4,10 +4,11 @@ from io import BytesIO
 
 import hikari
 import lightbulb
-from lightbulb import Bot, Context, converters, plugins
+from lightbulb import Bot, Context, plugins
 from lightbulb.errors import ConverterFailure
 
 from nokari import core, utils
+from nokari.utils import converters
 from nokari.utils.spotify import NoSpotifyPresenceError, SpotifyCardGenerator
 
 
@@ -36,12 +37,8 @@ class Images(plugins.Plugin):
             t0 = time.perf_counter()
 
         try:
-            member = (
-                await converters.member_converter(
-                    converters.WrappedArg(args.remainder, ctx)
-                )
-                if args.remainder
-                else ctx.member
+            member = await converters.member_converter(
+                converters.WrappedArg(args.remainder, ctx)
             )
         except ConverterFailure as e:
             # re-raise the error with a text
