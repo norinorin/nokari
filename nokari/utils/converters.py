@@ -56,28 +56,22 @@ async def search_member(
     app: hikari.BotApp, guild_id: int, name: str
 ) -> typing.Optional[hikari.Member]:
     members = _member_cache.values()
+    username, _, discriminator = name.rpartition("#")
+    valid_discriminator = username and len(discriminator) == 4
+    name = username if valid_discriminator else name
 
     for i in range(2):
-        if len(name) > 5 and name[-5] == "#":
-            username, _, discriminator = name.rpartition("#")
+        if valid_discriminator and (
+            member := utils.get(members, username=name, discriminator=discriminator)
+        ):
+            return member
 
-            if member := utils.get(
-                members, username=username, discriminator=discriminator
-            ):
-                return member
+        if member := utils.find(members, lambda m: name in (m.username, m.nickname)):
+            return member
 
-            if not i:
-                members = await app.rest.search_members(guild_id, name=username)
-                _update_cache(members)
-        else:
-            if member := utils.find(
-                members, lambda m: name in (m.username, m.nickname)
-            ):
-                return member
-
-            if not i:
-                members = await app.rest.search_members(guild_id, name=name)
-                _update_cache(members)
+        if not i:
+            members = await app.rest.search_members(guild_id, name=name)
+            _update_cache(members)
 
     return None
 
