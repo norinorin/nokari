@@ -492,6 +492,7 @@ class SpotifyCardGenerator:
             self.bot.executor, wrapper, artist, title, album
         )
 
+    @caches.cache(100)
     @staticmethod
     def _shorten_text(font: ImageFont, text: str, threshold: int) -> str:
         width, _ = font.getsize(text)
@@ -504,6 +505,8 @@ class SpotifyCardGenerator:
             width = font.getsize(text)[0]
 
         return text + "..."
+
+    text_cache = _shorten_text.cache  # type: ignore
 
     def _get_data(
         self, member: hikari.Member
