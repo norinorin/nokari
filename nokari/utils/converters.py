@@ -70,7 +70,9 @@ async def search_member(
                 members = await app.rest.search_members(guild_id, name=username)
                 _update_cache(members)
         else:
-            if member := utils.find(members, lambda m: name in (m.username, m.nick)):
+            if member := utils.find(
+                members, lambda m: name in (m.username, m.nickname)
+            ):
                 return member
 
             if not i:
