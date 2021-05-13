@@ -146,7 +146,7 @@ class ArgumentParser:
                     return False
             elif temp_dict and temp_dict["name"] == key:
                 temp_dict = dict(name=None)
-            elif allow_sf and (flags := any([i for i in self.short_flags if i in key])):
+            elif allow_sf and any(i for i in self.short_flags if i in key):
                 for f in self.short_flags:
                     if f not in argument:
                         continue
