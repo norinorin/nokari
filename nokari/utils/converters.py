@@ -2,9 +2,12 @@ import typing
 from itertools import count
 
 import hikari
+from lightbulb import utils
 from lightbulb.converters import WrappedArg
 from lightbulb.converters import member_converter as member_converter_
 from lightbulb.converters import user_converter as user_converter_
+from lightbulb.errors import ConverterFailure
+from lru import LRU  # pylint: disable=no-name-in-module
 
 
 async def caret_converter(arg: WrappedArg) -> typing.Optional[hikari.Message]:
@@ -40,6 +43,43 @@ async def user_converter(arg: WrappedArg) -> hikari.User:
     return await user_converter_(arg)  # pylint: disable=abstract-class-instantiated
 
 
+_member_cache = LRU(50)
+
+
+def _update_cache(members: typing.Iterable[hikari.Member]) -> None:
+    _member_cache.update(
+        **{f"{member.guild_id}:{member.id}": member for member in members}
+    )
+
+
+async def search_member(
+    app: hikari.BotApp, guild_id: int, name: str
+) -> typing.Optional[hikari.Member]:
+    members = _member_cache.values()
+
+    for i in range(2):
+        if len(name) > 5 and name[-5] == "#":
+            username, _, discriminator = name.rpartition("#")
+
+            if member := utils.get(
+                members, username=username, discriminator=discriminator
+            ):
+                return member
+
+            if not i:
+                members = await app.rest.search_members(guild_id, name=username)
+                _update_cache(members)
+        else:
+            if member := utils.find(members, lambda m: name in (m.username, m.nick)):
+                return member
+
+            if not i:
+                members = await app.rest.search_members(guild_id, name=name)
+                _update_cache(members)
+
+    return None
+
+
 async def member_converter(arg: WrappedArg) -> hikari.Member:
     msg = await caret_converter(arg)
     if msg is not None:
@@ -49,4 +89,16 @@ async def member_converter(arg: WrappedArg) -> hikari.Member:
         if (member := arg.context.guild.get_member(msg.author.id)) is not None:
             return member
 
-    return await member_converter_(arg)
+    if member := _member_cache.get(f'{arg.context.guild_id}:{arg.data.strip("<@!>")}'):
+        return member
+
+    try:
+        member = await member_converter_(arg)
+        _member_cache[f"{member.guild_id}:{member.id}"] = member
+        return member
+    except ConverterFailure:
+        member = await search_member(arg.context.bot, arg.context.guild_id, arg.data)
+        if not member:
+            raise
+
+        return member
