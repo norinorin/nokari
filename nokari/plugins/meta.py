@@ -102,7 +102,8 @@ class Meta(plugins.Plugin):
         embed.add_field(
             name="Spotify cache",
             value=f"Albums: {len(images.spotify_card_generator.album_cache)}\n"
-            f"Colors: {len(images.spotify_card_generator.color_cache)}",
+            f"Colors: {len(images.spotify_card_generator.color_cache)}\n"
+            f"Texts: {len(images.spotify_card_generator.text_cache)}",
         )
 
     @cooldown(10, 1, lightbulb.cooldowns.UserBucket)
