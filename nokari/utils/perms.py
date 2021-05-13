@@ -100,8 +100,10 @@ def has_channel_perms(
     and is allowed in the channel.
     """
     base = get_guild_perms(guild, member)
-    everyone = channel.permission_overwrites[guild.id]
-    base = _apply_overwrites(base, everyone.allow, everyone.deny)
+
+    if everyone := channel.permission_overwrites.get(guild.id):
+        base = _apply_overwrites(base, everyone.allow, everyone.deny)
+
     allow = deny = hikari.Permissions()
 
     for role_id in member.role_ids:
