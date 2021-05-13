@@ -8,7 +8,7 @@ from lightbulb import Bot, plugins
 
 from nokari import core
 from nokari.core import Context, cooldown
-from nokari.utils import human_timedelta, plural
+from nokari.utils import human_timedelta, plural, converters
 
 
 class Meta(plugins.Plugin):
@@ -69,7 +69,8 @@ class Meta(plugins.Plugin):
                 name="Total cached members:",
                 value=(
                     f"{human:,}h & {bots:,}b out of {total_members:,}\n"
-                    f"{plural(presences):presence}"
+                    f"{plural(presences):presence}\n"
+                    f"{plural(len(converters._member_cache)):converted member}"
                 ),
                 inline=True,
             )
