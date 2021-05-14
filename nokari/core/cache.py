@@ -1,7 +1,11 @@
-from hikari import ActivityType, guilds, presences
+import typing
+
+from hikari import ActivityType, guilds, presences, snowflakes, users
 from hikari.impl.cache import CacheImpl
 from hikari.internal import cache
 from lightbulb import utils
+
+from nokari.utils import converters
 
 
 class Cache(CacheImpl):
@@ -19,6 +23,27 @@ class Cache(CacheImpl):
         presence.activities = [spotify]
 
         return super().set_presence(presence)
+
+    def update_member(
+        self, member: guilds.Member, /
+    ) -> typing.Tuple[typing.Optional[guilds.Member], typing.Optional[guilds.Member]]:
+        key = f"{member.guild_id}:{member.id}"
+        if key in converters._member_cache:
+            converters._member_cache[key] = member
+
+        return super().update_member(member)
+
+    def delete_member(
+        self,
+        guild: snowflakes.SnowflakeishOr[guilds.PartialGuild],
+        user: snowflakes.SnowflakeishOr[users.PartialUser],
+        /,
+    ) -> typing.Optional[guilds.Member]:
+        converters._member_cache.pop(
+            f"{snowflakes.Snowflake(guild)}:{snowflakes.Snowflake(user)}", None
+        )
+
+        return super().delete_member(guild, user)
 
     def _set_member(
         self, member: guilds.Member, /, *, is_reference: bool = True
