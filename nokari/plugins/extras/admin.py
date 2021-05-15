@@ -101,74 +101,75 @@ class Admin(plugins.Plugin):
             measured_time = f"⏲️ {timedelta * 1000}ms"
             stdout_val = stdout.getvalue()
 
-            if not status:
-                output = (
-                    f"Standard Output: ```py\n{stdout_val.replace('`', zws+'`')}```\n"
-                    if stdout_val
-                    else ""
+            if status:
+                return
+
+            output = (
+                f"Standard Output: ```py\n{stdout_val.replace('`', zws+'`')}```\n"
+                if stdout_val
+                else ""
+            )
+            output = f"{output}Return Value: ```py\n{result.replace('`', zws+'`')}```\n"
+
+            if len(output) < n:
+                output = f"{output}{measured_time}"
+                await ctx.respond(output)
+
+            else:
+                chunked_output = (
+                    list(utils.chunks(stdout_val.strip(), n)) if stdout_val else []
                 )
-                output = (
-                    f"{output}Return Value: ```py\n{result.replace('`', zws+'`')}```\n"
-                )
+                chunked_return_value = list(utils.chunks(str(result), n))
 
-                if len(output) < n:
-                    output = f"{output}{measured_time}"
-                    await ctx.respond(output)
+                stdout_indexes = len(chunked_output) - 1
 
-                else:
-                    chunked_output = (
-                        list(utils.chunks(stdout_val.strip(), n)) if stdout_val else []
-                    )
-                    chunked_return_value = list(utils.chunks(str(result), n))
+                texts = chunked_output + chunked_return_value
+                pages = []
 
-                    stdout_indexes = len(chunked_output) - 1
+                for idx, page in enumerate(texts):
+                    if chunked_output and idx <= stdout_indexes:
+                        page = (
+                            f"Standard Output: ```py\n{page.replace('`', zws+'`')}```\n"
+                        )
+                    else:
+                        page = f"Return Value: ```py\n{page.replace('`', zws+'`')}```\n"
 
-                    texts = chunked_output + chunked_return_value
-                    pages = []
+                    page = f"{page}{measured_time} | {idx + 1}/{len(texts)}"
+                    pages.append(page)
 
-                    for idx, page in enumerate(texts):
-                        if chunked_output and idx <= stdout_indexes:
-                            page = f"Standard Output: ```py\n{page.replace('`', zws+'`')}```\n"
-                        else:
-                            page = f"Return Value: ```py\n{page.replace('`', zws+'`')}```\n"
+                # IDK if this is a good idea, w/e
+                del texts
+                del stdout
+                del result
+                del chunked_output
+                del chunked_return_value
 
-                        page = f"{page}{measured_time} | {idx + 1}/{len(texts)}"
-                        pages.append(page)
+                paginator = utils.Paginator.default(ctx)
+                paginator.add_page(pages)
 
-                    # IDK if this is a good idea, w/e
-                    del texts
-                    del stdout
-                    del result
-                    del chunked_output
-                    del chunked_return_value
-
-                    paginator = utils.Paginator.default(ctx)
-                    paginator.add_page(pages)
-
-                    await paginator.start()
+                await paginator.start()
 
         # pylint: disable=broad-except
         except Exception:
             timedelta = time.monotonic() - t0
             measured_time = f"⏲️ {timedelta * 1000}ms"
-            if not status:
-                try:
-                    traceback_info = re.sub(
-                        fr'"[\W\w]+\/{__name__}\.py"',
-                        '"/dev/eval.py"',
-                        traceback.format_exc(),
-                    )
-                    await ctx.respond(
-                        f"""
+            try:
+                traceback_info = re.sub(
+                    fr'"[\W\w]+\/{__name__}\.py"',
+                    '"/dev/eval.py"',
+                    traceback.format_exc(),
+                )
+                await ctx.respond(
+                    f"""
 Error: ```py
 {traceback_info.replace('`', zws+'`')}
 ```
 {measured_time}
 """
-                    )
-                except hikari.HTTPResponseError:
-                    await ctx.message.add_reaction("❌")
-                    self.bot.logger.error(traceback_info)
+                )
+            except hikari.HTTPResponseError:
+                await ctx.message.add_reaction("❌")
+                self.bot.logger.error(traceback_info)
 
 
 def load(bot: Bot) -> None:

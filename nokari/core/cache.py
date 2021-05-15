@@ -11,11 +11,8 @@ from nokari.utils import converters
 class Cache(CacheImpl):
     def set_presence(self, presence: presences.MemberPresence, /) -> None:
         if (
-            spotify := utils.find(
-                presence.activities,
-                lambda x: x.name
-                and x.name == "Spotify"
-                and x.type is ActivityType.LISTENING,
+            spotify := utils.get(
+                presence.activities, name="Spotify", type=ActivityType.LISTENING
             )
         ) is None:
             return None

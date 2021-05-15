@@ -26,7 +26,7 @@ _VT = typing.TypeVar("_VT")
 
 
 class FixedSizeDict(collections.MutableMapping[_KT, _VT], typing.Generic[_KT, _VT]):
-    """A fixed sized dict, mainly to cache responses the bot has made."""
+    """A fixed size dict, mainly to cache responses the bot has made."""
 
     def __init__(
         self,

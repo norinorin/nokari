@@ -66,7 +66,9 @@ async def search_member(
         ):
             return member
 
-        if member := utils.find(members, lambda m: name in (m.username, m.nickname)):
+        if not valid_discriminator and (
+            member := utils.find(members, lambda m: name in (m.username, m.nickname))
+        ):
             return member
 
         if not i:
