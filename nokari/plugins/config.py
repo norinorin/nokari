@@ -54,22 +54,19 @@ class Config(plugins.Plugin):
             DELETE
                 FROM prefixes
                 WHERE array_length(prefixes, 1) IS NULL
-                AND (hash = $1 or hash = $2)
+                AND hash = ANY($1)
         ),
         PREFIXES AS(
             SELECT hash, prefixes
                 FROM prefixes
-                WHERE hash = $1
-                    or hash = $2
+                WHERE hash = ANY($1)
         )
         SELECT hash, prefixes FROM PREFIXES
         """
         prefix = {
             record["hash"]: record["prefixes"]
             for record in await self.bot.pool.fetch(
-                query,
-                ctx.guild_id,
-                ctx.author.id,
+                query, [ctx.guild_id, ctx.author.id]
             )
         }
 
