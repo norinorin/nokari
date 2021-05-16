@@ -6,6 +6,13 @@ import typing
 
 import asyncpg
 
+__all__: typing.Final[typing.List[str]] = [
+    "Column",
+    "PrimaryKeyColumn",
+    "Table",
+    "create_pool",
+    "create_tables",
+]
 T = typing.TypeVar("T")
 
 

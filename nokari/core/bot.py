@@ -16,6 +16,7 @@ import hikari
 import lightbulb
 from lightbulb import checks, commands
 from lightbulb.utils import maybe_await
+from lru import LRU
 
 from nokari.core.cache import Cache
 from nokari.core.commands import command
@@ -23,53 +24,6 @@ from nokari.core.context import Context
 from nokari.utils import db, human_timedelta
 
 __all__: typing.Final[typing.List[str]] = ["Nokari"]
-_KT = typing.TypeVar("_KT")
-_VT = typing.TypeVar("_VT")
-
-
-class FixedSizeDict(collections.MutableMapping[_KT, _VT], typing.Generic[_KT, _VT]):
-    """A fixed size dict, mainly to cache responses the bot has made."""
-
-    def __init__(
-        self,
-        length: int,
-        *args: typing.Union[typing.Iterable[_VT], typing.Mapping[_KT, _VT]],
-        **kwargs: typing.Any,
-    ) -> None:
-        self.length = length
-        self._dict: typing.Dict[_KT, _VT] = dict(*args, **kwargs)
-        while len(self) > length:
-            self.popitem()
-
-    def __iter__(self) -> typing.Iterator[typing.Any]:
-        """Returns an iterator of the internal dict."""
-        return iter(self._dict)
-
-    def __len__(self) -> int:
-        """Returns the length of the internal dict."""
-        return len(self._dict)
-
-    def __getitem__(self, _k: _KT) -> _VT:
-        """Gets item from the internal dict."""
-        return self._dict[_k]
-
-    def __delitem__(self, _k: _KT) -> None:
-        """Deletes item from the internal dict."""
-        del self._dict[_k]
-
-    def __setitem__(self, _k: _KT, _v: _VT) -> None:
-        """Puts item to the internal dict."""
-        if _k not in self and len(self) == self.length:
-            self.popitem()
-        self._dict[_k] = _v
-
-    def __str__(self) -> str:
-        """Returns the stringified internal dict."""
-        return str(self._dict)
-
-    def __repr__(self) -> str:
-        """Returns the representation of the object."""
-        return f"{self.__class__.__name__}(length={self.length}, **{self})"
 
 
 def _get_prefixes(bot: lightbulb.Bot, message: hikari.Message) -> typing.List[str]:
@@ -113,7 +67,7 @@ class Nokari(lightbulb.Bot):
         )
 
         # Responses cache
-        self._resp_cache: FixedSizeDict = FixedSizeDict(1024)
+        self._resp_cache = LRU(1024)
 
         # load extensions
         self.load_extensions()
@@ -160,7 +114,7 @@ class Nokari(lightbulb.Bot):
         return self._rest._client_session
 
     @property
-    def responses_cache(self) -> FixedSizeDict[_KT, _VT]:
+    def responses_cache(self) -> LRU:
         """Returns a mapping from message ids to its response message ids."""
         return self._resp_cache
 

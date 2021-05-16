@@ -5,6 +5,7 @@ from functools import wraps
 
 from lru import LRU  # pylint: disable=no-name-in-module
 
+__all__: typing.Final[typing.List[str]] = ["cache"]
 _FuncT = typing.TypeVar("_FuncT", bound=typing.Callable[..., typing.Any])
 
 

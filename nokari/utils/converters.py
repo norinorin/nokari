@@ -9,6 +9,12 @@ from lightbulb.converters import user_converter as user_converter_
 from lightbulb.errors import ConverterFailure
 from lru import LRU  # pylint: disable=no-name-in-module
 
+__all__: typing.Final[typing.List[str]] = [
+    "user_converter",
+    "member_converter",
+    "caret_converter",
+]
+
 
 async def caret_converter(arg: WrappedArg) -> typing.Optional[hikari.Message]:
     ret = None
