@@ -15,8 +15,9 @@ if os.name != "nt":
 
 load_dotenv()
 
-if "DISCORD_BOT_TOKEN" not in os.environ:
-    raise RuntimeError("DISCORD_BOT_TOKEN env variable must be set.")
+for var in ("DISCORD_BOT_TOKEN", "POSTGRESQL_DSN"):
+    if var not in os.environ:
+        raise RuntimeError(f"{var} env variable must be set.")
 
 if "DISCORD_MOBILE_INDICATOR" in os.environ:
     import nokari.utils.monkey_patch

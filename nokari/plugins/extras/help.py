@@ -74,8 +74,8 @@ class CustomHelp(help_.HelpCommand):
 
         items = [fmt]
 
-        if command.usage:
-            items.append(command.usage)
+        if usage := getattr(command, "usage", None):
+            items.append(usage)
         else:
             for argname, arginfo in command.arg_details.args.items():
                 if arginfo.ignore:

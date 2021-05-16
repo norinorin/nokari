@@ -5,12 +5,15 @@ import collections
 import datetime
 import logging
 import os
+import sys
 import traceback
 import typing
 import weakref
 
 import aiohttp
+import asyncpg
 import hikari
+from hikari.snowflakes import Snowflake
 import lightbulb
 from lightbulb import checks, commands
 from lightbulb.utils import maybe_await
@@ -18,7 +21,7 @@ from lightbulb.utils import maybe_await
 from nokari.core.cache import Cache
 from nokari.core.commands import command
 from nokari.core.context import Context
-from nokari.utils import human_timedelta
+from nokari.utils import human_timedelta, db
 
 __all__: typing.Final[typing.List[str]] = ["Nokari"]
 _KT = typing.TypeVar("_KT")
@@ -70,6 +73,13 @@ class FixedSizeDict(collections.MutableMapping[_KT, _VT], typing.Generic[_KT, _V
         return f"{self.__class__.__name__}(length={self.length}, **{self})"
 
 
+def _get_prefixes(bot: lightbulb.Bot, message: hikari.Message) -> typing.List[str]:
+    prefixes = bot.prefixes
+    return (
+        prefixes.get(message.guild_id, []) + prefixes.get(message.author.id, [])
+    ) or bot.default_prefix
+
+
 class Nokari(lightbulb.Bot):
     """The custom command handler class."""
 
@@ -88,13 +98,17 @@ class Nokari(lightbulb.Bot):
             | hikari.Intents.GUILD_MESSAGE_REACTIONS
             | hikari.Intents.GUILD_PRESENCES,
             insensitive_commands=True,
-            prefix=["hikari", "test"],
+            prefix=lightbulb.when_mentioned_or(_get_prefixes),
             owner_ids=[265080794911866881],
         )
 
         # Custom cache
         self._cache = self._event_manager._cache = Cache(
-            self, hikari.CacheSettings(invites=False, voice_states=False)
+            self,
+            hikari.CacheSettings(
+                components=hikari.CacheComponents.ALL
+                ^ (hikari.CacheComponents.VOICE_STATES | hikari.CacheComponents.INVITES)
+            ),
         )
 
         # Responses cache
@@ -122,6 +136,13 @@ class Nokari(lightbulb.Bot):
         # Set Launch time
         self.launch_time: typing.Optional[datetime.datetime] = None
 
+        # Create a pool
+        self.loop.run_until_complete(self.create_pool())
+
+        # Cache prefixes
+        self.default_prefix = ["nokari", "n!"]
+        self.loop.run_until_complete(self._load_prefixes())
+
     @property
     def default_color(self) -> hikari.Color:
         """Returns the dominant color of the bot's avatar"""
@@ -146,6 +167,23 @@ class Nokari(lightbulb.Bot):
     def paginators(self) -> weakref.WeakValueDictionary:
         """Returns a mapping from message ids to active paginators."""
         return self._paginators
+
+    @property
+    def pool(self) -> typing.Optional[asyncpg.Pool]:
+        return self._pool if hasattr(self, "_pool") else None
+
+    async def create_pool(self) -> None:
+        """Creates a connection pool"""
+        self._pool = pool = await db.create_pool()
+
+        if sys.argv[-1] == "init":
+            await db.create_tables(pool)
+
+    async def _load_prefixes(self) -> None:
+        self.prefixes = {
+            record["hash"]: record["prefixes"]
+            for record in await self._pool.fetch("SELECT * FROM prefixes")
+        }
 
     async def on_started(self, _: hikari.StartedEvent) -> None:
         """Sets the launch time as soon as it connected to Discord gateway."""
@@ -235,6 +273,13 @@ class Nokari(lightbulb.Bot):
                         )
                     )
                 )
+
+    def run(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+        try:
+            return super().run(close_loop=False, *args, **kwargs)
+        finally:
+            if self.pool:
+                self.loop.run_until_complete(self.pool.close())
 
 
 @checks.owner_only()

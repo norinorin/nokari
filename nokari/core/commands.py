@@ -4,7 +4,7 @@ import typing
 
 from lightbulb import commands
 
-__all__: typing.Final[typing.List[str]] = ["Command", "command"]
+__all__: typing.Final[typing.List[str]] = ["Command", "command", "group"]
 
 
 class Command(commands.Command):
@@ -50,3 +50,6 @@ def command(
         )
 
     return decorate
+
+
+group = commands.group  # re-export
