@@ -6,9 +6,11 @@ Click this [link](https://discord.com/oauth2/authorize?client_id=725081925311529
 
 ## Requirements
 - A Discord application
-- What's listed in requirements.txt
+- Things listed in requirements.txt
 - Python 3.8+
+- PostgreSQL server
 - `DISCORD_BOT_TOKEN` env variable containing your Discord bot token
+and `POSTGRESQL_DSN` containing your postgresql url
 
 ## Running
 After having all the requirements, just run the main file.

@@ -128,7 +128,7 @@ class Meta(plugins.Plugin):
         """Shows the statistic of the bot."""
         embed = hikari.Embed(title="Stats")
         self.get_info(
-            embed, owner="d" in flags.lower() and ctx.author_id in self.bot.owner_ids
+            embed, owner="d" in flags.lower() and ctx.author.id in self.bot.owner_ids
         )
         await ctx.respond(embed=embed)
 

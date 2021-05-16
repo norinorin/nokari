@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import typing
 
 import hikari
@@ -16,14 +14,12 @@ class Prefixes(db.Table):
     prefixes: db.Column[typing.List[str]]
 
 
-class PrefixConverter:
-    @staticmethod
-    def __call__(arg: WrappedArg) -> str:
-        bot = arg.context.bot
-        if arg.data in (f"<@{bot.me.user.id}>", f"<@!{bot.me.user.id}>"):
-            raise errors.ConverterFailure(f"{arg.data} is an existing prefix...")
+def convert_prefix(arg: WrappedArg) -> str:
+    bot = arg.context.bot
+    if arg.data in (f"<@{bot.me.id}>", f"<@!{bot.me.id}>"):
+        raise errors.ConverterFailure(f"{arg.data} is an existing prefix...")
 
-        return arg.data
+    return arg.data
 
 
 class Config(plugins.Plugin):
@@ -47,7 +43,8 @@ class Config(plugins.Plugin):
 
     @staticmethod
     def format_prefixes(prefixes: typing.Sequence[str]) -> typing.List[str]:
-        return [f"`{prefix}`" for prefix in prefixes]
+        zws = "\u200b"
+        return [f"`{prefix or zws}`" for prefix in prefixes]
 
     @core.commands.group()
     async def prefix(self, ctx: core.Context) -> None:
@@ -74,14 +71,20 @@ class Config(plugins.Plugin):
         await ctx.respond(embed=embed)
 
     @prefix.command(name="user")
-    async def prefix_user(self, ctx: core.Context, *, prefix: PrefixConverter) -> None:
+    async def prefix_user(self, ctx: core.Context, *args: str) -> None:
         """Append the prefix to user prefixes if not exists, otherwise it'll be removed"""
+        prefix = convert_prefix(
+            WrappedArg(" ".join(typing.cast(str, args)).lower(), ctx)
+        )
         await self.bot.pool.execute(self.PREFIX_TOGGLE_QUERY, ctx.author.id, prefix)
         await self.prefix.callback(self, ctx)
 
     @prefix.command(name="guild")
-    async def prefix_guild(self, ctx: core.Context, *, prefix: PrefixConverter) -> None:
+    async def prefix_guild(self, ctx: core.Context, *args: str) -> None:
         """Append the prefix to guild prefixes if not exists, otherwise it'll be removed"""
+        prefix = convert_prefix(
+            WrappedArg(" ".join(typing.cast(str, args)).lower(), ctx)
+        )
         await self.bot.pool.execute(self.PREFIX_TOGGLE_QUERY, ctx.guild_id, prefix)
         await self.prefix.callback(self, ctx)
 
