@@ -134,7 +134,7 @@ class Meta(plugins.Plugin):
 
     @cooldown(2, 1, lightbulb.cooldowns.UserBucket)
     @core.commands.command()
-    async def source(self, ctx: Context, obj: typing.Optional[str] = None) -> None:
+    async def source(self, ctx: Context, *, obj: typing.Optional[str] = None) -> None:
         """
         Returns the link to the specified object if exists.
         """
