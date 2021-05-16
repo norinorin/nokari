@@ -83,7 +83,8 @@ class ArgumentParser:
         "force",
         "replace",
         "valid_names",
-        "short_keys",
+        "short_flags",
+        "short_options",
         "_default_key",
         "_default_name",
     )
@@ -113,7 +114,8 @@ class ArgumentParser:
         self.force = force
         self.replace = replace
         self.valid_names = set()
-        self.short_keys = set()
+        self.short_flags = set()
+        self.short_options = set()
         self._default_key = append_remainder_to
 
         for k, v in self.params.items():
@@ -129,7 +131,10 @@ class ArgumentParser:
                 self.valid_names.add(alias)
 
             if k != v["name"]:
-                self.short_keys.add(k)
+                if v.get("argmax") == 0:
+                    self.short_flags.add(k)
+                else:
+                    self.short_options.add(k)
 
         self._default_name = (
             params[self._default_key]["name"] if self._default_key else None
@@ -161,34 +166,48 @@ class ArgumentParser:
             # it's a multiple short flags
             # or a short option but the argument sticks to the option,
             # e.g., -mnorizon instead of -m norizon
-            elif allow_sf and find(self.short_keys, lambda i: i in argument):
+            elif allow_sf and find(
+                self.short_flags | self.short_options, lambda i: i in argument
+            ):
                 argument = argument[1:]
                 has_flags = False
-                while argument and (
-                    short_key := find(
-                        self.short_keys,
-                        lambda i: i.startswith(argument[0]) and len(i) <= len(argument),
-                    )
-                ):
-                    name = params[short_key]["name"]
-                    argument = argument[len(short_key) :]
+                invalid_keys = set()
+                for iterable in (self.short_flags, self.short_options):
+                    while argument and (
+                        short_key := find(
+                            iterable,
+                            lambda i: i.startswith(argument[0])
+                            and len(i) <= len(argument)
+                            and i not in invalid_keys,
+                        )
+                    ):
+                        invalid_keys.add(short_key)
+                        name = params[short_key]["name"]
+                        is_flag = params[short_key].get("argmax") == 0
 
-                    # it's a valid short flag
-                    # continue to look for more short flags
-                    if params[short_key].get("argmax") == 0:
-                        data[name] = True
-                        has_flags = True
-                        continue
+                        if is_flag or not has_flags:
+                            # only subtract the argument if it's a short flag
+                            # or a valid option
+                            argument = argument[len(short_key) :]
 
-                    # it's a valid short option
-                    # append the argument and return
-                    if not has_flags:
-                        if isinstance((lst := data.get(name)), list):
-                            lst.append(argument)
-                        else:
-                            data[name] = [argument]
+                        # it's a valid short flag
+                        # continue to look for more short flags
+                        if is_flag:
+                            data[name] = True
+                            has_flags = True
+                            continue
 
-                        return False
+                        # it's a valid short option
+                        # append the argument and return
+                        if not has_flags:
+                            if isinstance((lst := data.get(name)), list):
+                                lst.append(argument)
+                            else:
+                                data[name] = [argument]
+
+                            return False
+
+                        break
 
                 # argument is exhausted. So, return
                 if not argument:
