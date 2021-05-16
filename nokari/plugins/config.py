@@ -4,8 +4,10 @@ import hikari
 from hikari.snowflakes import Snowflake
 from lightbulb import Bot, errors, plugins
 from lightbulb.converters import WrappedArg
+from lightbulb.cooldowns import UserBucket
 
 from nokari import core
+from nokari.core import cooldown
 from nokari.utils import db
 
 
@@ -46,9 +48,10 @@ class Config(plugins.Plugin):
         zws = "\u200b"
         return [f"`{prefix or zws}`" for prefix in prefixes]
 
+    @cooldown(4, 1, UserBucket)
     @core.commands.group()
     async def prefix(self, ctx: core.Context) -> None:
-        """Shows the set prefixes"""
+        """Shows the usable prefixes."""
         query = """
         WITH _ as(
             DELETE
@@ -91,17 +94,19 @@ class Config(plugins.Plugin):
 
         await ctx.respond(embed=embed)
 
+    @cooldown(4, 1, UserBucket)
     @prefix.command(name="user")
     async def prefix_user(self, ctx: core.Context, *args: str) -> None:
-        """Append the prefix to user prefixes if not exists, otherwise it'll be removed"""
+        """Appends the prefix to user prefixes if not exists, otherwise it'll be removed."""
         prefix = convert_prefix(WrappedArg(" ".join(typing.cast(str, args)), ctx))
         await self.bot.pool.execute(self.PREFIX_TOGGLE_QUERY, ctx.author.id, prefix)
         await self.prefix.callback(self, ctx)
 
+    @cooldown(4, 1, UserBucket)
     @prefix.command(name="guild")
     async def prefix_guild(self, ctx: core.Context, *args: str) -> None:
         """
-        Append the prefix to guild prefixes if not exists, otherwise it'll be removed.
+        Appends the prefix to guild prefixes if not exists, otherwise it'll be removed.
         Invoking this command will remove the provided default prefixes.
         """
         prefix = convert_prefix(WrappedArg(" ".join(typing.cast(str, args)), ctx))

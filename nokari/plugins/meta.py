@@ -1,4 +1,6 @@
 import datetime
+import inspect
+import typing
 from collections import Counter
 
 import hikari
@@ -8,7 +10,7 @@ from lightbulb import Bot, plugins
 
 from nokari import core
 from nokari.core import Context, cooldown
-from nokari.utils import converters, human_timedelta, plural
+from nokari.utils import converters, human_timedelta, paginator, parser, plural, spotify
 
 
 class Meta(plugins.Plugin):
@@ -22,7 +24,7 @@ class Meta(plugins.Plugin):
         self.process = psutil.Process()
 
     def get_info(self, embed: hikari.Embed, owner: bool = False) -> None:
-        """Modify the embed to contain the statistics."""
+        """Modifies the embed to contain the statistics."""
         total_members = sum(
             g.member_count
             for g in self.bot.cache.get_available_guilds_view().iterator()
@@ -74,12 +76,11 @@ class Meta(plugins.Plugin):
                 ),
                 inline=True,
             )
-        )
-
-        embed.add_field(
-            name="Cpu:",
-            value=f"{self.process.cpu_percent()/psutil.cpu_count()}%",
-            inline=True,
+            .add_field(
+                name="Cpu:",
+                value=f"{self.process.cpu_percent()/psutil.cpu_count()}%",
+                inline=True,
+            )
         )
 
         memory_full_info = self.process.memory_full_info()
@@ -96,28 +97,27 @@ class Meta(plugins.Plugin):
         embed.add_field(name=name, value=value, inline=True)
 
         images = self.bot.get_plugin("Images")
-
         if not images:
             return
 
-        embed.add_field(
-            name="Spotify cache",
-            value=f"Albums: {len(images.spotify_card_generator.album_cache)}\n"
-            f"Colors: {len(images.spotify_card_generator.color_cache)}\n"
-            f"Texts: {len(images.spotify_card_generator.text_cache)}",
-            inline=True,
-        )
-
-        embed.add_field(
-            name="Cached prefixes",
-            value=f"{plural(len(self.bot.prefixes)):hash|hashes}",
-            inline=True,
+        (
+            embed.add_field(
+                name="Spotify cache",
+                value=f"Albums: {len(images.spotify_card_generator.album_cache)}\n"
+                f"Colors: {len(images.spotify_card_generator.color_cache)}\n"
+                f"Texts: {len(images.spotify_card_generator.text_cache)}",
+                inline=True,
+            ).add_field(
+                name="Cached prefixes",
+                value=f"{plural(len(self.bot.prefixes)):hash|hashes}",
+                inline=True,
+            )
         )
 
     @cooldown(10, 1, lightbulb.cooldowns.UserBucket)
     @core.commands.command(aliases=["pong", "latency"])
     async def ping(self, ctx: Context) -> None:
-        """Shows the WebSocket latency to the Discord gateway"""
+        """Shows the WebSocket latency to the Discord gateway."""
         latency = int(ctx.bot.heartbeat_latency * 1000)
         emoji = "🔴" if latency > 500 else "🟡" if latency > 100 else "🟢"
         await ctx.respond(f"Pong? {emoji} {latency}ms")
@@ -131,6 +131,44 @@ class Meta(plugins.Plugin):
             embed, owner="d" in flags.lower() and ctx.author.id in self.bot.owner_ids
         )
         await ctx.respond(embed=embed)
+
+    @cooldown(2, 1, lightbulb.cooldowns.UserBucket)
+    @core.commands.command()
+    async def source(self, ctx: Context, obj: typing.Optional[str] = None) -> None:
+        """
+        Returns the link to the specified object if exists.
+        """
+        base_url = "https://github.com/norinorin/nokari"
+
+        if obj is None:
+            await ctx.respond(base_url)
+            return
+
+        obj_map = {
+            "bot": self.bot.__class__,
+            "context": ctx.__class__,
+            "cache": self.bot.cache.__class__,
+            "spotify": spotify.SpotifyCardGenerator,
+            "paginator": paginator.Paginator,
+            "parser": parser.ArgumentParser,
+        }
+
+        aliases = {"sp": "spotify", "ctx": "context"}
+
+        obj = obj.lower()
+
+        maybe_command = obj_map.get(aliases.get(obj, obj), self.bot.get_command(obj))
+        if maybe_command is None:
+            await ctx.respond("Couldn't find anything...")
+            return
+
+        actual_obj = getattr(maybe_command, "callback", maybe_command)
+
+        lines, lineno = inspect.getsourcelines(actual_obj)
+        hash_jump = "" if obj == "help" else f"#L{lineno}-L{lineno+len(lines)-1}"
+        blob = f"{actual_obj.__module__.replace('.', '/')}.py"
+
+        await ctx.respond(f"<{base_url}/blob/master/{blob}{hash_jump}>")
 
 
 def load(bot: Bot) -> None:

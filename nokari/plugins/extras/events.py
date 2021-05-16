@@ -1,10 +1,12 @@
+from contextlib import suppress
+
 from hikari import (
     GuildMessageCreateEvent,
     GuildMessageDeleteEvent,
     GuildMessageUpdateEvent,
     Message,
 )
-from lightbulb import Bot, plugins
+from lightbulb import Bot, errors, plugins
 
 
 class Events(plugins.Plugin):
@@ -29,9 +31,9 @@ class Events(plugins.Plugin):
             invoked_with="prefix",
             invoked_command=self.bot.get_command("prefix"),
         )
-        return await self.bot.get_command("prefix").callback(
-            self.bot.get_plugin("Config"), ctx
-        )
+
+        with suppress(errors.CommandIsOnCooldown):
+            return await self.bot.get_command("prefix").invoke(ctx)
 
     @plugins.listener()
     async def on_message(self, event: GuildMessageCreateEvent) -> None:

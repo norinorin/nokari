@@ -96,7 +96,7 @@ class Context(lightbulb.Context):
         return resp
 
     @property
-    def me(self) -> typing.Optional[hikari.Member]:  # pylint: disable=invalid-name
+    def me(self) -> typing.Optional[hikari.Member]:
         """Returns the Member object of the bot iself if applicable."""
         return (
             self.guild_id

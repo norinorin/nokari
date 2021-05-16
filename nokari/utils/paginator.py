@@ -28,9 +28,7 @@ __all__: Final[List[str]] = ["EmptyPages", "Mode", "Paginator"]
 _T = TypeVar("_T")
 _ButtonCallback = Callable[[], Union[Any, Coroutine[Any, Any, None]]]
 _Pages = List[_T]
-_EventT_co = TypeVar(  # pylint: disable=invalid-name
-    "_EventT_co", bound=hikari.Event, covariant=True
-)
+_EventT_co = TypeVar("_EventT_co", bound=hikari.Event, covariant=True)
 _PredicateT = Callable[[_EventT_co], bool]
 
 

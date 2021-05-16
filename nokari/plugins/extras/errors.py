@@ -49,7 +49,7 @@ class Errors(plugins.Plugin):
         embed = hikari.Embed()
         author = event.message.author
         embed.set_author(
-            name=author.username,
+            name=str(author),
             icon=author.avatar_url or author.default_avatar_url,
         )
         error = event.exception or event.exception.__cause__
@@ -101,9 +101,7 @@ class Errors(plugins.Plugin):
     ) -> None:
         """Handles CommandIsOnCooldown error"""
         embed.description = "You're on cooldown"
-        embed.set_footer(
-            text=f"Please try again in {round(error.retry_after, 2)} seconds"
-        )
+        embed.set_footer(text=f"Please try again in {round(error.retry_in, 2)} seconds")
 
     @staticmethod
     def handle_command_invocation_error(
