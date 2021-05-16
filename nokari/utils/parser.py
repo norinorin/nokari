@@ -217,7 +217,7 @@ class ArgumentParser:
                 # so, switch the temp cursor to the remainder
                 temp_dict = ArgumentOptions(name=None)
 
-        elif argument.startswith("--") and argument[2] != "-":
+        elif argument.startswith("--") and len(argument) > 2 and argument[2] != "-":
             if key in names:
                 for v in params.values():
                     # it's a valid long key
@@ -319,7 +319,7 @@ class ArgumentParser:
                 self.switch_cursor(cursor, temp_argument)
                 continue
 
-            # append every argument to the current cursor
+            # append the argument to the current cursor
             self.append(cursor, argument)
 
         return cursor.finish()
