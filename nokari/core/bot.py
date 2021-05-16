@@ -1,7 +1,6 @@
 """A module that contains a custom command handler class implementation."""
 
 import asyncio
-import collections
 import datetime
 import logging
 import os
@@ -16,7 +15,7 @@ import hikari
 import lightbulb
 from lightbulb import checks, commands
 from lightbulb.utils import maybe_await
-from lru import LRU
+from lru import LRU  # pylint: disable=no-name-in-module
 
 from nokari.core.cache import Cache
 from nokari.core.commands import command

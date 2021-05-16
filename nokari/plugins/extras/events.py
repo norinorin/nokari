@@ -1,5 +1,3 @@
-import typing
-
 from hikari import (
     GuildMessageCreateEvent,
     GuildMessageDeleteEvent,
