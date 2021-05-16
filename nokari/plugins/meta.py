@@ -145,6 +145,7 @@ class Meta(plugins.Plugin):
             return
 
         obj_map = {
+            "help": self.bot.help_command.__class__,
             "bot": self.bot.__class__,
             "context": ctx.__class__,
             "cache": self.bot.cache.__class__,
@@ -165,7 +166,7 @@ class Meta(plugins.Plugin):
         actual_obj = getattr(maybe_command, "callback", maybe_command)
 
         lines, lineno = inspect.getsourcelines(actual_obj)
-        hash_jump = "" if obj == "help" else f"#L{lineno}-L{lineno+len(lines)-1}"
+        hash_jump = f"#L{lineno}-L{lineno+len(lines)-1}"
         blob = f"{actual_obj.__module__.replace('.', '/')}.py"
 
         await ctx.respond(f"<{base_url}/blob/master/{blob}{hash_jump}>")
