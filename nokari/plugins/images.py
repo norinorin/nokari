@@ -24,6 +24,9 @@ class Images(plugins.Plugin):
                 "c": utils.ArgumentOptions(name="card", argmax=0),
                 "t": utils.ArgumentOptions(name="time", argmax=0),
                 "cl": utils.ArgumentOptions(name="colour", aliases=["color"], argmax=1),
+                "m": utils.ArgumentOptions(
+                    name="member", argmax=0
+                ),  # just for testing purpose
             }
         )
 
@@ -40,9 +43,8 @@ class Images(plugins.Plugin):
             member = await converters.member_converter(
                 converters.WrappedArg(args.remainder, ctx)
             )
-        except ConverterFailure as e:
-            # re-raise the error with a text
-            raise ConverterFailure(f"Member {args.remainder!r} wasn't found...") from e
+        except ConverterFailure:
+            member = ctx.member
 
         if member.is_bot:
             return await ctx.respond("I won't make a card for bots >:(")
