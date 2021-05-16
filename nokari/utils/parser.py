@@ -160,9 +160,8 @@ class ArgumentParser:
                 if temp_dict.get("argmax", -1) == 0:
                     data[temp_dict["name"]] = True
                     return False
-            # if the short flag / option equals the long one
-            # then it's invalid, since it's a long flag / option only
-            # therefore, it should start with double dash
+            # if the short flag / option equals the long one, then it's invalid
+            # since it's a long flag / option only, it should've started with double dash
             # so set the temp cursor to the remainder (None is remainder)
             elif temp_dict and temp_dict["name"] == key:
                 temp_dict = ArgumentOptions(name=None)
@@ -175,7 +174,13 @@ class ArgumentParser:
                 argument = argument[1:]
                 has_flags = False
                 invalid_keys = set()
-                for iterable in (self.short_flags, self.short_options):
+                for idx, iterable in enumerate((self.short_flags, self.short_options)):
+
+                    # an option will only be valid if there's no flags
+                    # so break it as it's a waste to iterate through the options if there's a flag
+                    if idx == 1 and has_flags:
+                        break
+
                     while argument and (
                         short_key := find(
                             iterable,
