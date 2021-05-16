@@ -8,6 +8,7 @@ import sys
 import traceback
 import typing
 import weakref
+import importlib
 
 import aiohttp
 import asyncpg
@@ -18,7 +19,7 @@ from lightbulb.utils import maybe_await
 from lru import LRU  # pylint: disable=no-name-in-module
 
 from nokari.core.cache import Cache
-from nokari.core.commands import command
+from nokari.core.commands import command, group
 from nokari.core.context import Context
 from nokari.utils import db, human_timedelta
 
@@ -237,7 +238,7 @@ class Nokari(lightbulb.Bot):
 
 
 @checks.owner_only()
-@command(name="reload")
+@group(name="reload")
 async def reload_plugin(ctx: Context, *, plugins: str = "*") -> None:
     """Reloads certain or all the plugins."""
     await ctx.execute_plugins(ctx.bot.reload_extension, plugins)
@@ -255,3 +256,21 @@ async def unload_plugin(ctx: Context, *, plugins: str = "*") -> None:
 async def load_plugin(ctx: Context, *, plugins: str = "*") -> None:
     """Loads certain or all the plugins."""
     await ctx.execute_plugins(ctx.bot.load_extension, plugins)
+
+
+@reload_plugin.command(name="module")
+async def reload_module(ctx: Context, *, modules: str) -> None:
+    """Hard reload modules."""
+    modules = set(modules.split())
+    failed = set()
+    for mod in modules:
+        try:
+            module = sys.modules[mod]
+            importlib.reload(module)
+        except Exception as e:
+            ctx.bot.log.error("Failed to reload %s", mod, exc_info=e)
+            failed.add((mod, e.__class__.__name__))
+
+    loaded = "\n".join(f"+ {i}" for i in modules ^ {x[0] for x in failed})
+    failed = "\n".join(f"- {m} {e}" for m, e in failed)
+    await ctx.respond(f"```diff\n{loaded}\n{failed}```")
