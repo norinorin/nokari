@@ -105,6 +105,7 @@ class CustomHelp(help_.HelpCommand):
             f"`{prefix}{invoked_with} [query]` to search commands.\n\n"
             "Everything that wrapped inside: \n- `[]` is optional\n- `<>` is required\n"
             "Bear in mind that you're not supposed to pass the `[]` and `<>`\n\n"
+            "This is an open-source project, stars are greatly appreciated!\n\n"
         )
 
         embed.footer.text = "For more information, do help <category>"  # type: ignore
