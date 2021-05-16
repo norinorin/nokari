@@ -74,9 +74,9 @@ class FixedSizeDict(collections.MutableMapping[_KT, _VT], typing.Generic[_KT, _V
 
 def _get_prefixes(bot: lightbulb.Bot, message: hikari.Message) -> typing.List[str]:
     prefixes = bot.prefixes
-    return (
-        prefixes.get(message.guild_id, []) + prefixes.get(message.author.id, [])
-    ) or bot.default_prefix
+    return prefixes.get(message.guild_id, bot.default_prefix) + prefixes.get(
+        message.author.id, []
+    )
 
 
 class Nokari(lightbulb.Bot):

@@ -1,7 +1,10 @@
+import typing
+
 from hikari import (
     GuildMessageCreateEvent,
     GuildMessageDeleteEvent,
     GuildMessageUpdateEvent,
+    Message,
 )
 from lightbulb import Bot, plugins
 
@@ -18,6 +21,24 @@ class Events(plugins.Plugin):
         super().__init__()
         self.bot = bot
 
+    async def handle_ping(self, message: Message) -> None:
+        if message.content not in (f"<@{self.bot.me.id}>", f"<@!{self.bot.me.id}>"):
+            return
+
+        ctx = self.bot.get_context(
+            message,
+            message.content,
+            invoked_with="prefix",
+            invoked_command=self.bot.get_command("prefix"),
+        )
+        return await self.bot.get_command("prefix").callback(
+            self.bot.get_plugin("Config"), ctx
+        )
+
+    @plugins.listener()
+    async def on_message(self, event: GuildMessageCreateEvent) -> None:
+        await self.handle_ping(event.message)
+
     @plugins.listener()
     async def on_message_edit(self, event: GuildMessageUpdateEvent) -> None:
         if (
@@ -32,6 +53,7 @@ class Events(plugins.Plugin):
             )
         )
         await self.bot.process_commands_for_event(message_create_event)
+        await self.handle_ping(message)
 
     @plugins.listener()
     async def on_message_delete(self, event: GuildMessageDeleteEvent) -> None:
