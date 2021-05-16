@@ -19,7 +19,7 @@ def convert_prefix(arg: WrappedArg) -> str:
     if arg.data in (f"<@{bot.me.id}>", f"<@!{bot.me.id}>"):
         raise errors.ConverterFailure(f"{arg.data} is an existing prefix...")
 
-    return arg.data
+    return arg.data.strip().lower()
 
 
 class Config(plugins.Plugin):
@@ -49,10 +49,25 @@ class Config(plugins.Plugin):
     @core.commands.group()
     async def prefix(self, ctx: core.Context) -> None:
         """Shows the set prefixes"""
+        query = """
+        WITH _ as(
+            DELETE
+                FROM prefixes
+                WHERE array_length(prefixes, 1) IS NULL
+                AND (hash = $1 or hash = $2)
+        ),
+        PREFIXES AS(
+            SELECT hash, prefixes
+                FROM prefixes
+                WHERE hash = $1
+                    or hash = $2
+        )
+        SELECT hash, prefixes FROM PREFIXES
+        """
         prefix = {
             record["hash"]: record["prefixes"]
             for record in await self.bot.pool.fetch(
-                "SELECT * FROM prefixes WHERE hash = $1 or hash = $2;",
+                query,
                 ctx.guild_id,
                 ctx.author.id,
             )
@@ -61,30 +76,38 @@ class Config(plugins.Plugin):
         self.bot.prefixes.update(prefix)
 
         if not prefix.get(ctx.guild_id):
+            self.bot.prefixes.pop(ctx.guild_id, None)
             prefix[ctx.guild_id] = self.bot.default_prefix
 
-        embed = hikari.Embed(title="Prefixes")
-        embed.description = f"**{ctx.guild.name}**: {', '.join(self.format_prefixes(prefix[ctx.guild_id]))}"
+        embed = hikari.Embed(
+            title="Prefixes",
+            description=f"**{ctx.guild.name}**: {', '.join(self.format_prefixes(prefix[ctx.guild_id]))}",
+        )
+
         if prefix.get(ctx.author.id):
-            embed.description += f"\n**{ctx.author}**: {', '.join(self.format_prefixes(prefix[ctx.author.id]))}"
+            embed.description = (
+                f"{embed.description}\n**{ctx.author}**: "
+                f"{', '.join(self.format_prefixes(prefix[ctx.author.id]))}"
+            )
+        else:
+            self.bot.prefixes.pop(ctx.author.id, None)
 
         await ctx.respond(embed=embed)
 
     @prefix.command(name="user")
     async def prefix_user(self, ctx: core.Context, *args: str) -> None:
         """Append the prefix to user prefixes if not exists, otherwise it'll be removed"""
-        prefix = convert_prefix(
-            WrappedArg(" ".join(typing.cast(str, args)).lower(), ctx)
-        )
+        prefix = convert_prefix(WrappedArg(" ".join(typing.cast(str, args)), ctx))
         await self.bot.pool.execute(self.PREFIX_TOGGLE_QUERY, ctx.author.id, prefix)
         await self.prefix.callback(self, ctx)
 
     @prefix.command(name="guild")
     async def prefix_guild(self, ctx: core.Context, *args: str) -> None:
-        """Append the prefix to guild prefixes if not exists, otherwise it'll be removed"""
-        prefix = convert_prefix(
-            WrappedArg(" ".join(typing.cast(str, args)).lower(), ctx)
-        )
+        """
+        Append the prefix to guild prefixes if not exists, otherwise it'll be removed.
+        Invoking this command will remove the provided default prefixes.
+        """
+        prefix = convert_prefix(WrappedArg(" ".join(typing.cast(str, args)), ctx))
         await self.bot.pool.execute(self.PREFIX_TOGGLE_QUERY, ctx.guild_id, prefix)
         await self.prefix.callback(self, ctx)
 
