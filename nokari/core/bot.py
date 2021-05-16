@@ -2,13 +2,13 @@
 
 import asyncio
 import datetime
+import importlib
 import logging
 import os
 import sys
 import traceback
 import typing
 import weakref
-import importlib
 
 import aiohttp
 import asyncpg
@@ -260,14 +260,14 @@ async def load_plugin(ctx: Context, *, plugins: str = "*") -> None:
 
 @reload_plugin.command(name="module")
 async def reload_module(ctx: Context, *, modules: str) -> None:
-    """Hard reload modules."""
+    """Hot-reload modules."""
     modules = set(modules.split())
     failed = set()
     for mod in modules:
         try:
             module = sys.modules[mod]
             importlib.reload(module)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             ctx.bot.log.error("Failed to reload %s", mod, exc_info=e)
             failed.add((mod, e.__class__.__name__))
 

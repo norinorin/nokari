@@ -2,15 +2,15 @@ from types import SimpleNamespace
 from typing import (
     TYPE_CHECKING,
     Any,
-    Coroutine,
     ClassVar,
+    Coroutine,
     Dict,
     Final,
     List,
     Literal,
-    Tuple,
     Optional,
     Sequence,
+    Tuple,
     TypedDict,
     Union,
 )
@@ -76,6 +76,9 @@ class ArgumentOptions(TypedDict, total=False):
 
 
 class ArgumentParser:
+
+    # pylint: disable=too-many-instance-attributes
+
     invalid_openings: ClassVar[Tuple[str, ...]] = tuple(f"{i}-" for i in _quotes)
 
     __slots__ = (
@@ -140,7 +143,7 @@ class ArgumentParser:
             params[self._default_key]["name"] if self._default_key else None
         )
 
-    # pylint: disable=too-many-branches
+    # pylint: disable=too-many-branches,too-many-locals,too-many-nested-blocks
     def switch_cursor(
         self, cursor: Cursor, argument: str, *, allow_sf: bool = True
     ) -> bool:
