@@ -4,7 +4,7 @@ import typing
 
 import hikari
 from hikari.snowflakes import Snowflake
-from lightbulb import Bot, plugins, errors
+from lightbulb import Bot, errors, plugins
 from lightbulb.converters import WrappedArg
 
 from nokari import core

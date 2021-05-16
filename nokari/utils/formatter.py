@@ -12,8 +12,6 @@ __all__: typing.Final[typing.List[str]] = ["plural", "human_timedelta", "get_tim
 class plural:
     """This will append s to the word if the value isn't 1."""
 
-    # pylint: disable=invalid-name,too-few-public-methods
-
     def __init__(self, value: int, _format: bool = True) -> None:
         self.value = value
         self._format = _format

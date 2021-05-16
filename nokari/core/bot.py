@@ -13,7 +13,6 @@ import weakref
 import aiohttp
 import asyncpg
 import hikari
-from hikari.snowflakes import Snowflake
 import lightbulb
 from lightbulb import checks, commands
 from lightbulb.utils import maybe_await
@@ -21,7 +20,7 @@ from lightbulb.utils import maybe_await
 from nokari.core.cache import Cache
 from nokari.core.commands import command
 from nokari.core.context import Context
-from nokari.utils import human_timedelta, db
+from nokari.utils import db, human_timedelta
 
 __all__: typing.Final[typing.List[str]] = ["Nokari"]
 _KT = typing.TypeVar("_KT")
@@ -82,6 +81,8 @@ def _get_prefixes(bot: lightbulb.Bot, message: hikari.Message) -> typing.List[st
 
 class Nokari(lightbulb.Bot):
     """The custom command handler class."""
+
+    # pylint: disable=too-many-instance-attributes
 
     def __init__(self) -> None:
         """

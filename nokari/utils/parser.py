@@ -24,7 +24,6 @@ __all__: Final[List[str]] = [
 ]
 
 
-# pylint: disable=too-few-public-methods
 class _Parser:
     def __init__(self, parser: "ArgumentParser", argument: str):
         self.parser = parser

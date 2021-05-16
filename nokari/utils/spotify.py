@@ -23,7 +23,6 @@ class NoSpotifyPresenceError(Exception):
     """Raised when the member doesn't have Spotify presence"""
 
 
-# pylint: disable=too-few-public-methods
 class _SpotifyCardMetadata(typing.TypedDict):
     font_color: _RGB
     alt_color: _RGB

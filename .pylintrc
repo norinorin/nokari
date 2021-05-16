@@ -4,6 +4,12 @@ fail-under=9.5
 
 [MESSAGES CONTROL]
 confidence=UNDEFINED
+disable=
+    attribute-defined-outside-init,
+    invalid-name,
+    protected-access,
+    too-few-public-methods,
+    format
 
 [BASIC]
 argument-naming-style=snake_case
@@ -21,9 +27,6 @@ ignore-comments=yes
 ignore-docstrings=yes
 ignore-imports=no
 min-similarity-lines=4
-
-[CLASSES]
-exclude-protected=_help_cmd,_commands,_identify,_default_key,_client_session,_member_cache
 
 [DESIGN]
 max-parents=8

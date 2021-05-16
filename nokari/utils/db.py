@@ -6,11 +6,11 @@ import typing
 
 import asyncpg
 
-
 T = typing.TypeVar("T")
 
 
 class Column(typing.Generic[T]):
+    # more to add as I need it
     typing_map: typing.Dict[str, str] = {"Snowflake": "BIGINT", "str": "TEXT"}
     primary_key: typing.ClassVar[bool] = False
 
@@ -28,8 +28,8 @@ class Column(typing.Generic[T]):
             str(data_type).replace("<class '", "").replace("'>", "").rsplit(".", 1)[-1]
         )
 
-    def __class_getitem__(cls, key: T) -> Column[T]:
-        return cls(key)
+    def __class_getitem__(cls, item: T) -> Column[T]:
+        return cls(data_type=item)  # pylint: disable=not-callable
 
     def __str__(self) -> str:
         return self.type
@@ -74,7 +74,8 @@ def create_tables(
         has_multiple_primary_keys = len(table.primary_keys) > 1
 
         columns = ", ".join(
-            f"{name} {column}{' PRIMARY KEY'*(not has_multiple_primary_keys and name in table.primary_keys)}"
+            f"{name} {column}"
+            f"{' PRIMARY KEY'*(not has_multiple_primary_keys and name in table.primary_keys)}"
             for name, column in table.columns.items()
         )
 
