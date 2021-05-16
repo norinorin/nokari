@@ -132,8 +132,11 @@ class Context(lightbulb.Context):
                 self.bot.log.error("Failed to reload %s", plugin, exc_info=_e)
                 failed.add((plugin, _e.__class__.__name__))
 
-        loaded = "\n".join(f"+ {i}" for i in plugins_set ^ {x[0] for x in failed})
-        failed = "\n".join(f"- {c} {e}" for c, e in failed)
+        key = lambda s: (len(s), s)
+        loaded = "\n".join(
+            f"+ {i}" for i in sorted(plugins_set ^ {x[0] for x in failed}, key=key)
+        )
+        failed = "\n".join(f"- {c} {e}" for c, e in sorted(failed, key=key))
         return self.respond(f"```diff\n{loaded}\n{failed}```")
 
     @property
