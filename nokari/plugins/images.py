@@ -24,13 +24,12 @@ class Images(plugins.Plugin):
                 "c": utils.ArgumentOptions(name="card", argmax=0),
                 "t": utils.ArgumentOptions(name="time", argmax=0),
                 "cl": utils.ArgumentOptions(name="colour", aliases=["color"], argmax=1),
-                "m": utils.ArgumentOptions(
-                    name="member", argmax=0
-                ),  # just for testing purpose
-            }
+                "m": utils.ArgumentOptions(name="member"),
+            },
+            append_remainder_to="m",
         )
 
-    @core.commands.command()
+    @core.commands.group()
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify(
         self, ctx: Context, *, arguments: typing.Optional[str] = None
@@ -41,7 +40,7 @@ class Images(plugins.Plugin):
 
         try:
             member = await converters.member_converter(
-                converters.WrappedArg(args.remainder, ctx)
+                converters.WrappedArg(args.member, ctx)
             )
         except ConverterFailure:
             member = ctx.member
@@ -82,6 +81,13 @@ class Images(plugins.Plugin):
             await ctx.respond(
                 f"{'You' if member == ctx.author else 'They'} have no Spotify activity"
             )
+
+    @spotify.command(name="song", hidden=True)
+    @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
+    async def spotify_song(
+        self, ctx: Context, *, arguments: typing.Optional[str] = None
+    ) -> None:
+        await self.spotify.invoke(ctx, arguments=arguments)
 
 
 def load(bot: Bot) -> None:
