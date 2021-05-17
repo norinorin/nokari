@@ -133,7 +133,8 @@ class API(plugins.Plugin):
         colors = self.spotify_card_generator._get_colors(
             BytesIO(album), "top-bottom blur", data.album_cover_url
         )
-        spotify_code = data.get_code_url(hikari.Color.from_rgb(*colors[0]))
+        spotify_code_url = data.get_code_url(hikari.Color.from_rgb(*colors[0]))
+        spotify_code = await self.spotify_card_generator._get_album(spotify_code_url)
 
         invoked_with = (
             ctx.content[len(ctx.prefix) + len(ctx.invoked_with) :]
