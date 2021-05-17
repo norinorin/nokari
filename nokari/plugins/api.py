@@ -166,7 +166,7 @@ class API(plugins.Plugin):
                 datetime.timedelta(seconds=audio_features.duration_ms / 1000)
             ),
             "Popularity": str(data.popularity),
-            "Album type": data.album.album_type.capitalize(),
+            "Album Type": data.album.album_type.capitalize(),
         }.items():
             embed.add_field(name=k, value=v, inline=True)
 

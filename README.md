@@ -9,8 +9,18 @@ Click this [link](https://discord.com/oauth2/authorize?client_id=725081925311529
 - Things listed in requirements.txt
 - Python 3.8+
 - PostgreSQL server
-- `DISCORD_BOT_TOKEN` env variable containing your Discord bot token
-and `POSTGRESQL_DSN` containing your postgresql url
+- a `.env` file in the root directory
+
+## .env File Example
+```
+DISCORD_BOT_TOKEN=TOKEN
+SPOTIPY_CLIENT_ID=SPOTIFY_CLIENT_ID
+SPOTIPY_CLIENT_SECRET=SPOTIFY_CLIENT_SECRET
+POSTGRESQL_DSN=postgresql://user:pass@ip:port/database
+
+# This one is optional, use it at your own risk.
+DISCORD_MOBILE_INDICATOR=
+```
 
 ## Running
 After having all the requirements, just run the main file.
