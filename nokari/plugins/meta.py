@@ -115,7 +115,8 @@ class Meta(plugins.Plugin):
             value=f"Albums: {len(API.spotify_card_generator.album_cache)}\n"
             f"Colors: {len(API.spotify_card_generator.color_cache)}\n"
             f"Texts: {len(API.spotify_card_generator.text_cache)}\n"
-            f"Spotify track queries: {spotify_api_responses_cache}",
+            f"Spotify track queries: {spotify_api_responses_cache}\n"
+            f"Spotify codes: {len(API.spotify_card_generator.code_cache)}",
             inline=True,
         )
 

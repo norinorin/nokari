@@ -57,7 +57,12 @@ class API(plugins.Plugin):
         async with self.bot.rest.trigger_typing(ctx.channel_id):
             with BytesIO() as fp:
                 await self.spotify_card_generator(
-                    fp, data, args.hidden or not args.member, args.colour, style
+                    fp,
+                    data,
+                    args.hidden
+                    or not (args.member or (not args.member and not args.remainder)),
+                    args.colour,
+                    style,
                 )
 
                 kwargs: typing.Dict[str, typing.Any] = {
@@ -134,7 +139,9 @@ class API(plugins.Plugin):
             BytesIO(album), "top-bottom blur", data.album_cover_url
         )
         spotify_code_url = data.get_code_url(hikari.Color.from_rgb(*colors[0]))
-        spotify_code = await self.spotify_card_generator._get_album(spotify_code_url)
+        spotify_code = await self.spotify_card_generator._get_spotify_code(
+            spotify_code_url
+        )
 
         invoked_with = (
             ctx.content[len(ctx.prefix) + len(ctx.invoked_with) :]

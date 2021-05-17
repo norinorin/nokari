@@ -293,6 +293,17 @@ class SpotifyCardGenerator:
         async with self.bot.session.get(album_url) as r:
             return await r.read()
 
+    @caches.cache(20)
+    async def _get_spotify_code(self, spotify_code_url: str) -> bytes:
+        """
+        Duplicates of _get_album as it isn't supposed to share the cache
+        """
+        if self.bot.session is None:
+            raise RuntimeError("Missing ClientSession...")
+
+        async with self.bot.session.get(spotify_code_url) as r:
+            return await r.read()
+
     async def _get_album_and_colors(
         self, album_url: str, height: int, mode: str
     ) -> typing.Tuple[typing.Tuple[_RGB, _RGBs], Image.Image]:
@@ -359,6 +370,7 @@ class SpotifyCardGenerator:
 
         return dom_color, palette
 
+    code_cache = _get_spotify_code.cache  # type: ignore
     album_cache = _get_album.cache  # type: ignore
     color_cache = _get_colors.cache  # type: ignore
 
