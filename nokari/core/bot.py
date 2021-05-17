@@ -13,8 +13,8 @@ import weakref
 import aiohttp
 import asyncpg
 import hikari
-from hikari.snowflakes import Snowflake
 import lightbulb
+from hikari.snowflakes import Snowflake
 from lightbulb import checks, commands
 from lightbulb.utils import maybe_await
 from lru import LRU  # pylint: disable=no-name-in-module
@@ -22,8 +22,8 @@ from lru import LRU  # pylint: disable=no-name-in-module
 from nokari.core.cache import Cache
 from nokari.core.commands import command, group
 from nokari.core.context import Context
-from nokari.utils import db, human_timedelta
 from nokari.core.entity_factory import EntityFactory
+from nokari.utils import db, human_timedelta
 
 __all__: typing.Final[typing.List[str]] = ["Nokari"]
 

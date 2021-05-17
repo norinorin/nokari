@@ -3,20 +3,20 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
 import datetime
 import typing
-from io import BytesIO
-from functools import partial
 from contextlib import suppress
+from dataclasses import dataclass
+from functools import partial
+from io import BytesIO
 
 import hikari
 import numpy
-from requests.models import StreamConsumedError
 import spotipy
 from colorthief import ColorThief
 from lightbulb import Bot, utils
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from requests.models import StreamConsumedError
 
 from . import caches
 from .algorithm import get_alt_color, get_luminance

@@ -1,9 +1,9 @@
-from contextlib import suppress
-import time
 import datetime
-import typing
-import types
 import os
+import time
+import types
+import typing
+from contextlib import suppress
 from io import BytesIO
 
 import hikari
