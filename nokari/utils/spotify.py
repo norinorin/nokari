@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import typing
+from abc import abstractmethod
 from contextlib import suppress
 from dataclasses import dataclass
 from functools import partial
@@ -47,6 +48,17 @@ class SongMetadata:
     artists: str
     title: str
     album: str
+
+
+class SpotifyCode:
+    @property
+    @abstractmethod
+    def uri(self) -> str:
+        ...
+
+    def get_code_url(self, color: hikari.Color) -> str:
+        font_color = "white" if get_luminance(color.rgb) < 128 else "black"
+        return f"https://scannables.scdn.co/uri/plain/png/{color.raw_hex_code}/{font_color}/640/{self.uri}"
 
 
 # pylint: disable=too-many-instance-attributes,redefined-builtin
@@ -102,7 +114,7 @@ class AudioFeatures:
 
 
 @dataclass()
-class Track:
+class Track(SpotifyCode):
     state: spotipy.Spotify
     id: str
     title: str
@@ -122,6 +134,10 @@ class Track:
         popularity = payload["popularity"]
         url = payload["external_urls"]["spotify"]
         return cls(state, id, title, artists, album, popularity, url)
+
+    @property
+    def uri(self) -> str:
+        return f"spotify:track:{self.id}"
 
     @property
     def album_cover_url(self) -> str:

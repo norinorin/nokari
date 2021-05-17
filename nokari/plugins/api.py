@@ -129,17 +129,27 @@ class API(plugins.Plugin):
             self.bot.executor, data.get_audio_features
         )
 
+        album = await self.spotify_card_generator._get_album(data.album_cover_url)
+        colors = self.spotify_card_generator._get_colors(
+            BytesIO(album), "top-bottom blur", data.album_cover_url
+        )
+        spotify_code = data.get_code_url(hikari.Color.from_rgb(*colors[0]))
+
         invoked_with = (
             ctx.content[len(ctx.prefix) + len(ctx.invoked_with) :]
             .strip()
             .split(maxsplit=1)[0]
         )
-        embed = hikari.Embed(
-            title=f"{invoked_with.capitalize()} Info",
-            description=f"**[{data}]({data.url}) by "
-            f"{', '.join(f'[{artist}]({artist.url})' for artist in data.artists)} "
-            f"on [{data.album}]({data.album.url})**\n",
-        ).set_thumbnail(data.album_cover_url)
+        embed = (
+            hikari.Embed(
+                title=f"{invoked_with.capitalize()} Info",
+                description=f"**[{data}]({data.url}) by "
+                f"{', '.join(f'[{artist}]({artist.url})' for artist in data.artists)} "
+                f"on [{data.album}]({data.album.url})**\n",
+            )
+            .set_thumbnail(album)
+            .set_image(spotify_code)
+        )
 
         for k, v in {
             "Key": audio_features.get_key(),
