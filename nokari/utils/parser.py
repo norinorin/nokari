@@ -1,3 +1,4 @@
+from copy import deepcopy
 from types import SimpleNamespace
 from typing import (
     TYPE_CHECKING,
@@ -142,6 +143,14 @@ class ArgumentParser:
         self._default_name = (
             params[self._default_key]["name"] if self._default_key else None
         )
+
+    def copy(self) -> "ArgumentParser":
+        ret = self.__class__.__new__(self.__class__)
+        for attr in self.__slots__:
+            # technically we don't need to deepcopy strings, but w/e
+            setattr(ret, attr, deepcopy(getattr(self, attr)))
+
+        return ret
 
     # pylint: disable=too-many-branches,too-many-locals,too-many-nested-blocks
     def switch_cursor(

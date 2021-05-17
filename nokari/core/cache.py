@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import typing
 
 from hikari import ActivityType, guilds, presences, snowflakes, users
@@ -7,16 +9,22 @@ from lightbulb import utils
 
 from nokari.utils import converters
 
+if typing.TYPE_CHECKING:
+    from nokari.core.bot import Nokari
+
 __all__: typing.Final[typing.List[str]] = ["Cache"]
 
 
 class Cache(CacheImpl):
+    _app: Nokari
+
     def set_presence(self, presence: presences.MemberPresence, /) -> None:
         if (
             spotify := utils.get(
                 presence.activities, name="Spotify", type=ActivityType.LISTENING
             )
         ) is None:
+            self._app._sync_ids.pop(presence.user_id, None)
             return None
 
         presence.activities = [spotify]
@@ -47,6 +55,7 @@ class Cache(CacheImpl):
     def _set_member(
         self, member: guilds.Member, /, *, is_reference: bool = True
     ) -> cache.RefCell[cache.MemberData]:
+        # not sure if returning None would break something, but w/e
         if (me := self._app.me) is None or me.id != member.id:
             return None  # type: ignore
 

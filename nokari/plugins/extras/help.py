@@ -78,7 +78,7 @@ class CustomHelp(help_.HelpCommand):
             items.append(usage)
         else:
             for argname, arginfo in command.arg_details.args.items():
-                if arginfo.ignore:
+                if arginfo.ignore or argname in ("self", "ctx"):
                     continue
 
                 if arginfo.default is inspect.Parameter.empty:

@@ -16,22 +16,23 @@ def source(obj: typing.Any) -> str:
     return "\n".join(i[indent:] for i in _s)
 
 
-SOURCE = source(hikari.impl.shard.GatewayShardImpl._identify)
+def set_browser(browser: str, /) -> None:
+    SOURCE = source(hikari.impl.shard.GatewayShardImpl._identify)
 
-patched = re.sub(
-    r'([\'"]\$browser[\'"]:\s*f?[\'"]).+([\'"])',  # hh this regex
-    r"\1Discord Android\2",
-    SOURCE,
-)
+    patched = re.sub(
+        r'([\'"]\$browser[\'"]:\s*f?[\'"]).+([\'"])',  # hh this regex
+        fr"\1{browser}\2",
+        SOURCE,
+    )
 
-m = ast.parse(patched)
+    m = ast.parse(patched)
 
-loc: typing.Dict[str, typing.Any] = {}
+    loc: typing.Dict[str, typing.Any] = {}
 
-exec(  # pylint: disable=exec-used
-    compile(m, "<string>", "exec"),
-    hikari.impl.shard.__dict__,
-    loc,
-)
+    exec(  # pylint: disable=exec-used
+        compile(m, "<string>", "exec"),
+        hikari.impl.shard.__dict__,
+        loc,
+    )
 
-hikari.impl.shard.GatewayShardImpl._identify = loc["_identify"]  # type: ignore
+    hikari.impl.shard.GatewayShardImpl._identify = loc["_identify"]  # type: ignore

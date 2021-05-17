@@ -13,6 +13,7 @@ import weakref
 import aiohttp
 import asyncpg
 import hikari
+from hikari.snowflakes import Snowflake
 import lightbulb
 from lightbulb import checks, commands
 from lightbulb.utils import maybe_await
@@ -22,6 +23,7 @@ from nokari.core.cache import Cache
 from nokari.core.commands import command, group
 from nokari.core.context import Context
 from nokari.utils import db, human_timedelta
+from nokari.core.entity_factory import EntityFactory
 
 __all__: typing.Final[typing.List[str]] = ["Nokari"]
 
@@ -65,6 +67,12 @@ class Nokari(lightbulb.Bot):
                 ^ (hikari.CacheComponents.VOICE_STATES | hikari.CacheComponents.INVITES)
             ),
         )
+
+        # Custom entity factory
+        self._entity_factory = self._rest._entity_factory = EntityFactory(self)
+
+        # A mapping from user ids to their sync ids
+        self._sync_ids: typing.Dict[Snowflake, str] = {}
 
         # Responses cache
         self._resp_cache = LRU(1024)

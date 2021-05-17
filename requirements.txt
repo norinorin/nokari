@@ -10,3 +10,4 @@ numexpr
 lru-dict
 colorthief
 asyncpg
+spotipy

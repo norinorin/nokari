@@ -10,3 +10,6 @@ __pycache__/
 
 # log files
 nokari.log
+
+# spotipy access token
+.cache

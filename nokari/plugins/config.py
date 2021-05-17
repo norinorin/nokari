@@ -106,8 +106,8 @@ class Config(plugins.Plugin):
     @prefix.command(name="guild")
     async def prefix_guild(self, ctx: core.Context, *args: str) -> None:
         """
-        Appends the prefix to guild prefixes if not exists, otherwise it'll be removed.
-        Invoking this command will remove the provided default prefixes.
+        Appends the prefix to guild prefixes if not exists, otherwise, it'll be removed.
+        The default prefixes are only available if there are no guild prefixes were set.
         """
         prefix = convert_prefix(WrappedArg(" ".join(typing.cast(str, args)), ctx))
         await self.bot.pool.execute(self.PREFIX_TOGGLE_QUERY, ctx.guild_id, prefix)

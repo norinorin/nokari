@@ -15,13 +15,19 @@ if os.name != "nt":
 
 load_dotenv()
 
-for var in ("DISCORD_BOT_TOKEN", "POSTGRESQL_DSN"):
+for var in (
+    "DISCORD_BOT_TOKEN",
+    "POSTGRESQL_DSN",
+    "SPOTIPY_CLIENT_ID",
+    "SPOTIPY_CLIENT_SECRET",
+):
     if var not in os.environ:
         raise RuntimeError(f"{var} env variable must be set.")
 
-if "DISCORD_MOBILE_INDICATOR" in os.environ:
-    import nokari.utils.monkey_patch
+if browser := os.getenv("DISCORD_MOBILE_INDICATOR"):
+    from nokari.utils.monkey_patch import set_browser
 
-    del nokari.utils.monkey_patch
+    set_browser(browser)
+
 
 Nokari().run()

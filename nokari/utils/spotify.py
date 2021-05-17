@@ -1,11 +1,19 @@
 """A module that contains a Spotify card generation implementation."""
 
+from __future__ import annotations
+
+import asyncio
+from dataclasses import dataclass
 import datetime
 import typing
 from io import BytesIO
+from functools import partial
+from contextlib import suppress
 
 import hikari
 import numpy
+from requests.models import StreamConsumedError
+import spotipy
 from colorthief import ColorThief
 from lightbulb import Bot, utils
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
@@ -14,6 +22,9 @@ from . import caches
 from .algorithm import get_alt_color, get_luminance
 from .formatter import get_timestamp as format_time
 from .images import get_dominant_color, has_transparency, right_fade, round_corners
+
+if typing.TYPE_CHECKING:
+    from nokari.core import Context
 
 _RGB = typing.Tuple[int, ...]
 _RGBs = typing.List[_RGB]
@@ -27,6 +38,147 @@ class _SpotifyCardMetadata(typing.TypedDict):
     font_color: _RGB
     alt_color: _RGB
     height: int
+    timestamp: typing.Tuple[str, str, float]
+
+
+@dataclass()
+class SongMetadata:
+    timestamp: typing.Optional[typing.Tuple[str, str, float]]
+    album_cover_url: str
+    artists: str
+    title: str
+    album: str
+
+
+@dataclass()
+class AudioFeatures:
+    keys: typing.ClassVar[typing.List[str]] = [
+        "C",
+        "C#",
+        "D",
+        "D#",
+        "E",
+        "F",
+        "F#",
+        "G",
+        "G#",
+        "A",
+        "A#",
+        "B",
+    ]
+    modes: typing.ClassVar[typing.List[str]] = ["Minor", "Major"]
+
+    state: spotipy.Spotify
+    danceability: float
+    energy: float
+    key: int
+    loudness: float
+    mode: int
+    speechiness: float
+    acousticness: float
+    instrumentalness: float
+    liveness: float
+    valence: float
+    tempo: float
+    id: str
+    analysis_url: str
+    duration_ms: int
+    time_signature: int
+
+    @property
+    def type(self) -> typing.Literal["audio_features"]:
+        return "audio_features"
+
+    @classmethod
+    def from_dict(
+        cls, state: spotipy.Spotify, payload: typing.Dict[str, typing.Any]
+    ) -> AudioFeatures:
+        return cls(
+            state, **{k: v for k, v in payload.items() if k in cls.__annotations__}
+        )
+
+    def get_key(self) -> str:
+        return f"{self.keys[self.key]} {self.modes[self.mode]}"
+
+
+@dataclass()
+class Track:
+    state: spotipy.Spotify
+    id: str
+    title: str
+    artists: typing.List[Artist]
+    album: Album
+    popularity: int
+    url: str
+
+    @classmethod
+    def from_dict(
+        cls, state: spotipy.Spotify, payload: typing.Dict[str, typing.Any]
+    ) -> Track:
+        id = payload["id"]
+        title = payload["name"]
+        artists = [Artist.from_dict(state, artist) for artist in payload["artists"]]
+        album = Album.from_dict(state, payload["album"])
+        popularity = payload["popularity"]
+        url = payload["external_urls"]["spotify"]
+        return cls(state, id, title, artists, album, popularity, url)
+
+    @property
+    def album_cover_url(self) -> str:
+        return self.album.cover_url
+
+    @property
+    def artists_str(self) -> str:
+        return ", ".join(map(str, self.artists))
+
+    def __str__(self) -> str:
+        return self.title
+
+    def get_audio_features(self) -> AudioFeatures:
+        audio_features = self.state.audio_features([self.id])
+        return AudioFeatures.from_dict(self.state, audio_features[0])
+
+
+@dataclass()
+class Artist:
+    state: spotipy.Spotify
+    id: str
+    name: str
+    url: str
+
+    def __str__(self) -> str:
+        return self.name
+
+    @classmethod
+    def from_dict(
+        cls, state: spotipy.Spotify, payload: typing.Dict[str, typing.Any]
+    ) -> Artist:
+        return cls(
+            state, payload["id"], payload["name"], payload["external_urls"]["spotify"]
+        )
+
+
+@dataclass()
+class Album:
+    album_type: typing.Union[typing.Literal["album"], typing.Literal["single"]]
+    artists: typing.List[Artist]
+    name: str
+    cover_url: str
+    url: str
+
+    @classmethod
+    def from_dict(
+        cls, state: spotipy.Spotify, payload: typing.Dict[str, typing.Any]
+    ) -> Album:
+        album_type = payload["album_type"]
+        artists = [Artist.from_dict(state, artist) for artist in payload["artists"]]
+        name = payload["name"]
+        cover_url = payload["images"][0]["url"]
+        url = payload["external_urls"]["spotify"]
+        return cls(album_type, artists, name, cover_url, url)
+
+    def __str__(self) -> str:
+        return self.name
 
 
 class Spotify:
@@ -52,6 +204,10 @@ class Spotify:
     def artists(self) -> str:
         return (self._act.state or "").replace("; ", ", ")
 
+    @property
+    def timestamps(self) -> typing.Optional[hikari.ActivityTimestamps]:
+        return self._act.timestamps
+
 
 class SpotifyCardGenerator:
     """A class that generates spotify card"""
@@ -70,13 +226,14 @@ class SpotifyCardGenerator:
     def __init__(self, bot: Bot) -> None:
         self.bot = bot
         self.loop = bot.loop
+        self.spotipy = spotipy.Spotify(auth_manager=spotipy.SpotifyClientCredentials())
 
     @staticmethod
-    def _get_timestamp(act: hikari.RichActivity) -> typing.Tuple[str, str, float]:
+    def _get_timestamp(spotify: Spotify) -> typing.Tuple[str, str, float]:
         """Gets the timestamp of the playing song"""
 
         if (
-            (timestamps := act.timestamps) is None
+            (timestamps := spotify.timestamps) is None
             or timestamps.start is None
             or timestamps.end is None
         ):
@@ -218,16 +375,13 @@ class SpotifyCardGenerator:
     # pylint: disable=too-many-arguments, too-many-locals
     async def _generate_base_card1(
         self,
-        album_cover_url: str,
-        artist: str,
-        title: str,
-        album: str,
+        metadata: SongMetadata,
         hidden: bool,
         color_mode: str,
     ) -> typing.Tuple[Image.Image, typing.Optional[_SpotifyCardMetadata]]:
-        album = f"on {album}"
+        metadata.album = f"on {metadata.album}"
 
-        title_width = self.C1_BOLD_FONT.getsize(title)[0]
+        title_width = self.C1_BOLD_FONT.getsize(metadata.title)[0]
 
         album_cover_size = 300
 
@@ -237,7 +391,7 @@ class SpotifyCardGenerator:
             height -= self.SIDE_GAP
 
         rgbs, im = await self._get_album_and_colors(
-            album_cover_url, height, color_mode or "downscale"
+            metadata.album_cover_url, height, color_mode or "downscale"
         )
 
         width = (
@@ -245,9 +399,7 @@ class SpotifyCardGenerator:
         )
 
         def wrapper(
-            artist: str,
-            title: str,
-            album: str,
+            metadata: SongMetadata,
             rgbs: typing.Tuple[typing.Tuple[_RGB, _RGBs]],
             im: Image.Image,
         ) -> typing.Tuple[Image.Image, typing.Optional[_SpotifyCardMetadata]]:
@@ -262,14 +414,17 @@ class SpotifyCardGenerator:
             text_area = width - raw_height
 
             artist, album = [
-                self._shorten_text(self.BIG_FONT, i, text_area) for i in (artist, album)
+                self._shorten_text(self.BIG_FONT, i, text_area)
+                for i in (metadata.artists, metadata.album)
             ]
 
             font_color = self._get_font_color(*rgbs)  # type: ignore
 
             draw = ImageDraw.Draw(canvas)
 
-            title_c_map = self._get_char_size_map(title, draw, self.C1_BOLD_FONT)
+            title_c_map = self._get_char_size_map(
+                metadata.title, draw, self.C1_BOLD_FONT
+            )
             artist_c_map = self._get_char_size_map(artist, draw, self.BIG_FONT)
             album_c_map = self._get_char_size_map(album, draw, self.BIG_FONT)
 
@@ -284,7 +439,7 @@ class SpotifyCardGenerator:
                 + [title_width]
             )
 
-            title_h = self._get_height_from_text(title, title_c_map, threshold)
+            title_h = self._get_height_from_text(metadata.title, title_c_map, threshold)
             artist_h = self._get_height_from_text(artist, artist_c_map, threshold)
             album_h = self._get_height_from_text(album, album_c_map, threshold)
 
@@ -296,7 +451,7 @@ class SpotifyCardGenerator:
 
             draw.text(
                 (raw_height - self.SIDE_GAP, title_y),
-                title,
+                metadata.title,
                 font=self.C1_BOLD_FONT,
                 fill=font_color,
             )
@@ -317,26 +472,24 @@ class SpotifyCardGenerator:
 
             round_corners(canvas, self.SIDE_GAP // 2)
 
-            if hidden:
+            if hidden or metadata.timestamp is None:
                 return canvas, None
 
             return canvas, _SpotifyCardMetadata(
                 font_color=font_color,
                 alt_color=get_alt_color(typing.cast(typing.Tuple[int, ...], rgbs[0])),
                 height=raw_height,
+                timestamp=metadata.timestamp,
             )
 
         return await self.loop.run_in_executor(
-            self.bot.executor, wrapper, artist, title, album, rgbs, im
+            self.bot.executor, wrapper, metadata, rgbs, im
         )
 
     # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
     async def _generate_base_card2(
         self,
-        album_cover_url: str,
-        artist: str,
-        title: str,
-        album: str,
+        metadata: SongMetadata,
         hidden: bool,
         color_mode: str,
     ) -> typing.Tuple[Image.Image, typing.Optional[_SpotifyCardMetadata]]:
@@ -351,11 +504,11 @@ class SpotifyCardGenerator:
             height -= decrement
 
         rgbs, im = await self._get_album_and_colors(
-            album_cover_url, height, color_mode or "top-bottom blur"
+            metadata.album_cover_url, height, color_mode or "top-bottom blur"
         )
 
         def wrapper(
-            artist: str, title: str, album: str
+            metadata: SongMetadata,
         ) -> typing.Tuple[Image.Image, typing.Optional[_SpotifyCardMetadata]]:
             canvas = Image.new("RGB", (width, height), rgbs[0])
 
@@ -376,7 +529,10 @@ class SpotifyCardGenerator:
 
             title, artist = [
                 self._shorten_text(f, t, text_area)
-                for f, t in ((self.C2_BOLD_FONT, title), (self.BIG_FONT, artist))
+                for f, t in (
+                    (self.C2_BOLD_FONT, metadata.title),
+                    (self.BIG_FONT, metadata.artists),
+                )
             ]
 
             font_color = self._get_font_color(*rgbs)
@@ -405,7 +561,7 @@ class SpotifyCardGenerator:
             spotify_text = "Spotify \u2022"
 
             spotify_album_c_mapping = self._get_char_size_map(
-                spotify_text + album, draw, font=self.SMALL_FONT
+                spotify_text + metadata.album, draw, font=self.SMALL_FONT
             )
 
             spotify_width = sum(
@@ -414,10 +570,10 @@ class SpotifyCardGenerator:
 
             album_x = decrement + spotify_width + spotify_album_c_mapping[" "][0]
 
-            if album != "Local Files":
+            if metadata.album != "Local Files":
                 album = self._shorten_text(
                     self.SMALL_FONT,
-                    f"{album}",
+                    f"{metadata.album}",
                     text_area - album_x - decrement + self.SIDE_GAP * 3,
                 )
 
@@ -480,16 +636,17 @@ class SpotifyCardGenerator:
 
             round_corners(canvas, self.SIDE_GAP)
 
-            if hidden:
+            if hidden or metadata.timestamp is None:
                 return canvas, None
 
             return canvas, _SpotifyCardMetadata(
-                font_color=font_color, alt_color=lighter_color, height=raw_height
+                font_color=font_color,
+                alt_color=lighter_color,
+                height=raw_height,
+                timestamp=metadata.timestamp,
             )
 
-        return await self.loop.run_in_executor(
-            self.bot.executor, wrapper, artist, title, album
-        )
+        return await self.loop.run_in_executor(self.bot.executor, wrapper, metadata)
 
     @caches.cache(100)
     @staticmethod
@@ -507,43 +664,49 @@ class SpotifyCardGenerator:
 
     text_cache = _shorten_text.cache  # type: ignore
 
-    def _get_data(
-        self, member: hikari.Member
-    ) -> typing.Tuple[typing.Tuple[str, str, float], str, str, str, str]:
-        act = self._get_spotify_act(member)
-        if act is None:
-            raise NoSpotifyPresenceError("The member has no Spotify presences")
+    def _get_data(self, data: typing.Union[hikari.Member, Track]) -> SongMetadata:
+        timestamp = None
 
-        spotify = Spotify(act)
-        timestamp = self._get_timestamp(act)
-        album_cover_url = (
-            spotify.album_cover_url
-            or (member.avatar_url or member.default_avatar_url).url
-        )
+        if isinstance(data, hikari.Member):
+            spotify = self._get_spotify_act(data)
+            artists, title, album = spotify.artists, spotify.title, spotify.album
+            timestamp = self._get_timestamp(spotify)
+            album_cover_url = (
+                spotify.album_cover_url
+                or (data.avatar_url or data.default_avatar_url).url
+            )
+        else:
+            album_cover_url, artists, title, album = (
+                data.album_cover_url,
+                data.artists_str,
+                data.title,
+                data.album.name,
+            )
 
-        return timestamp, album_cover_url, spotify.artists, spotify.title, spotify.album
+        return SongMetadata(timestamp, album_cover_url, artists, title, album)
 
     async def generate_spotify_card(
         self,
         buffer: BytesIO,
-        member: hikari.Member,
+        data: typing.Union[hikari.Member, Track],
         hidden: bool,
         color_mode: str,
         style: str = "2",
     ) -> None:
         func = f"_generate_base_card{style}"
-        timestamp, *args = self._get_data(member)
-        canvas, data = await getattr(self, func)(*(tuple(args) + (hidden, color_mode)))
+        metadata = self._get_data(data)
+        canvas, card_data = await getattr(self, func)(metadata, hidden, color_mode)
 
-        if data is not None:
+        if card_data is not None:
 
             def wrapper() -> Image.Image:
                 draw = ImageDraw.Draw(canvas)
                 width = canvas.size[0]
-                font_color, alt_color, height = (
-                    data["font_color"],
-                    data["alt_color"],
-                    data["height"],
+                font_color, alt_color, height, timestamp = (
+                    card_data["font_color"],
+                    card_data["alt_color"],
+                    card_data["height"],
+                    card_data["timestamp"],
                 )
                 text_gap = 10
                 if style == "1":
@@ -632,16 +795,22 @@ class SpotifyCardGenerator:
     __call__ = generate_spotify_card
 
     @staticmethod
-    def _get_spotify_act(member: hikari.Member) -> typing.Optional[hikari.RichActivity]:
+    def _get_spotify_act(member: hikari.Member) -> Spotify:
+        exc = NoSpotifyPresenceError("The member has no Spotify presences")
         if not member.presence or not member.presence.activities:
-            return None
+            raise exc
 
-        return utils.find(
+        act = utils.find(
             member.presence.activities,
             lambda x: x.name
             and x.name == "Spotify"
             and x.type is hikari.ActivityType.LISTENING,
         )
+
+        if act is None:
+            raise exc
+
+        return Spotify(act)
 
     @staticmethod
     def _get_font_color(
@@ -655,3 +824,65 @@ class SpotifyCardGenerator:
                 return tuple(rgb)
 
         return (255, 255, 255) if base_y < 128 else (0, 0, 0)
+
+    async def get_track_from_member(self, member: hikari.Member) -> Track:
+        sync_id = self.bot._sync_ids.get(member.id)
+
+        if not sync_id:
+            raise NoSpotifyPresenceError("The member has no spotify presences")
+
+        return Track.from_dict(
+            self.spotipy,
+            await self.loop.run_in_executor(
+                self.bot.executor, self.spotipy.track, sync_id
+            ),
+        )
+
+    async def search_and_pick_track(
+        self, ctx: Context, /, q: str
+    ) -> typing.Optional[Track]:
+        func = partial(self.spotipy.search, type="track")
+        res = await self.loop.run_in_executor(self.bot.executor, func, q)
+
+        tracks = [
+            Track.from_dict(self.spotipy, track) for track in res["tracks"]["items"]
+        ]
+
+        ret = None
+
+        if not tracks:
+            await ctx.respond("Couldn't find anything...")
+            return ret
+
+        if len(tracks) > 1:
+            embed = hikari.Embed(
+                title="Choose a track" if tracks else "No track was found...",
+                description="\n".join(
+                    f"{idx}. {track.artists_str} - {track.title}"
+                    for idx, track in enumerate(tracks, start=1)
+                ),
+            )
+
+            respond = await ctx.respond(embed=embed)
+
+            with suppress(asyncio.TimeoutError):
+                msg = await self.bot.wait_for(
+                    hikari.GuildMessageCreateEvent,
+                    predicate=lambda m: m.author.id == ctx.author.id
+                    and m.channel_id == ctx.channel_id,
+                    timeout=60,
+                )
+
+                if msg.content.isdigit():
+                    index = int(msg.content) - 1
+                    if index >= len(tracks):
+                        await ctx.respond(f"Number should be from 1 to {len(tracks)}")
+                    else:
+                        ret = tracks[index]
+
+            await respond.delete()
+
+        elif len(tracks) == 1:
+            ret = tracks[0]
+
+        return ret
