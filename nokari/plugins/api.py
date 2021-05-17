@@ -81,7 +81,7 @@ class API(plugins.Plugin):
         """Contains subcommands that utilizes Spotify API"""
         await ctx.send_help(ctx.command)
 
-    @spotify.command(name="track")
+    @spotify.command(name="track", aliases=["song"])
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify_track(
         self, ctx: Context, *, arguments: typing.Optional[str] = None
@@ -117,7 +117,9 @@ class API(plugins.Plugin):
                 return
 
             if isinstance(data, hikari.Member):
-                data = await self.spotify_card_generator.get_track_from_member(data)
+                sync_id = self.spotify_card_generator.get_sync_id_from_member(data)
+                data = await self.spotify_card_generator.get_track(sync_id)
+
         except NoSpotifyPresenceError as e:
             raise e.__class__(
                 f"{'You' if data == ctx.author else 'They'} have no Spotify activity"
@@ -127,8 +129,13 @@ class API(plugins.Plugin):
             self.bot.executor, data.get_audio_features
         )
 
+        invoked_with = (
+            ctx.content[len(ctx.prefix) + len(ctx.invoked_with) :]
+            .strip()
+            .split(maxsplit=1)[0]
+        )
         embed = hikari.Embed(
-            title="Track Info",
+            title=f"{invoked_with.capitalize()} Info",
             description=f"**[{data}]({data.url}) by "
             f"{', '.join(f'[{artist}]({artist.url})' for artist in data.artists)} "
             f"on [{data.album}]({data.album.url})**\n",
@@ -161,6 +168,16 @@ class API(plugins.Plugin):
             )
 
         await ctx.respond(embed=embed)
+
+    @spotify.command(name="artist", hidden=True)
+    @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
+    async def spotify_artist(self, ctx: Context) -> None:
+        raise NotImplementedError
+
+    @spotify.command(name="album", hidden=True)
+    @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
+    async def spotify_album(self, ctx: Context) -> None:
+        raise NotImplementedError
 
 
 def load(bot: Bot) -> None:

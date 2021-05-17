@@ -181,12 +181,8 @@ class CustomHelp(help_.HelpCommand):
             await CustomHelp.object_not_found(context, "")
             return
 
-        subcommands = group.subcommands
+        subcommands = await help_.filter_commands(context, group.subcommands)
         if len(subcommands) == 0:
-            return await CustomHelp.send_command_help(context, group)
-
-        entries = await help_.filter_commands(context, subcommands)
-        if len(entries) == 0:
             return await CustomHelp.send_command_help(context, group)
 
         embed = CustomHelp.get_base_embed(context)

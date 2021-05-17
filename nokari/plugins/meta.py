@@ -106,12 +106,16 @@ class Meta(plugins.Plugin):
         if not API:
             return
 
+        spotify_api_responses_cache = len(
+            API.spotify_card_generator.track_from_id_cache
+        ) + len(API.spotify_card_generator.track_from_search_cache)
+
         embed.add_field(
             name="Spotify cache",
             value=f"Albums: {len(API.spotify_card_generator.album_cache)}\n"
             f"Colors: {len(API.spotify_card_generator.color_cache)}\n"
             f"Texts: {len(API.spotify_card_generator.text_cache)}\n"
-            f"Spotify track queries: {len(API.spotify_card_generator.track_query_cache)}",
+            f"Spotify track queries: {spotify_api_responses_cache}",
             inline=True,
         )
 

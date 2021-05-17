@@ -825,17 +825,19 @@ class SpotifyCardGenerator:
 
         return (255, 255, 255) if base_y < 128 else (0, 0, 0)
 
-    async def get_track_from_member(self, member: hikari.Member) -> Track:
+    def get_sync_id_from_member(self, member: hikari.Member) -> str:
         sync_id = self.bot._sync_ids.get(member.id)
 
         if not sync_id:
             raise NoSpotifyPresenceError("The member has no spotify presences")
 
+        return sync_id
+
+    @caches.cache(50)
+    async def get_track(self, _id: str) -> Track:
         return Track.from_dict(
             self.spotipy,
-            await self.loop.run_in_executor(
-                self.bot.executor, self.spotipy.track, sync_id
-            ),
+            await self.loop.run_in_executor(self.bot.executor, self.spotipy.track, _id),
         )
 
     @caches.cache(50)
@@ -846,7 +848,8 @@ class SpotifyCardGenerator:
             Track.from_dict(self.spotipy, track) for track in res["tracks"]["items"]
         ]
 
-    track_query_cache = search_track.cache  # type: ignore
+    track_from_id_cache = get_track.cache  # type:ignore
+    track_from_search_cache = search_track.cache  # type: ignore
 
     async def search_and_pick_track(
         self, ctx: Context, /, q: str
