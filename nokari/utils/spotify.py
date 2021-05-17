@@ -838,15 +838,20 @@ class SpotifyCardGenerator:
             ),
         )
 
+    @caches.cache(50)
+    async def search_track(self, q: str) -> typing.List[Track]:
+        func = partial(self.spotipy.search, limit=10, type="track")
+        res = await self.loop.run_in_executor(self.bot.executor, func, q)
+        return [
+            Track.from_dict(self.spotipy, track) for track in res["tracks"]["items"]
+        ]
+
+    track_query_cache = search_track.cache  # type: ignore
+
     async def search_and_pick_track(
         self, ctx: Context, /, q: str
     ) -> typing.Optional[Track]:
-        func = partial(self.spotipy.search, type="track")
-        res = await self.loop.run_in_executor(self.bot.executor, func, q)
-
-        tracks = [
-            Track.from_dict(self.spotipy, track) for track in res["tracks"]["items"]
-        ]
+        tracks = await self.search_track(q)
 
         ret = None
 

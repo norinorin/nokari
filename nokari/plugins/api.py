@@ -100,12 +100,7 @@ class API(plugins.Plugin):
         """
         args = await self._spotify_argument_parser.parse(arguments or "")
 
-        if not args.member and not args.remainder:
-            raise RuntimeError(
-                "You're not passing in the song title nor are you listening to Spotify."
-            )
-
-        if args.member:
+        if args.member or (not args.member and not args.remainder):
             data: typing.Union[hikari.Member, Track] = ctx.member
             with suppress(ConverterFailure):
                 data = await converters.member_converter(
