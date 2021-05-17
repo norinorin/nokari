@@ -9,7 +9,8 @@ disable=
     invalid-name,
     protected-access,
     too-few-public-methods,
-    format
+    format,
+    cyclic-import
 
 [BASIC]
 argument-naming-style=snake_case

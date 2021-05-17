@@ -21,7 +21,6 @@ from hikari import snowflakes, undefined
 from lightbulb.utils import find, maybe_await
 
 if TYPE_CHECKING:
-    # pylint: disable=cyclic-import
     from nokari.core.context import Context
 
 __all__: Final[List[str]] = ["EmptyPages", "Mode", "Paginator"]

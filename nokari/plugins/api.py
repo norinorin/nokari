@@ -1,5 +1,4 @@
 import datetime
-import os
 import time
 import types
 import typing
@@ -14,7 +13,6 @@ from lightbulb.errors import ConverterFailure
 from nokari import core, utils
 from nokari.utils import converters, formatter
 from nokari.utils.spotify import (
-    AudioFeatures,
     NoSpotifyPresenceError,
     SpotifyCardGenerator,
     Track,
@@ -56,32 +54,26 @@ class API(plugins.Plugin):
         }
         style = style_map.get(args.style, "2")
 
-        try:
-            async with self.bot.rest.trigger_typing(ctx.channel_id):
-                with BytesIO() as fp:
-                    await self.spotify_card_generator(
-                        fp, data, args.hidden or not args.member, args.colour, style
-                    )
+        async with self.bot.rest.trigger_typing(ctx.channel_id):
+            with BytesIO() as fp:
+                await self.spotify_card_generator(
+                    fp, data, args.hidden or not args.member, args.colour, style
+                )
 
-                    kwargs: typing.Dict[str, typing.Any] = {
-                        "attachment": hikari.Bytes(fp, f"{data}-card.png")
-                    }
-                    if args.time:
-                        kwargs[
-                            "content"
-                        ] = f"That took {(time.perf_counter() - t0) * 1000}ms!"
+                kwargs: typing.Dict[str, typing.Any] = {
+                    "attachment": hikari.Bytes(fp, f"{data}-card.png")
+                }
+                if args.time:
+                    kwargs[
+                        "content"
+                    ] = f"That took {(time.perf_counter() - t0) * 1000}ms!"
 
-                    # if random.randint(0, 101) < 25:
-                    #     kwargs["content"] = (
-                    #         kwargs.get("content") or ""
-                    #     ) + "\n\nHave you tried the slash version of this command?"
+                # if random.randint(0, 101) < 25:
+                #     kwargs["content"] = (
+                #         kwargs.get("content") or ""
+                #     ) + "\n\nHave you tried the slash version of this command?"
 
-                    await ctx.respond(**kwargs)
-
-        except NoSpotifyPresenceError:
-            await ctx.respond(
-                f"{'You' if data == ctx.author else 'They'} have no Spotify activity"
-            )
+                await ctx.respond(**kwargs)
 
     @core.commands.group()
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
@@ -119,12 +111,17 @@ class API(plugins.Plugin):
 
             data = maybe_track
 
-        if args.card:
-            await self.send_spotify_card(ctx, args, data=data)
-            return
+        try:
+            if args.card:
+                await self.send_spotify_card(ctx, args, data=data)
+                return
 
-        if isinstance(data, hikari.Member):
-            data = await self.spotify_card_generator.get_track_from_member(data)
+            if isinstance(data, hikari.Member):
+                data = await self.spotify_card_generator.get_track_from_member(data)
+        except NoSpotifyPresenceError as e:
+            raise e.__class__(
+                f"{'You' if data == ctx.author else 'They'} have no Spotify activity"
+            )
 
         audio_features = await self.bot.loop.run_in_executor(
             self.bot.executor, data.get_audio_features

@@ -16,7 +16,6 @@ import spotipy
 from colorthief import ColorThief
 from lightbulb import Bot, utils
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
-from requests.models import StreamConsumedError
 
 from . import caches
 from .algorithm import get_alt_color, get_luminance
@@ -50,6 +49,7 @@ class SongMetadata:
     album: str
 
 
+# pylint: disable=too-many-instance-attributes,redefined-builtin
 @dataclass()
 class AudioFeatures:
     keys: typing.ClassVar[typing.List[str]] = [
