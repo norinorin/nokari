@@ -19,7 +19,7 @@ SPOTIPY_CLIENT_SECRET=SPOTIFY_CLIENT_SECRET
 POSTGRESQL_DSN=postgresql://user:pass@ip:port/database
 
 # This one is optional, use it at your own risk.
-DISCORD_MOBILE_INDICATOR=
+DISCORD_BROWSER=
 ```
 
 ## Running

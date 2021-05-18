@@ -24,7 +24,7 @@ for var in (
     if var not in os.environ:
         raise RuntimeError(f"{var} env variable must be set.")
 
-if browser := os.getenv("DISCORD_MOBILE_INDICATOR"):
+if browser := os.getenv("DISCORD_BROWSER"):
     from nokari.utils.monkey_patch import set_browser
 
     set_browser(browser)

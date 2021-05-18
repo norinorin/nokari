@@ -52,8 +52,11 @@ class Cursor:
 
         if self.parser._default_key is None:
             remainder = data.pop(None)
-            if isinstance(remainder, list):
-                data["remainder"] = " ".join(remainder)
+        else:
+            remainder = data[self.parser._default_name]
+
+        if isinstance(remainder, list):
+            data["remainder"] = " ".join(remainder)
 
         for v in params.values():
             k = v["name"]

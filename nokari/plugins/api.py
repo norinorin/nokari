@@ -159,9 +159,11 @@ class API(plugins.Plugin):
             .set_image(spotify_code)
         )
 
+        round_ = lambda n: int(round(n))
+
         for k, v in {
             "Key": audio_features.get_key(),
-            "Tempo": f"{int(audio_features.tempo)} BPM",
+            "Tempo": f"{round_(audio_features.tempo)} BPM",
             "Duration": formatter.get_timestamp(
                 datetime.timedelta(seconds=audio_features.duration_ms / 1000)
             ),
@@ -181,7 +183,7 @@ class API(plugins.Plugin):
         ):
             embed.add_field(
                 name=attr.capitalize(),
-                value=str(int(getattr(audio_features, attr) * 100)),
+                value=str(round_(getattr(audio_features, attr) * 100)),
                 inline=True,
             )
 

@@ -139,7 +139,7 @@ class Meta(plugins.Plugin):
         await ctx.respond(embed=embed)
 
     @cooldown(2, 1, lightbulb.cooldowns.UserBucket)
-    @core.commands.command()
+    @core.commands.command(usage="[command|object]")
     async def source(self, ctx: Context, *, obj: typing.Optional[str] = None) -> None:
         """
         Returns the link to the specified object if exists.
