@@ -1,6 +1,7 @@
 """A module that contains a custom Context class implementation."""
 
 import typing
+import time
 
 import hikari
 import lightbulb
@@ -42,10 +43,15 @@ class Context(lightbulb.Context):
             ]
         ] = undefined.UNDEFINED,
         paginator: typing.Optional["Paginator"] = None,
+        initial_time: typing.Optional[int] = None,
     ) -> Message:
         """Overrides respond method for command invoke on message edits support."""
         if isinstance(embed, hikari.Embed) and not embed.color:
             embed.color = self.color
+
+        if initial_time:
+            time_taken = f"That took {round((time.time()-initial_time)*1000, 2)}ms!"
+            content = f"{(content or '')[:2000-len(time_taken)-2]}\n\n{time_taken}"
 
         resp = self.bot.cache.get_message(
             self.bot.responses_cache.get(self.message_id, 0)

@@ -41,7 +41,7 @@ class API(plugins.Plugin):
         data: typing.Union[hikari.Member, Track],
     ) -> None:
         if args.time:
-            t0 = time.perf_counter()
+            t0 = time.time()
 
         style_map = {
             "dynamic": "1",
@@ -65,9 +65,7 @@ class API(plugins.Plugin):
                     "attachment": hikari.Bytes(fp, f"{data}-card.png")
                 }
                 if args.time:
-                    kwargs[
-                        "content"
-                    ] = f"That took {(time.perf_counter() - t0) * 1000}ms!"
+                    kwargs["initial_time"] = t0
 
                 # if random.randint(0, 101) < 25:
                 #     kwargs["content"] = (
@@ -93,6 +91,9 @@ class API(plugins.Plugin):
         it'll make a Spotify card
         """
         args = await self._spotify_argument_parser.parse(arguments or "")
+
+        if args.time:
+            t0 = time.time()
 
         if args.member or (not args.member and not args.remainder):
             data: typing.Union[hikari.Member, Track] = ctx.member
@@ -189,7 +190,12 @@ class API(plugins.Plugin):
                 inline=True,
             )
 
-        await ctx.respond(embed=embed)
+        kwargs: typing.Dict[str, typing.Any] = dict(embed=embed)
+
+        if args.time:
+            kwargs["initial_time"] = t0
+
+        await ctx.respond(**kwargs)
 
     @spotify.command(name="artist", hidden=True)
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
