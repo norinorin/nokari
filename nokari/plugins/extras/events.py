@@ -44,11 +44,12 @@ class Events(plugins.Plugin):
         if (
             event.is_bot is True
             or (message := self.bot.cache.get_message(event.message_id)) is None
+            or event.old_message is None
         ):
             return
 
         # prevent embed from re-invoking commands
-        if message.content == event.message.content:
+        if event.old_message.content == message.content:
             return
 
         message_create_event = (
