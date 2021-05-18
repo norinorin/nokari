@@ -169,7 +169,7 @@ class API(plugins.Plugin):
             "Camelot": audio_features.get_camelot(),
             "Loudness": f"{round(audio_features.loudness, 1)} dB",
             "Time Signature": f"{audio_features.time_signature}/4",
-            "Album Type": f"{data.album.album_type}",
+            "Album Type": f"{data.album.album_type.capitalize()}",
             "Popularity": f"\N{fire} {data.popularity}",
         }.items():
             embed.add_field(name=k, value=v, inline=True)
