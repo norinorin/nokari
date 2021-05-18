@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import re
 import typing
 from contextlib import suppress
 from dataclasses import dataclass
@@ -73,6 +74,9 @@ class Camelot(metaclass=_CamelotType):
     """The actual Camelot class"""
 
 
+SPOTIFY_DATE = re.compile(r"(?P<Y>\d{4})(?:-(?P<m>\d{2})-(?P<d>\d{2}))?")
+
+
 def convert_data(
     state: spotipy.Spotify, d: typing.Dict[str, typing.Any]
 ) -> typing.Dict[str, typing.Any]:
@@ -84,7 +88,16 @@ def convert_data(
             d["album"] = Album.from_dict(state, d["album"])
 
         elif k == "release_date":
-            d["release_date"] = datetime.datetime.strptime(v, "%Y-%m-%d").replace(
+            # we couldn't really rely on "release_date_precision"
+            # since it's optional, so we're just gonna check it on our own
+            match = SPOTIFY_DATE.match(v)
+
+            if not match:
+                raise RuntimeError(f"Unable to parse {k}: {v}")
+
+            pattern = "-".join([f"%{k}" for k, v in match.groupdict().items() if v])
+
+            d["release_date"] = datetime.datetime.strptime(v, pattern).replace(
                 tzinfo=pytz.UTC
             )
 

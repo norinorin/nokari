@@ -1,7 +1,7 @@
 """A module that contains a custom Context class implementation."""
 
-import typing
 import time
+import typing
 
 import hikari
 import lightbulb
