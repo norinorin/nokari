@@ -11,8 +11,13 @@ from lightbulb import Bot, Context, plugins
 from lightbulb.errors import ConverterFailure
 
 from nokari import core, utils
-from nokari.utils import converters, formatter
-from nokari.utils.spotify import NoSpotifyPresenceError, SpotifyCardGenerator, Track
+from nokari.utils import converters, get_timestamp, plural
+from nokari.utils.spotify import (
+    Artist,
+    NoSpotifyPresenceError,
+    SpotifyCardGenerator,
+    Track,
+)
 
 
 class API(plugins.Plugin):
@@ -105,8 +110,8 @@ class API(plugins.Plugin):
                 if data.is_bot:
                     return await ctx.respond("I won't make a card for bots >:(")
         else:
-            maybe_track = await self.spotify_card_generator.search_and_pick_track(
-                ctx, args.remainder
+            maybe_track = await self.spotify_card_generator.get_item(
+                ctx, args.remainder, Track
             )
 
             if not maybe_track:
@@ -121,16 +126,14 @@ class API(plugins.Plugin):
 
             if isinstance(data, hikari.Member):
                 sync_id = self.spotify_card_generator.get_sync_id_from_member(data)
-                data = await self.spotify_card_generator.get_track(sync_id)
+                data = await self.spotify_card_generator.get_track_from_id(sync_id)
 
         except NoSpotifyPresenceError as e:
             raise e.__class__(
                 f"{'You' if data == ctx.author else 'They'} have no Spotify activity"
             )
 
-        audio_features = await self.bot.loop.run_in_executor(
-            self.bot.executor, data.get_audio_features
-        )
+        audio_features = await data.get_audio_features()
 
         album = await self.spotify_card_generator._get_album(data.album_cover_url)
         colors = self.spotify_card_generator._get_colors(
@@ -164,7 +167,7 @@ class API(plugins.Plugin):
         for k, v in {
             "Key": audio_features.get_key(),
             "Tempo": f"{round_(audio_features.tempo)} BPM",
-            "Duration": formatter.get_timestamp(
+            "Duration": get_timestamp(
                 datetime.timedelta(seconds=audio_features.duration_ms / 1000)
             ),
             "Camelot": audio_features.get_camelot(),
@@ -199,8 +202,68 @@ class API(plugins.Plugin):
 
     @spotify.command(name="artist", hidden=True)
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
-    async def spotify_artist(self, ctx: Context) -> None:
-        raise NotImplementedError
+    async def spotify_artist(self, ctx: Context, *, arguments: str) -> None:
+        """
+        Shows the information of a Spotify track. If -c/--card flag was present,
+        it'll make a Spotify card
+        """
+        args = await self._spotify_argument_parser.parse(arguments)
+
+        if args.time:
+            t0 = time.time()
+
+        artist = await self.spotify_card_generator.get_item(ctx, args.remainder, Artist)
+
+        if not artist:
+            return
+
+        if artist.cover_url:
+            cover: typing.Optional[
+                bytes
+            ] = await self.spotify_card_generator._get_album(artist.cover_url)
+            colors = self.spotify_card_generator._get_colors(
+                BytesIO(typing.cast(bytes, cover)), "top-bottom blur", artist.cover_url
+            )[0]
+        else:
+            cover = None
+            colors = (0, 0, 0)
+
+        spotify_code_url = artist.get_code_url(hikari.Color.from_rgb(*colors))
+        spotify_code = await self.spotify_card_generator._get_spotify_code(
+            spotify_code_url
+        )
+
+        top_tracks = await artist.get_top_tracks()
+
+        embed = (
+            hikari.Embed(title="Artist Info")
+            .set_thumbnail(cover)
+            .set_image(spotify_code)
+            .add_field(name="Name", value=artist.name)
+            .add_field(
+                name="Follower Count",
+                value=f"{plural(artist.follower_count, _format=True):follower}",
+            )
+            .add_field(name="Popularity", value=str(artist.popularity))
+            .add_field(
+                name="Genres",
+                value=", ".join(artist.genres) if artist.genres else "Not available...",
+            )
+            .add_field(
+                name="Top Tracks",
+                value="\n".join(
+                    f"{idx}. [{track}]({track.url}) - {track.popularity}% popularity"
+                    for idx, track in enumerate(top_tracks, start=1)
+                ),
+            )
+        )
+
+        kwargs: typing.Dict[str, typing.Any] = dict(embed=embed)
+
+        if args.time:
+            kwargs["initial_time"] = t0
+
+        await ctx.respond(**kwargs)
 
     @spotify.command(name="album", hidden=True)
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
@@ -216,6 +279,41 @@ class API(plugins.Plugin):
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify_user(self, ctx: Context) -> None:
         raise NotImplementedError
+
+    @spotify.command(name="cache")
+    @core.cooldown(1, 4, lightbulb.cooldowns.UserBucket)
+    async def spotify_cache(self, ctx: Context) -> None:
+        embed = (
+            hikari.Embed(title="Spotify Cache")
+            .add_field(
+                name="Album",
+                value=f"{plural(len(self.spotify_card_generator.album_cache)):album}",
+            )
+            .add_field(
+                name="Color",
+                value=f"{plural(len(self.spotify_card_generator.color_cache)):color}",
+            )
+            .add_field(
+                name="Text",
+                value=f"{plural(len(self.spotify_card_generator.text_cache)):text}",
+            )
+            .add_field(
+                name="Tracks",
+                value=f"- from IDs: {plural(len(self.spotify_card_generator.track_from_id_cache)):track}\n"
+                f"- from queries: {plural(len(self.spotify_card_generator.track_from_query_cache)):track}",
+            )
+            .add_field(
+                name="Artists",
+                value=f"- from IDs: {plural(len(self.spotify_card_generator.artist_from_id_cache)):artist}\n"
+                f"- from queries: {plural(len(self.spotify_card_generator.artist_from_query_cache)):artist}",
+            )
+            .add_field(
+                name="Codes",
+                value=f"{plural(len(self.spotify_card_generator.code_cache)):code}",
+            )
+        )
+
+        await ctx.respond(embed=embed)
 
 
 def load(bot: Bot) -> None:

@@ -20,7 +20,7 @@ __all__: typing.Final[typing.List[str]] = ["Context"]
 class Context(lightbulb.Context):
     """Custom Context class with overriden methods."""
 
-    async def respond(  # pylint: disable=arguments-differ
+    async def respond(  # pylint: disable=arguments-differ,too-many-locals
         self,
         content: undefined.UndefinedOr[typing.Any] = undefined.UNDEFINED,
         *,

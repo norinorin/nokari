@@ -26,6 +26,7 @@ from .images import get_dominant_color, has_transparency, right_fade, round_corn
 
 if typing.TYPE_CHECKING:
     from nokari.core import Context
+    from nokari.core import Nokari
 
 _RGB = typing.Tuple[int, ...]
 _RGBs = typing.List[_RGB]
@@ -74,18 +75,23 @@ class Camelot(metaclass=_CamelotType):
     """The actual Camelot class"""
 
 
+SPOTIFY_URL = re.compile(
+    r"(?:https?://)?open.spotify.com/(?:track|album|artist|playlist)/(?P<id>\w+)"
+)
 SPOTIFY_DATE = re.compile(r"(?P<Y>\d{4})(?:-(?P<m>\d{2})-(?P<d>\d{2}))?")
 
 
 def convert_data(
-    state: spotipy.Spotify, d: typing.Dict[str, typing.Any]
+    app: Nokari, state: spotipy.Spotify, d: typing.Dict[str, typing.Any]
 ) -> typing.Dict[str, typing.Any]:
     for k, v in d.items():
         if k == "artists":
-            d["artists"] = [Artist.from_dict(state, artist) for artist in d["artists"]]
+            d["artists"] = [
+                Artist.from_dict(app, state, artist) for artist in d["artists"]
+            ]
 
         elif k == "album":
-            d["album"] = Album.from_dict(state, d["album"])
+            d["album"] = Album.from_dict(app, state, d["album"])
 
         elif k == "release_date":
             # we couldn't really rely on "release_date_precision"
@@ -102,13 +108,14 @@ def convert_data(
             )
 
         elif isinstance(v, dict):
-            d[k] = convert_data(state, d[k])
+            d[k] = convert_data(app, state, d[k])
 
     return d
 
 
 @dataclass()
 class BaseSpotify:
+    app: Nokari
     state: spotipy.Spotify
     id: str
     type: str
@@ -117,10 +124,12 @@ class BaseSpotify:
     @classmethod
     def from_dict(
         cls: typing.Type[T],
+        app: Nokari,
         state: spotipy.Spotify,
         payload: typing.Dict[str, typing.Any],
     ) -> T:
         kwargs = convert_data(
+            app,
             state,
             {
                 k: v
@@ -132,10 +141,15 @@ class BaseSpotify:
         if "url" in cls.__annotations__:
             kwargs["url"] = payload["external_urls"]["spotify"]
 
-        if "cover_url" in cls.__annotations__:
-            kwargs["cover_url"] = payload["images"][0]["url"]
+        if "cover_url" in cls.__annotations__ and "images" in payload:
+            kwargs["cover_url"] = (
+                images[0]["url"] if (images := payload["images"]) else ""
+            )
 
-        return cls(state, **kwargs)
+        if "follower_count" in cls.__annotations__ and "followers" in payload:
+            kwargs["follower_count"] = payload["followers"]["total"]
+
+        return cls(app, state, **kwargs)
 
 
 # pylint: disable=too-many-instance-attributes
@@ -202,18 +216,43 @@ class Track(BaseSpotify, SpotifyCodeable):
     def __str__(self) -> str:
         return self.name
 
-    def get_audio_features(self) -> AudioFeatures:
-        audio_features = self.state.audio_features([self.id])
-        return AudioFeatures.from_dict(self.state, audio_features[0])
+    async def get_audio_features(self) -> AudioFeatures:
+        audio_features = await self.app.loop.run_in_executor(
+            self.app.executor, self.state.audio_features, [self.id]
+        )
+        return AudioFeatures.from_dict(self.app, self.state, audio_features[0])
 
 
 @dataclass()
 class Artist(BaseSpotify, SpotifyCodeable):
     name: str
     url: str
+    cover_url: str = ""
+    popularity: int = 0
+    genres: typing.Optional[typing.List[str]] = None
+    follower_count: int = 0
+    _top_tracks: typing.Optional[typing.List[Track]] = None
 
     def __str__(self) -> str:
         return self.name
+
+    @property
+    def top_tracks(self) -> typing.Optional[typing.List[Track]]:
+        return self._top_tracks
+
+    async def get_top_tracks(self, country: str = "US") -> typing.List[Track]:
+        if self._top_tracks:
+            return self._top_tracks
+
+        top_tracks = await self.app.loop.run_in_executor(
+            self.app.executor, self.state.artist_top_tracks, self.id, country
+        )
+
+        self._top_tracks = tracks = [
+            Track.from_dict(self.app, self.state, track)
+            for track in top_tracks["tracks"]
+        ]
+        return tracks
 
 
 @dataclass()
@@ -904,41 +943,108 @@ class SpotifyCardGenerator:
 
         return sync_id
 
+    # pylint: disable=redefined-builtin
+    def _get_id(self, type: str, query: str) -> str:
+        if self.spotipy._is_uri(query):
+            return self.spotipy._get_id(type, query)
+
+        if (match := SPOTIFY_URL.match(query)) and (id := match.groupdict()["id"]):
+            return id
+
+        raise RuntimeError("Couldn't resolve ID")
+
+    # pylint: disable=redefined-builtin
+    def get_item(
+        self, ctx: Context, id_or_query: str, type: typing.Type[T]
+    ) -> typing.Coroutine[typing.Any, typing.Any, typing.Optional[T]]:
+        type_name = type.__name__.lower()
+        try:
+            id = self._get_id(type_name, id_or_query)
+        except RuntimeError:
+            return getattr(self, f"search_and_pick_{type_name}")(ctx, id_or_query)
+        else:
+            return getattr(self, f"get_{type_name}_from_id")(type_name, id)
+
     @caches.cache(50)
-    async def get_track(self, _id: str) -> Track:
+    async def get_track_from_id(self, _id: str) -> Track:
         return Track.from_dict(
+            self.bot,
             self.spotipy,
             await self.loop.run_in_executor(self.bot.executor, self.spotipy.track, _id),
         )
 
     @caches.cache(50)
-    async def search_track(self, q: str) -> typing.List[Track]:
+    async def get_track_from_query(self, q: str) -> typing.List[Track]:
         func = partial(self.spotipy.search, limit=10, type="track")
         res = await self.loop.run_in_executor(self.bot.executor, func, q)
         return [
-            Track.from_dict(self.spotipy, track) for track in res["tracks"]["items"]
+            Track.from_dict(self.bot, self.spotipy, track)
+            for track in res["tracks"]["items"]
         ]
 
-    track_from_id_cache = get_track.cache  # type:ignore
-    track_from_search_cache = search_track.cache  # type: ignore
+    @caches.cache(50)
+    async def get_artist_from_id(self, _id: str) -> Artist:
+        return Artist.from_dict(
+            self.bot,
+            self.spotipy,
+            await self.loop.run_in_executor(
+                self.bot.executor, self.spotipy.artist, _id
+            ),
+        )
+
+    @caches.cache(50)
+    async def get_artist_from_query(self, q: str) -> typing.List[Artist]:
+        func = partial(self.spotipy.search, limit=10, type="artist")
+        res = await self.loop.run_in_executor(self.bot.executor, func, q)
+        return [
+            Artist.from_dict(self.bot, self.spotipy, artst)
+            for artst in res["artists"]["items"]
+        ]
+
+    track_from_id_cache = get_track_from_id.cache  # type: ignore
+    track_from_query_cache = get_track_from_query.cache  # type: ignore
+    artist_from_id_cache = get_artist_from_id.cache  # type:ignore
+    artist_from_query_cache = get_artist_from_query.cache  # type: ignore
 
     async def search_and_pick_track(
         self, ctx: Context, /, q: str
     ) -> typing.Optional[Track]:
-        tracks = await self.search_track(q)
+        tracks = await self.get_track_from_query(q)
+        return await self.pick_from_sequence(
+            ctx,
+            tracks,
+            ("Choose a Track", "No track was found..."),
+            "{item.artists_str} - {track.title}",
+        )
 
+    async def search_and_pick_artist(
+        self, ctx: Context, /, q: str
+    ) -> typing.Optional[Artist]:
+        artists = await self.get_artist_from_query(q)
+        return await self.pick_from_sequence(
+            ctx, artists, ("Choose an Artist", "No artist was found..."), "{item}"
+        )
+
+    async def pick_from_sequence(
+        self,
+        ctx: Context,
+        /,
+        seq: typing.Sequence[T],
+        title: typing.Tuple[str, str],
+        format: str,
+    ) -> typing.Optional[T]:
         ret = None
 
-        if not tracks:
+        if not seq:
             await ctx.respond("Couldn't find anything...")
             return ret
 
-        if len(tracks) > 1:
+        if len(seq) > 1:
             embed = hikari.Embed(
-                title="Choose a track" if tracks else "No track was found...",
+                title=title[0] if seq else title[1],
                 description="\n".join(
-                    f"{idx}. {track.artists_str} - {track.title}"
-                    for idx, track in enumerate(tracks, start=1)
+                    f"{idx}. {format.format(item=item)}"
+                    for idx, item in enumerate(seq, start=1)
                 ),
             )
 
@@ -954,14 +1060,14 @@ class SpotifyCardGenerator:
 
                 if msg.content.isdigit():
                     index = int(msg.content) - 1
-                    if index >= len(tracks):
-                        await ctx.respond(f"Number should be from 1 to {len(tracks)}")
+                    if index >= len(seq):
+                        await ctx.respond(f"Number should be from 1 to {len(seq)}")
                     else:
-                        ret = tracks[index]
+                        ret = seq[index]
 
             await respond.delete()
 
-        elif len(tracks) == 1:
-            ret = tracks[0]
+        elif len(seq) == 1:
+            ret = seq[0]
 
         return ret

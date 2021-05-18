@@ -8,7 +8,7 @@ from lightbulb.cooldowns import UserBucket
 
 from nokari import core
 from nokari.core import cooldown
-from nokari.utils import db
+from nokari.utils import db, plural
 
 
 class Prefixes(db.Table):
@@ -112,6 +112,33 @@ class Config(plugins.Plugin):
         prefix = convert_prefix(WrappedArg(" ".join(typing.cast(str, args)), ctx))
         await self.bot.pool.execute(self.PREFIX_TOGGLE_QUERY, ctx.guild_id, prefix)
         await self.prefix.callback(self, ctx)
+
+    @cooldown(4, 1, UserBucket)
+    @prefix.command(name="cache")
+    async def prefix_cache(self, ctx: core.Context) -> None:
+        """
+        Returns the information regarding the prefix cache
+        """
+        get = self.bot.prefixes.get
+        not_cached = "No cached prefixes..."
+        embed = (
+            hikari.Embed(title="Prefix Cache")
+            .add_field(
+                name="Global", value=f"{plural(len(self.bot.prefixes)):hash|hashes}"
+            )
+            .add_field(
+                name="Guild",
+                value=", ".join(self.format_prefixes(get(ctx.guild_id, [])))
+                or not_cached,
+            )
+            .add_field(
+                name="User",
+                value=", ".join(self.format_prefixes(get(ctx.author.id, [])))
+                or not_cached,
+            )
+        )
+
+        await ctx.respond(embed=embed)
 
 
 def load(bot: Bot) -> None:

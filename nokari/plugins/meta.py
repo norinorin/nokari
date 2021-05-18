@@ -95,31 +95,7 @@ class Meta(plugins.Plugin):
                 f"/ {round(memory_full_info.uss / 1024** 2, 2)}MiB"
             )
 
-        (
-            embed.add_field(name=name, value=value, inline=True).add_field(
-                name="Cached prefixes",
-                value=f"{plural(len(self.bot.prefixes)):hash|hashes}",
-                inline=True,
-            )
-        )
-
-        API = self.bot.get_plugin("API")
-        if not API:
-            return
-
-        spotify_api_responses_cache = len(
-            API.spotify_card_generator.track_from_id_cache
-        ) + len(API.spotify_card_generator.track_from_search_cache)
-
-        embed.add_field(
-            name="Spotify cache",
-            value=f"Albums: {len(API.spotify_card_generator.album_cache)}\n"
-            f"Colors: {len(API.spotify_card_generator.color_cache)}\n"
-            f"Texts: {len(API.spotify_card_generator.text_cache)}\n"
-            f"Spotify track queries: {spotify_api_responses_cache}\n"
-            f"Spotify codes: {len(API.spotify_card_generator.code_cache)}",
-            inline=True,
-        )
+        embed.add_field(name=name, value=value, inline=True)
 
     @cooldown(10, 1, lightbulb.cooldowns.UserBucket)
     @core.commands.command(aliases=["pong", "latency"])
