@@ -244,7 +244,7 @@ class API(plugins.Plugin):
                 name="Follower Count",
                 value=f"{plural(artist.follower_count, _format=True):follower}",
             )
-            .add_field(name="Popularity", value=str(artist.popularity))
+            .add_field(name="Popularity", value=f"\N{fire} {artist.popularity}")
             .add_field(
                 name="Genres",
                 value=", ".join(artist.genres) if artist.genres else "Not available...",
@@ -252,7 +252,7 @@ class API(plugins.Plugin):
             .add_field(
                 name="Top Tracks",
                 value="\n".join(
-                    f"{idx}. [{track}]({track.url}) - {track.popularity} popularity"
+                    f"{idx}. [{track}]({track.url}) - \N{fire} {track.popularity}"
                     for idx, track in enumerate(top_tracks, start=1)
                 ),
             )
