@@ -12,11 +12,7 @@ from lightbulb.errors import ConverterFailure
 
 from nokari import core, utils
 from nokari.utils import converters, formatter
-from nokari.utils.spotify import (
-    NoSpotifyPresenceError,
-    SpotifyCardGenerator,
-    Track,
-)
+from nokari.utils.spotify import NoSpotifyPresenceError, SpotifyCardGenerator, Track
 
 
 class API(plugins.Plugin):
@@ -86,6 +82,7 @@ class API(plugins.Plugin):
         """Contains subcommands that utilizes Spotify API"""
         await ctx.send_help(ctx.command)
 
+    # pylint: disable=too-many-locals
     @spotify.command(name="track", aliases=["song"])
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify_track(

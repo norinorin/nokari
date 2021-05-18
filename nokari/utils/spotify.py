@@ -5,8 +5,6 @@ from __future__ import annotations
 import asyncio
 import datetime
 import typing
-import pytz
-from abc import abstractmethod
 from contextlib import suppress
 from dataclasses import dataclass
 from functools import partial
@@ -14,6 +12,7 @@ from io import BytesIO
 
 import hikari
 import numpy
+import pytz
 import spotipy
 from colorthief import ColorThief
 from lightbulb import Bot, utils
@@ -29,6 +28,7 @@ if typing.TYPE_CHECKING:
 
 _RGB = typing.Tuple[int, ...]
 _RGBs = typing.List[_RGB]
+T = typing.TypeVar("T", bound="BaseSpotify")
 
 
 class NoSpotifyPresenceError(Exception):
@@ -56,10 +56,7 @@ class SongMetadata:
 
 
 class SpotifyCodeable:
-    @property
-    @abstractmethod
-    def uri(self) -> str:
-        ...
+    uri: str
 
     def get_code_url(self, color: hikari.Color) -> str:
         font_color = "white" if get_luminance(color.rgb) < 128 else "black"
@@ -76,9 +73,61 @@ class Camelot(metaclass=_CamelotType):
     """The actual Camelot class"""
 
 
-# pylint: disable=too-many-instance-attributes,redefined-builtin
+def convert_data(
+    state: spotipy.Spotify, d: typing.Dict[str, typing.Any]
+) -> typing.Dict[str, typing.Any]:
+    for k, v in d.items():
+        if k == "artists":
+            d["artists"] = [Artist.from_dict(state, artist) for artist in d["artists"]]
+
+        elif k == "album":
+            d["album"] = Album.from_dict(state, d["album"])
+
+        elif k == "release_date":
+            d["release_date"] = datetime.datetime.strptime(v, "%Y-%m-%d").replace(
+                tzinfo=pytz.UTC
+            )
+
+        elif isinstance(v, dict):
+            d[k] = convert_data(state, d[k])
+
+    return d
+
+
 @dataclass()
-class AudioFeatures:
+class BaseSpotify:
+    state: spotipy.Spotify
+    id: str
+    type: str
+    uri: str
+
+    @classmethod
+    def from_dict(
+        cls: typing.Type[T],
+        state: spotipy.Spotify,
+        payload: typing.Dict[str, typing.Any],
+    ) -> T:
+        kwargs = convert_data(
+            state,
+            {
+                k: v
+                for k, v in payload.items()
+                if k in {**cls.__annotations__, **BaseSpotify.__annotations__}
+            },
+        )
+
+        if "url" in cls.__annotations__:
+            kwargs["url"] = payload["external_urls"]["spotify"]
+
+        if "cover_url" in cls.__annotations__:
+            kwargs["cover_url"] = payload["images"][0]["url"]
+
+        return cls(state, **kwargs)
+
+
+# pylint: disable=too-many-instance-attributes
+@dataclass()
+class AudioFeatures(BaseSpotify):
     keys: typing.ClassVar[typing.List[str]] = [
         "C",
         "D♭",
@@ -94,8 +143,6 @@ class AudioFeatures:
         "B",
     ]
     modes: typing.ClassVar[typing.List[str]] = ["Minor", "Major"]
-
-    state: spotipy.Spotify
     danceability: float
     energy: float
     key: int
@@ -107,22 +154,9 @@ class AudioFeatures:
     liveness: float
     valence: float
     tempo: float
-    id: str
     analysis_url: str
     duration_ms: int
     time_signature: int
-
-    @property
-    def type(self) -> typing.Literal["audio_features"]:
-        return "audio_features"
-
-    @classmethod
-    def from_dict(
-        cls, state: spotipy.Spotify, payload: typing.Dict[str, typing.Any]
-    ) -> AudioFeatures:
-        return cls(
-            state, **{k: v for k, v in payload.items() if k in cls.__annotations__}
-        )
 
     def get_key(self) -> str:
         return f"{self.keys[self.key]} {self.modes[self.mode]}"
@@ -132,32 +166,13 @@ class AudioFeatures:
 
 
 @dataclass()
-class Track(SpotifyCodeable):
-    state: spotipy.Spotify
-    id: str
-    title: str
+class Track(BaseSpotify, SpotifyCodeable):
+    name: str
     artists: typing.List[Artist]
     album: Album
     popularity: int
     url: str
     track_number: int
-
-    @classmethod
-    def from_dict(
-        cls, state: spotipy.Spotify, payload: typing.Dict[str, typing.Any]
-    ) -> Track:
-        id = payload["id"]
-        title = payload["name"]
-        artists = [Artist.from_dict(state, artist) for artist in payload["artists"]]
-        album = Album.from_dict(state, payload["album"])
-        popularity = payload["popularity"]
-        url = payload["external_urls"]["spotify"]
-        track_number = payload["track_number"]
-        return cls(state, id, title, artists, album, popularity, url, track_number)
-
-    @property
-    def uri(self) -> str:
-        return f"spotify:track:{self.id}"
 
     @property
     def album_cover_url(self) -> str:
@@ -167,8 +182,12 @@ class Track(SpotifyCodeable):
     def artists_str(self) -> str:
         return ", ".join(map(str, self.artists))
 
+    @property
+    def title(self) -> str:
+        return self.name
+
     def __str__(self) -> str:
-        return self.title
+        return self.name
 
     def get_audio_features(self) -> AudioFeatures:
         audio_features = self.state.audio_features([self.id])
@@ -176,59 +195,25 @@ class Track(SpotifyCodeable):
 
 
 @dataclass()
-class Artist(SpotifyCodeable):
-    state: spotipy.Spotify
-    id: str
+class Artist(BaseSpotify, SpotifyCodeable):
     name: str
     url: str
 
     def __str__(self) -> str:
         return self.name
 
-    @classmethod
-    def from_dict(
-        cls, state: spotipy.Spotify, payload: typing.Dict[str, typing.Any]
-    ) -> Artist:
-        return cls(
-            state, payload["id"], payload["name"], payload["external_urls"]["spotify"]
-        )
-
-    @property
-    def uri(self) -> str:
-        return f"spotify:artist:{self.id}"
-
 
 @dataclass()
-class Album(SpotifyCodeable):
-    album_type: typing.Union[typing.Literal["album"], typing.Literal["single"]]
+class Album(BaseSpotify, SpotifyCodeable):
+    album_type: typing.Literal["album", "single"]
     artists: typing.List[Artist]
     name: str
     cover_url: str
     url: str
-    id: str
     release_date: datetime.datetime
-
-    @classmethod
-    def from_dict(
-        cls, state: spotipy.Spotify, payload: typing.Dict[str, typing.Any]
-    ) -> Album:
-        album_type = payload["album_type"]
-        artists = [Artist.from_dict(state, artist) for artist in payload["artists"]]
-        name = payload["name"]
-        cover_url = payload["images"][0]["url"]
-        url = payload["external_urls"]["spotify"]
-        id = payload["id"]
-        release_date = datetime.datetime.strptime(
-            payload["release_date"], "%Y-%m-%d"
-        ).replace(tzinfo=pytz.UTC)
-        return cls(album_type, artists, name, cover_url, url, id, release_date)
 
     def __str__(self) -> str:
         return self.name
-
-    @property
-    def uri(self) -> str:
-        return f"spotify:album:{self.id}"
 
 
 class Spotify:
@@ -893,11 +878,15 @@ class SpotifyCardGenerator:
         if not sync_id and (
             member.presence
             and member.presence.activities
-            and (maybe_spotify := member.presence.activities[0]).name == "Spotify"
-            and maybe_spotify.type is hikari.ActivityType.LISTENING
+            and utils.get(
+                member.presence.activities,
+                type=hikari.ActivityType.LISTENING,
+                name="Spotify",
+            )
         ):
             raise LocalFilesDetected("Local files aren't supported...")
-        elif not sync_id:
+
+        if not sync_id:
             raise NoSpotifyPresenceError("The member has no spotify presences")
 
         return sync_id

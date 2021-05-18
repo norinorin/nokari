@@ -23,6 +23,7 @@ class Meta(plugins.Plugin):
         self.bot = bot
         self.process = psutil.Process()
 
+    # pylint: disable=too-many-locals
     def get_info(self, embed: hikari.Embed, owner: bool = False) -> None:
         """Modifies the embed to contain the statistics."""
         total_members = sum(

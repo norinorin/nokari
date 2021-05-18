@@ -25,7 +25,7 @@ class Cache(CacheImpl):
             )
         ) is None:
             self.delete_presence(presence.guild_id, presence.user_id)
-            return
+            return None
 
         presence.activities = [spotify]
 
