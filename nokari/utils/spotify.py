@@ -34,6 +34,10 @@ class NoSpotifyPresenceError(Exception):
     """Raised when the member doesn't have Spotify presence"""
 
 
+class LocalFilesDetected(Exception):
+    """Raised when the member is listening to local files on Spotify"""
+
+
 class _SpotifyCardMetadata(typing.TypedDict):
     font_color: _RGB
     alt_color: _RGB
@@ -856,7 +860,14 @@ class SpotifyCardGenerator:
     def get_sync_id_from_member(self, member: hikari.Member) -> str:
         sync_id = self.bot._sync_ids.get(member.id)
 
-        if not sync_id:
+        if not sync_id and (
+            member.presence
+            and member.presence.activities
+            and (maybe_spotify := member.presence.activities[0]).name == "Spotify"
+            and maybe_spotify.type is hikari.ActivityType.LISTENING
+        ):
+            raise LocalFilesDetected("Local files aren't supported...")
+        elif not sync_id:
             raise NoSpotifyPresenceError("The member has no spotify presences")
 
         return sync_id
