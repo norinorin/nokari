@@ -74,6 +74,15 @@ class Errors(plugins.Plugin):
         if embed.description:
             await event.context.respond(embed=embed)
 
+        if isinstance(
+            error, lightbulb.errors.CommandNotFound
+        ) and event.message.content.startswith(error.invoked_with):
+            # might not be the best thing to do
+            # but since the context will be None if the command wasn't found
+            # we'll just assume if the prefix was the same as the command name
+            # then it's an empty prefix
+            return
+
         self.bot.log.error(
             "Ignoring exception in command %s",
             event.command and event.command.qualified_name,
