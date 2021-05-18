@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import typing
+import pytz
 from abc import abstractmethod
 from contextlib import suppress
 from dataclasses import dataclass
@@ -54,7 +55,7 @@ class SongMetadata:
     album: str
 
 
-class SpotifyCode:
+class SpotifyCodeable:
     @property
     @abstractmethod
     def uri(self) -> str:
@@ -65,21 +66,31 @@ class SpotifyCode:
         return f"https://scannables.scdn.co/uri/plain/png/{color.raw_hex_code}/{font_color}/640/{self.uri}"
 
 
+class _CamelotType(type):
+    def __getitem__(cls, item: typing.Tuple[int, int]) -> str:
+        key, mode = item
+        return f"{((8 if mode else 5) + 7 * key) % 12 or 12}{'B' if mode else 'A'}"
+
+
+class Camelot(metaclass=_CamelotType):
+    """The actual Camelot class"""
+
+
 # pylint: disable=too-many-instance-attributes,redefined-builtin
 @dataclass()
 class AudioFeatures:
     keys: typing.ClassVar[typing.List[str]] = [
         "C",
-        "C#",
+        "D♭",
         "D",
-        "D#",
+        "E♭",
         "E",
         "F",
         "F#",
         "G",
-        "G#",
+        "A♭",
         "A",
-        "A#",
+        "B♭",
         "B",
     ]
     modes: typing.ClassVar[typing.List[str]] = ["Minor", "Major"]
@@ -116,9 +127,12 @@ class AudioFeatures:
     def get_key(self) -> str:
         return f"{self.keys[self.key]} {self.modes[self.mode]}"
 
+    def get_camelot(self) -> str:
+        return Camelot[self.key, self.mode]
+
 
 @dataclass()
-class Track(SpotifyCode):
+class Track(SpotifyCodeable):
     state: spotipy.Spotify
     id: str
     title: str
@@ -126,6 +140,7 @@ class Track(SpotifyCode):
     album: Album
     popularity: int
     url: str
+    track_number: int
 
     @classmethod
     def from_dict(
@@ -137,7 +152,8 @@ class Track(SpotifyCode):
         album = Album.from_dict(state, payload["album"])
         popularity = payload["popularity"]
         url = payload["external_urls"]["spotify"]
-        return cls(state, id, title, artists, album, popularity, url)
+        track_number = payload["track_number"]
+        return cls(state, id, title, artists, album, popularity, url, track_number)
 
     @property
     def uri(self) -> str:
@@ -160,7 +176,7 @@ class Track(SpotifyCode):
 
 
 @dataclass()
-class Artist:
+class Artist(SpotifyCodeable):
     state: spotipy.Spotify
     id: str
     name: str
@@ -177,14 +193,20 @@ class Artist:
             state, payload["id"], payload["name"], payload["external_urls"]["spotify"]
         )
 
+    @property
+    def uri(self) -> str:
+        return f"spotify:artist:{self.id}"
+
 
 @dataclass()
-class Album:
+class Album(SpotifyCodeable):
     album_type: typing.Union[typing.Literal["album"], typing.Literal["single"]]
     artists: typing.List[Artist]
     name: str
     cover_url: str
     url: str
+    id: str
+    release_date: datetime.datetime
 
     @classmethod
     def from_dict(
@@ -195,10 +217,18 @@ class Album:
         name = payload["name"]
         cover_url = payload["images"][0]["url"]
         url = payload["external_urls"]["spotify"]
-        return cls(album_type, artists, name, cover_url, url)
+        id = payload["id"]
+        release_date = datetime.datetime.strptime(
+            payload["release_date"], "%Y-%m-%d"
+        ).replace(tzinfo=pytz.UTC)
+        return cls(album_type, artists, name, cover_url, url, id, release_date)
 
     def __str__(self) -> str:
         return self.name
+
+    @property
+    def uri(self) -> str:
+        return f"spotify:album:{self.id}"
 
 
 class Spotify:

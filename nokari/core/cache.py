@@ -24,8 +24,8 @@ class Cache(CacheImpl):
                 presence.activities, name="Spotify", type=ActivityType.LISTENING
             )
         ) is None:
-            self._app._sync_ids.pop(presence.user_id, None)
-            return None
+            self.delete_presence(presence.guild_id, presence.user_id)
+            return
 
         presence.activities = [spotify]
 

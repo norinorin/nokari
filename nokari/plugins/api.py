@@ -151,12 +151,14 @@ class API(plugins.Plugin):
         embed = (
             hikari.Embed(
                 title=f"{invoked_with.capitalize()} Info",
-                description=f"**[{data}]({data.url}) by "
+                description=f"**[{data}]({data.url}) [#{data.track_number}]({data.album.url}) by "
                 f"{', '.join(f'[{artist}]({artist.url})' for artist in data.artists)} "
                 f"on [{data.album}]({data.album.url})**\n",
+                timestamp=data.album.release_date,
             )
             .set_thumbnail(album)
             .set_image(spotify_code)
+            .set_footer(text="Released on")
         )
 
         round_ = lambda n: int(round(n))
@@ -167,8 +169,11 @@ class API(plugins.Plugin):
             "Duration": formatter.get_timestamp(
                 datetime.timedelta(seconds=audio_features.duration_ms / 1000)
             ),
-            "Album Type": data.album.album_type.capitalize(),
-            "Popularity": str(data.popularity),
+            "Camelot": audio_features.get_camelot(),
+            "Loudness": f"{round(audio_features.loudness, 1)} dB",
+            "Time Signature": f"{audio_features.time_signature}/4",
+            "Album Type": f"{data.album.album_type}",
+            "Popularity": f"\N{fire} {data.popularity}",
         }.items():
             embed.add_field(name=k, value=v, inline=True)
 
@@ -197,6 +202,16 @@ class API(plugins.Plugin):
     @spotify.command(name="album", hidden=True)
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify_album(self, ctx: Context) -> None:
+        raise NotImplementedError
+
+    @spotify.command(name="playlist", hidden=True)
+    @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
+    async def spotify_playlist(self, ctx: Context) -> None:
+        raise NotImplementedError
+
+    @spotify.command(name="user", hidden=True)
+    @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
+    async def spotify_user(self, ctx: Context) -> None:
         raise NotImplementedError
 
 

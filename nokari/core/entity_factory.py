@@ -20,10 +20,13 @@ class EntityFactory(EntityFactoryImpl):
         *,
         guild_id: undefined.UndefinedOr[snowflakes.Snowflake] = undefined.UNDEFINED,
     ) -> presences.MemberPresence:
+        user_id = Snowflake(payload["user"]["id"])
         if spotify := find(
             payload["activities"],
             lambda x: x.get("name") == "Spotify" and "sync_id" in x,
         ):
-            self._app._sync_ids[Snowflake(payload["user"]["id"])] = spotify["sync_id"]
+            self._app._sync_ids[user_id] = spotify["sync_id"]
+        else:
+            self._app._sync_ids.pop(user_id, None)
 
         return super().deserialize_member_presence(payload, guild_id=guild_id)

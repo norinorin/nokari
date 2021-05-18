@@ -47,6 +47,10 @@ class Events(plugins.Plugin):
         ):
             return
 
+        # prevent embed from re-invoking commands
+        if message.content == event.message.content:
+            return
+
         message_create_event = (
             GuildMessageCreateEvent(  # pylint: disable=abstract-class-instantiated
                 app=event.app, message=message, shard=event.shard
