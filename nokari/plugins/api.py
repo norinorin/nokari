@@ -252,7 +252,7 @@ class API(plugins.Plugin):
             .add_field(
                 name="Top Tracks",
                 value="\n".join(
-                    f"{idx}. [{track}]({track.url}) - {track.popularity}% popularity"
+                    f"{idx}. [{track}]({track.url}) - {track.popularity} popularity"
                     for idx, track in enumerate(top_tracks, start=1)
                 ),
             )

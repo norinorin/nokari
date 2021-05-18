@@ -1014,7 +1014,7 @@ class SpotifyCardGenerator:
             ctx,
             tracks,
             ("Choose a Track", "No track was found..."),
-            "{item.artists_str} - {track.title}",
+            "{item.artists_str} - {item.title}",
         )
 
     async def search_and_pick_artist(
