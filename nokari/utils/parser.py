@@ -88,7 +88,7 @@ class Cursor:
     def parse_argument(self, argument: str) -> typing.Optional[str]:
         length = len(argument)
         if length >= 4 and "=" in argument:
-            return self.parse_key_with_equal_sign(argument)
+            return self.parse_key_with_equals_sign(argument)
 
         if length >= 2 and argument[0] == "-" and argument[1] not in ("-", " "):
             return self.parse_short_keys(argument)
@@ -136,7 +136,7 @@ class Cursor:
             argument, self.remainder
         )
 
-    def parse_key_with_equal_sign(self, argument: str) -> str:
+    def parse_key_with_equals_sign(self, argument: str) -> str:
         key, _, arg = argument.partition("=")
         if not key or not arg:
             self.current = self.remainder
