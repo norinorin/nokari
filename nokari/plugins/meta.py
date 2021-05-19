@@ -100,7 +100,7 @@ class Meta(plugins.Plugin):
     @cooldown(10, 1, lightbulb.cooldowns.UserBucket)
     @core.commands.command(aliases=["pong", "latency"])
     async def ping(self, ctx: Context) -> None:
-        """Shows the WebSocket latency to the Discord gateway."""
+        """Displays the WebSocket latency to the Discord gateway."""
         latency = int(ctx.bot.heartbeat_latency * 1000)
         emoji = "🔴" if latency > 500 else "🟡" if latency > 100 else "🟢"
         await ctx.respond(f"Pong? {emoji} {latency}ms")
@@ -108,7 +108,7 @@ class Meta(plugins.Plugin):
     @cooldown(10, 1, lightbulb.cooldowns.UserBucket)
     @core.commands.command()
     async def stats(self, ctx: Context, flags: str = "") -> None:
-        """Shows the statistic of the bot."""
+        """Displays the statistic of the bot."""
         embed = hikari.Embed(title="Stats")
         self.get_info(
             embed, owner="d" in flags.lower() and ctx.author.id in self.bot.owner_ids

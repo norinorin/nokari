@@ -1,6 +1,7 @@
 import datetime
 import inspect
 import typing
+from operator import attrgetter
 
 import hikari
 from lightbulb import Bot, commands
@@ -84,7 +85,7 @@ class CustomHelp(help_.HelpCommand):
                 if arginfo.default is inspect.Parameter.empty:
                     items.append(f"<{argname}>")
                 else:
-                    items.append(f"[{argname}={arginfo.default}]")
+                    items.append(f"[{argname}={arginfo.default!r}]")
 
                 if arginfo.argtype is inspect.Parameter.KEYWORD_ONLY:
                     break
@@ -188,7 +189,7 @@ class CustomHelp(help_.HelpCommand):
         embed = CustomHelp.get_base_embed(context)
         CustomHelp.common_command_formatting(context, embed, group)
 
-        for subcommand in subcommands:
+        for subcommand in sorted(subcommands, key=attrgetter("name")):
             embed.add_field(
                 name=CustomHelp.get_command_signature(subcommand),
                 value=CustomHelp.get_command_description(subcommand),

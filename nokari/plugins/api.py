@@ -82,7 +82,7 @@ class API(plugins.Plugin):
     @core.commands.group()
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify(self, ctx: Context) -> None:
-        """Contains subcommands that utilizes Spotify API"""
+        """Contains subcommands that utilizes Spotify API."""
         await ctx.send_help(ctx.command)
 
     # pylint: disable=too-many-locals
@@ -93,7 +93,7 @@ class API(plugins.Plugin):
     ) -> None:
         """
         Shows the information of a Spotify track. If -c/--card flag was present,
-        it'll make a Spotify card
+        it'll make a Spotify card.
         """
         args = await self._spotify_argument_parser.parse(arguments or "")
 
@@ -204,8 +204,8 @@ class API(plugins.Plugin):
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify_artist(self, ctx: Context, *, arguments: str) -> None:
         """
-        Shows the information of a Spotify track. If -c/--card flag was present,
-        it'll make a Spotify card
+        Displays the information of a Spotify track. If -c/--card flag was present,
+        it'll make a Spotify card.
         """
         args = await self._spotify_argument_parser.parse(arguments)
 
@@ -265,24 +265,25 @@ class API(plugins.Plugin):
 
         await ctx.respond(**kwargs)
 
-    @spotify.command(name="album", hidden=True)
+    @spotify.command(name="album")
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify_album(self, ctx: Context) -> None:
-        raise NotImplementedError
+        """Not implemented yet."""
 
-    @spotify.command(name="playlist", hidden=True)
+    @spotify.command(name="playlist")
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify_playlist(self, ctx: Context) -> None:
-        raise NotImplementedError
+        """Not implemented yet."""
 
-    @spotify.command(name="user", hidden=True)
+    @spotify.command(name="user")
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify_user(self, ctx: Context) -> None:
-        raise NotImplementedError
+        """Not implemented yet."""
 
     @spotify.command(name="cache")
     @core.cooldown(1, 4, lightbulb.cooldowns.UserBucket)
     async def spotify_cache(self, ctx: Context) -> None:
+        """Displays the Spotify cache."""
         embed = (
             hikari.Embed(title="Spotify Cache")
             .add_field(

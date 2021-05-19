@@ -116,9 +116,7 @@ class Config(plugins.Plugin):
     @cooldown(4, 1, UserBucket)
     @prefix.command(name="cache")
     async def prefix_cache(self, ctx: core.Context) -> None:
-        """
-        Returns the information regarding the prefix cache
-        """
+        """Displays the prefix cache."""
         get = self.bot.prefixes.get
         not_cached = "No cached prefixes..."
         embed = (
