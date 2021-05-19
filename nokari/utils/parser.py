@@ -1,3 +1,9 @@
+"""
+This parser implementation is pretty shit and overcomplicated,
+but at least it fits what I want
+"""
+
+# todo: simplify things so they become more understandable
 from copy import deepcopy
 from types import SimpleNamespace
 from typing import (
@@ -186,6 +192,10 @@ class ArgumentParser:
                 argument = argument[1:]
                 has_flags = False
                 invalid_keys = set()
+
+                def strip_key(key: str, arg: str) -> str:
+                    return arg[len(key) :]
+
                 for idx, iterable in enumerate((self.short_flags, self.short_options)):
 
                     # an option will only be valid if there's no flags
@@ -203,29 +213,37 @@ class ArgumentParser:
                     ):
                         invalid_keys.add(short_key)
                         name = params[short_key]["name"]
-                        is_flag = params[short_key].get("argmax") == 0
+                        argmax = params[short_key].get("argmax")
+                        consume_argument = True
 
-                        if is_flag or not has_flags:
-                            # only subtract the argument if it's a short flag
-                            # or a valid option
-                            argument = argument[len(short_key) :]
+                        try:
+                            # it's a valid short flag
+                            # continue to look for more short flags
+                            if argmax == 0:
+                                data[name] = has_flags = True
+                                continue
 
-                        # it's a valid short flag
-                        # continue to look for more short flags
-                        if is_flag:
-                            data[name] = True
-                            has_flags = True
-                            continue
+                            # it's a valid short option
+                            # append the argument and return
+                            if not has_flags:
+                                # the temp cursor is still able to receive more args
+                                argument = strip_key(short_key, argument)
+                                if isinstance((lst := data.get(name)), list) and (
+                                    argmax is None or len(lst) < argmax
+                                ):
+                                    lst.append(argument)
+                                elif lst is None or self.replace:
+                                    data[name] = [argument]
+                                else:
+                                    # we're gonna store it as remainder
+                                    argument = f"-{short_key}{argument}"
+                                    consume_argument = False
+                                    break
 
-                        # it's a valid short option
-                        # append the argument and return
-                        if not has_flags:
-                            if isinstance((lst := data.get(name)), list):
-                                lst.append(argument)
-                            else:
-                                data[name] = [argument]
-
-                            return False
+                                return False
+                        finally:
+                            if consume_argument:
+                                argument = strip_key(short_key, argument)
 
                         break
 
