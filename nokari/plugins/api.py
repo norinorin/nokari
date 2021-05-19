@@ -152,9 +152,9 @@ class API(plugins.Plugin):
         embed = (
             hikari.Embed(
                 title=f"{invoked_with.capitalize()} Info",
-                description=f"**[{data}]({data.url}) [#{data.track_number}]({data.album.url}) by "
-                f"{', '.join(f'[{artist}]({artist.url})' for artist in data.artists)} "
-                f"on [{data.album}]({data.album.url})**\n",
+                description=f"**{data.formatted_url} [#{data.track_number}]({data.album.url}) by "
+                f"{', '.join(artist.formatted_url for artist in data.artists)} "
+                f"on {data.formatted_url}**\n",
                 timestamp=data.album.release_date,
             )
             .set_thumbnail(album)
@@ -239,7 +239,7 @@ class API(plugins.Plugin):
             hikari.Embed(title="Artist Info")
             .set_thumbnail(cover)
             .set_image(spotify_code)
-            .add_field(name="Name", value=artist.name)
+            .add_field(name="Name", value=artist.formatted_url)
             .add_field(
                 name="Follower Count",
                 value=f"{plural(artist.follower_count, _format=True):follower}",
@@ -252,7 +252,7 @@ class API(plugins.Plugin):
             .add_field(
                 name="Top Tracks",
                 value="\n".join(
-                    f"{idx}. [{track}]({track.url}) - \N{fire} {track.popularity}"
+                    f"{idx}. {track.formatted_url} - \N{fire} {track.popularity}"
                     for idx, track in enumerate(top_tracks, start=1)
                 ),
             )
@@ -284,33 +284,34 @@ class API(plugins.Plugin):
     @core.cooldown(1, 4, lightbulb.cooldowns.UserBucket)
     async def spotify_cache(self, ctx: Context) -> None:
         """Displays the Spotify cache."""
+        gen = self.spotify_card_generator
         embed = (
             hikari.Embed(title="Spotify Cache")
             .add_field(
                 name="Album",
-                value=f"{plural(len(self.spotify_card_generator.album_cache)):album}",
+                value=f"{plural(len(gen.album_cache)):album}",
             )
             .add_field(
                 name="Color",
-                value=f"{plural(len(self.spotify_card_generator.color_cache)):color}",
+                value=f"{plural(len(gen.color_cache)):color}",
             )
             .add_field(
                 name="Text",
-                value=f"{plural(len(self.spotify_card_generator.text_cache)):text}",
+                value=f"{plural(len(gen.text_cache)):text}",
             )
             .add_field(
                 name="Tracks",
-                value=f"- from IDs: {plural(len(self.spotify_card_generator.track_from_id_cache)):track}\n"
-                f"- from queries: {plural(len(self.spotify_card_generator.track_from_query_cache)):track}",
+                value=f"- from IDs: {plural(len(gen.track_from_id_cache)):track}\n"
+                f"- from queries: {plural(len(gen.track_from_query_cache)):track}",
             )
             .add_field(
                 name="Artists",
-                value=f"- from IDs: {plural(len(self.spotify_card_generator.artist_from_id_cache)):artist}\n"
-                f"- from queries: {plural(len(self.spotify_card_generator.artist_from_query_cache)):artist}",
+                value=f"- from IDs: {plural(len(gen.artist_from_id_cache)):artist}\n"
+                f"- from queries: {plural(len(gen.artist_from_query_cache)):artist}",
             )
             .add_field(
                 name="Codes",
-                value=f"{plural(len(self.spotify_card_generator.code_cache)):code}",
+                value=f"{plural(len(gen.code_cache)):code}",
             )
         )
 

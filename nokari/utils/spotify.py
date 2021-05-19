@@ -151,6 +151,16 @@ class BaseSpotify:
 
         return cls(app, state, **kwargs)
 
+    def __str__(self) -> str:
+        return getattr(self, "name", super().__str__())
+
+    @property
+    def formatted_url(self) -> str:
+        if not hasattr(self, "url") or not hasattr(self, "name"):
+            raise NotImplementedError
+
+        return f"[{self}]({getattr(self, 'url')} '{self} on Spotify')"
+
 
 # pylint: disable=too-many-instance-attributes
 @dataclass()
@@ -213,9 +223,6 @@ class Track(BaseSpotify, SpotifyCodeable):
     def title(self) -> str:
         return self.name
 
-    def __str__(self) -> str:
-        return self.name
-
     async def get_audio_features(self) -> AudioFeatures:
         audio_features = await self.app.loop.run_in_executor(
             self.app.executor, self.state.audio_features, [self.id]
@@ -232,9 +239,6 @@ class Artist(BaseSpotify, SpotifyCodeable):
     genres: typing.Optional[typing.List[str]] = None
     follower_count: int = 0
     _top_tracks: typing.Optional[typing.List[Track]] = None
-
-    def __str__(self) -> str:
-        return self.name
 
     @property
     def top_tracks(self) -> typing.Optional[typing.List[Track]]:
@@ -263,9 +267,6 @@ class Album(BaseSpotify, SpotifyCodeable):
     cover_url: str
     url: str
     release_date: datetime.datetime
-
-    def __str__(self) -> str:
-        return self.name
 
 
 class Spotify:
