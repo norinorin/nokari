@@ -6,12 +6,14 @@ from contextlib import suppress
 from io import BytesIO
 
 import hikari
+from hikari.embeds import EmbedImage
+from hikari.files import AsyncReader
 import lightbulb
 from lightbulb import Bot, Context, plugins
 from lightbulb.errors import ConverterFailure
 
 from nokari import core, utils
-from nokari.utils import converters, get_timestamp, plural
+from nokari.utils import converters, get_timestamp, plural, Paginator, chunk_from_list
 from nokari.utils.spotify import (
     Artist,
     NoSpotifyPresenceError,
@@ -234,8 +236,17 @@ class API(plugins.Plugin):
         )
 
         top_tracks = await artist.get_top_tracks()
+        chunks = chunk_from_list(
+            [
+                f"{idx}. {track.formatted_url} - \N{fire} {track.popularity}"
+                for idx, track in enumerate(top_tracks, start=1)
+            ],
+            1024,
+        )
 
-        embed = (
+        paginator = Paginator.default(ctx)
+
+        initial_embed = (
             hikari.Embed(title="Artist Info")
             .set_thumbnail(cover)
             .set_image(spotify_code)
@@ -251,19 +262,26 @@ class API(plugins.Plugin):
             )
             .add_field(
                 name="Top Tracks",
-                value="\n".join(
-                    f"{idx}. {track.formatted_url} - \N{fire} {track.popularity}"
-                    for idx, track in enumerate(top_tracks, start=1)
-                ),
+                value=chunks.pop(0),
             )
         )
 
-        kwargs: typing.Dict[str, typing.Any] = dict(embed=embed)
+        paginator.add_page(initial_embed)
 
-        if args.time:
-            kwargs["initial_time"] = t0
+        image = typing.cast(EmbedImage[AsyncReader], initial_embed.image)
+        thumbnail = typing.cast(EmbedImage[AsyncReader], initial_embed.thumbnail)
 
-        await ctx.respond(**kwargs)
+        for chunk in chunks:
+            embed = (
+                hikari.Embed(
+                    title="Top tracks cont.", description=chunk, color=ctx.color
+                )
+                .set_image(image)
+                .set_thumbnail(thumbnail)
+            )
+            paginator.add_page(embed)
+
+        await paginator.start()
 
     @spotify.command(name="album")
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)

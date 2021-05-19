@@ -1,11 +1,11 @@
 """A module that contains chunking helper functions."""
 
-from typing import Final, Iterator, List
+from typing import Final, Iterator, List, Sequence
 
-__all__: Final[List[str]] = ["chunks", "simple_chunks"]
+__all__: Final[List[str]] = ["chunk", "simple_chunk", "chunk_from_list"]
 
 
-def chunks(text: str, length: int) -> Iterator[str]:
+def chunk(text: str, length: int) -> Iterator[str]:
     """
     Chunks the text. This is useful for getting pages
     that'll be passed to the Paginator object.
@@ -28,6 +28,20 @@ def chunks(text: str, length: int) -> Iterator[str]:
     yield text[start:]
 
 
-def simple_chunks(text: str, length: int) -> List[str]:
+def simple_chunk(text: str, length: int) -> List[str]:
     """A lite version of the chunks function"""
     return [text[n : n + length] for n in range(0, len(text), length)]
+
+
+def chunk_from_list(seq: Sequence[str], length: int) -> List[str]:
+    ret = [""]
+    index = 0
+
+    for item in seq:
+        if len(temp := f"{ret[index]}\n{item}") <= length:
+            ret[index] = temp
+        else:
+            index += 1
+            ret.append(item)
+
+    return ret

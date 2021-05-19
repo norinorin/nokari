@@ -117,9 +117,9 @@ class Admin(plugins.Plugin):
 
             else:
                 chunked_output = (
-                    list(utils.chunks(stdout_val.strip(), n)) if stdout_val else []
+                    list(utils.chunk(stdout_val.strip(), n)) if stdout_val else []
                 )
-                chunked_return_value = list(utils.chunks(str(result), n))
+                chunked_return_value = list(utils.chunk(str(result), n))
 
                 stdout_indexes = len(chunked_output) - 1
 
