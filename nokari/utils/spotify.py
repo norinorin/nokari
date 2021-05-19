@@ -25,8 +25,7 @@ from .formatter import get_timestamp as format_time
 from .images import get_dominant_color, has_transparency, right_fade, round_corners
 
 if typing.TYPE_CHECKING:
-    from nokari.core import Context
-    from nokari.core import Nokari
+    from nokari.core import Context, Nokari
 
 _RGB = typing.Tuple[int, ...]
 _RGBs = typing.List[_RGB]

@@ -6,14 +6,14 @@ from contextlib import suppress
 from io import BytesIO
 
 import hikari
+import lightbulb
 from hikari.embeds import EmbedImage
 from hikari.files import AsyncReader
-import lightbulb
 from lightbulb import Bot, Context, plugins
 from lightbulb.errors import ConverterFailure
 
 from nokari import core, utils
-from nokari.utils import converters, get_timestamp, plural, Paginator, chunk_from_list
+from nokari.utils import Paginator, chunk_from_list, converters, get_timestamp, plural
 from nokari.utils.spotify import (
     Artist,
     NoSpotifyPresenceError,
@@ -29,15 +29,14 @@ class API(plugins.Plugin):
         super().__init__()
         self.bot = bot
         self.spotify_card_generator = SpotifyCardGenerator(bot)
-        self._spotify_argument_parser = utils.ArgumentParser(
-            {
-                "s": utils.ArgumentOptions(name="style", argmax=1),
-                "h": utils.ArgumentOptions(name="hidden", argmax=0),
-                "c": utils.ArgumentOptions(name="card", argmax=0),
-                "t": utils.ArgumentOptions(name="time", argmax=0),
-                "cl": utils.ArgumentOptions(name="colour", aliases=["color"], argmax=1),
-                "m": utils.ArgumentOptions(name="member", argmax=0),
-            }
+        self._spotify_argument_parser = (
+            utils.ArgumentParser()
+            .argument("style", "--style", "-s", argmax=1, default="2")
+            .argument("hidden", "--hidden", "-h", argmax=0)
+            .argument("card", "--card", "-c", argmax=0)
+            .argument("time", "--time", "-t", argmax=0)
+            .argument("color", ["--color", "--colour"], "-cl", argmax=1)
+            .argument("member", "--member", "-m", argmax=0)
         )
 
     async def send_spotify_card(
@@ -64,7 +63,7 @@ class API(plugins.Plugin):
                     data,
                     args.hidden
                     or not (args.member or (not args.member and not args.remainder)),
-                    args.colour,
+                    args.color,
                     style,
                 )
 
@@ -97,7 +96,7 @@ class API(plugins.Plugin):
         Shows the information of a Spotify track. If -c/--card flag was present,
         it'll make a Spotify card.
         """
-        args = await self._spotify_argument_parser.parse(arguments or "")
+        args = self._spotify_argument_parser.parse(arguments or "")
 
         if args.time:
             t0 = time.time()
@@ -209,7 +208,7 @@ class API(plugins.Plugin):
         Displays the information of a Spotify track. If -c/--card flag was present,
         it'll make a Spotify card.
         """
-        args = await self._spotify_argument_parser.parse(arguments)
+        args = self._spotify_argument_parser.parse(arguments)
 
         if args.time:
             t0 = time.time()
@@ -280,6 +279,9 @@ class API(plugins.Plugin):
                 .set_thumbnail(thumbnail)
             )
             paginator.add_page(embed)
+
+        if args.time:
+            paginator.set_initial_kwarg(initial_time=t0)
 
         await paginator.start()
 
