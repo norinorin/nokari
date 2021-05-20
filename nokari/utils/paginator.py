@@ -95,7 +95,7 @@ class Paginator:
         self.role_mentions: undefined.UndefinedOr[
             Union[snowflakes.SnowflakeishSequence[hikari.PartialRole], bool]
         ] = undefined.UNDEFINED
-        self.initial_kwargs: Optional[Dict[str, Any]] = {}
+        self.initial_kwargs: Dict[str, Any] = {}
 
     def __eq__(self, other: Any) -> bool:
         return (
@@ -171,10 +171,10 @@ class Paginator:
     async def start(self, **kwargs: Any) -> Optional[hikari.Message]:
         """Starts paginating the contents."""
         options = await self.kwargs
-
         options["paginator"] = self if self.is_paginated else None
+        options.update(self.initial_kwargs)
 
-        self.message = await self.ctx.respond(**options, **self.initial_kwargs)
+        self.message = await self.ctx.respond(**options)
 
         self.ctx.bot.paginators[self.message.id] = self
 
