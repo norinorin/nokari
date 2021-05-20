@@ -107,8 +107,7 @@ class Cursor:
         }
         used_flags: typing.Set[str] = set()
 
-        # pylint: disable=unnecessary-lambda
-        option = utils.find(short_options, lambda x: key.startswith(x))
+        option = utils.find(short_options, key.startswith)
 
         if option:
             self.current = self.short_options[f"-{option}"]
