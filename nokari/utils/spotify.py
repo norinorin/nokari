@@ -963,7 +963,7 @@ class SpotifyCardGenerator:
         except RuntimeError:
             return getattr(self, f"search_and_pick_{type_name}")(ctx, id_or_query)
         else:
-            return getattr(self, f"get_{type_name}_from_id")(type_name, id)
+            return getattr(self, f"get_{type_name}_from_id")(id)
 
     @caches.cache(50)
     async def get_track_from_id(self, _id: str) -> Track:

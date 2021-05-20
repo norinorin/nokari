@@ -85,8 +85,12 @@ class Cursor:
         if length >= 2 and argument[0] == "-" and argument[1] not in ("-", " "):
             return self.parse_short_keys(argument)
 
-        if length >= 3 and argument.startswith("--") and argument[2] not in ("-", " "):
-            self.parse_key(argument)
+        if (
+            length >= 3
+            and argument.startswith("--")
+            and argument[2] not in ("-", " ")
+            and self.parse_key(argument)
+        ):
             return None
 
         return argument
@@ -122,25 +126,26 @@ class Cursor:
         self.current = self.remainder
         return key
 
-    def parse_key(self, argument: str) -> None:
+    def parse_key(self, argument: str) -> bool:
         if flag := {**self.short_flags, **self.long_flags}.get(argument):
             self.data[flag] = [TRUE]
-            return
+            return True
 
         self.current = {**self.short_options, **self.long_options}.get(
             argument, self.remainder
         )
 
-        if self.current == self.remainder and self.parser.consume_keys:
-            self.append(argument)
+        return not (self.current == self.remainder and self.parser.consume_keys)
 
     def parse_key_with_equals_sign(self, argument: str) -> str:
         key, _, arg = argument.partition("=")
-        if not key or not arg:
+        if not key or not key.startswith("-") or not arg:
             self.current = self.remainder
             return argument
 
-        self.parse_key(key)
+        if not self.parse_key(key):
+            return argument
+
         return arg
 
     def get_parsed_data(
