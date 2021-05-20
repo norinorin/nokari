@@ -6,4 +6,4 @@ isort[requirements_deprecated_finder]
 mypy
 
 # Linting
-flake8
+pylint

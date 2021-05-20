@@ -1,23 +1,8 @@
-"""
-Example:
-
-# -1 is Greedy
-#  0 is Flag
-#  else Option
-
-parser = (
-    ArgumentParser()
-    .argument("test", "--test", "-t", argmax=0, default=False)
-    .argument("member", "--member", "-m", argmax=-1, default="")
-)
-"""
-# ^ actually that was just a plan
-# so that I had the big picture of what I wanted to achieve
-
 from __future__ import annotations
 
 import sys
 import typing
+from functools import partial
 from types import SimpleNamespace
 
 from lightbulb import utils
@@ -49,8 +34,12 @@ class Cursor:
         return self.parser.short_options
 
     @property
-    def long_keys(self) -> typing.Dict[str, str]:
-        return self.parser.long_keys
+    def long_flags(self) -> typing.Dict[str, str]:
+        return self.parser.long_flags
+
+    @property
+    def long_options(self) -> typing.Dict[str, str]:
+        return self.parser.long_options
 
     def iterator(self) -> typing.Iterator[typing.Tuple[str, bool]]:
         while not self.view.eof:
@@ -85,6 +74,9 @@ class Cursor:
 
         self.data[self.current].append(argument)
 
+        if len(self.data[self.current]) == argmax:
+            self.current = self.remainder
+
     def parse_argument(self, argument: str) -> typing.Optional[str]:
         length = len(argument)
         if length >= 4 and "=" in argument:
@@ -101,17 +93,17 @@ class Cursor:
 
     def parse_short_keys(self, argument: str) -> str:
         key = argument[1:]
-        short_flags: typing.Set[str] = {flag.lstrip("-") for flag in self.short_flags}
         short_options: typing.Set[str] = {
             option.lstrip("-") for option in self.short_options
         }
-        used_flags: typing.Set[str] = set()
-
         option = utils.find(short_options, key.startswith)
 
         if option:
             self.current = self.short_options[f"-{option}"]
             return key[len(option) :]
+
+        short_flags: typing.Set[str] = {flag.lstrip("-") for flag in self.short_flags}
+        used_flags: typing.Set[str] = set()
 
         while key:
             flag = utils.find(
@@ -131,9 +123,16 @@ class Cursor:
         return key
 
     def parse_key(self, argument: str) -> None:
-        self.current = {**self.short_flags, **self.long_keys, **self.short_options}.get(
+        if flag := {**self.short_flags, **self.long_flags}.get(argument):
+            self.data[flag] = [TRUE]
+            return
+
+        self.current = {**self.short_options, **self.long_options}.get(
             argument, self.remainder
         )
+
+        if self.current == self.remainder and self.parser.consume_keys:
+            self.append(argument)
 
     def parse_key_with_equals_sign(self, argument: str) -> str:
         key, _, arg = argument.partition("=")
@@ -153,7 +152,7 @@ class Cursor:
         )
         data[self.remainder] = " ".join(
             typing.cast(typing.List[str], data[self.remainder])
-        ).strip()
+        )
 
         for k, v in self.parser.args.items():
             arg = data.get(k)
@@ -180,54 +179,59 @@ class Cursor:
 
             remainder = self.parse_argument(argument)
 
-            if remainder is not None:
+            if remainder:
                 self.append(remainder)
 
         return SimpleNamespace(**self.get_parsed_data())
 
 
 class ArgumentInfo(typing.TypedDict):
-    long: typing.Optional[str]
-    short: typing.Optional[str]
     argmax: int
     default: typing.Any
 
 
 class ArgumentParser:
-    def __init__(self) -> None:
+    def __init__(self, append_invalid_keys_to_remainder: bool = True) -> None:
         self.args: typing.Dict[str, ArgumentInfo] = {}
         self._remainder = "remainder"
         self.short_flags: typing.Dict[str, str] = {}
         self.short_options: typing.Dict[str, str] = {}
-        self.long_keys: typing.Dict[str, str] = {}
+        self.long_flags: typing.Dict[str, str] = {}
+        self.long_options: typing.Dict[str, str] = {}
+        self.consume_keys = append_invalid_keys_to_remainder
 
     def argument(
         self,
         name: str,
-        long: typing.Union[str, typing.List[str], typing.Literal[None]],
-        short: typing.Optional[str],
         /,
-        *,
+        *keys: str,
         argmax: int = -1,
         default: typing.Any = None,
     ) -> ArgumentParser:
-        if argmax == 0 and short:
-            self.short_flags[short] = name
-        elif short:
-            self.short_options[short] = name
+        if not keys:
+            return self.remainder(name)
 
-        if isinstance(long, str):
-            long = [long]
+        long_keys = {k for k in keys if k.startswith("--")}
+        short_keys = {k for k in keys if k not in long_keys and k.startswith("-")}
 
-        if isinstance(long, list):
-            for key in long:
-                self.long_keys[key] = name
+        if not long_keys and not short_keys:
+            raise RuntimeError("Expected keys in --key or -k format")
 
-            long = long.pop(0)
+        for key in short_keys:
+            if argmax == 0:
+                self.short_flags[key] = name
+                continue
 
-        self.args[name] = ArgumentInfo(
-            long=long, short=short, argmax=argmax, default=default
-        )
+            self.short_options[key] = name
+
+        for key in long_keys:
+            if argmax == 0:
+                self.long_flags[key] = name
+                continue
+
+            self.long_options[key] = name
+
+        self.args[name] = ArgumentInfo(argmax=argmax, default=default)
 
         return self
 
@@ -238,3 +242,8 @@ class ArgumentParser:
     def parse(self, argument: str) -> SimpleNamespace:
         cur = Cursor(self, argument)
         return cur.fetch_arguments()
+
+    def __getattr__(
+        self, attr: str
+    ) -> typing.Callable[..., ArgumentParser,]:
+        return partial(self.argument, attr)

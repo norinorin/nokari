@@ -14,6 +14,7 @@ from lightbulb.errors import ConverterFailure
 
 from nokari import core, utils
 from nokari.utils import Paginator, chunk_from_list, converters, get_timestamp, plural
+from nokari.utils.parser import ArgumentParser
 from nokari.utils.spotify import (
     Artist,
     NoSpotifyPresenceError,
@@ -25,19 +26,20 @@ from nokari.utils.spotify import (
 class API(plugins.Plugin):
     """A plugin that utilizes external APIs"""
 
+    _spotify_argument_parser: typing.ClassVar[ArgumentParser] = (
+        utils.ArgumentParser()
+        .style("--style", "-s", argmax=1, default="2")
+        .hidden("--hidden", "-h", argmax=0)
+        .card("--card", "-c", argmax=0)
+        .time("--time", "-t", argmax=0)
+        .color("--color", "--colour", "-cl", argmax=1)
+        .member("--member", "-m", argmax=0)
+    )
+
     def __init__(self, bot: Bot) -> None:
         super().__init__()
         self.bot = bot
         self.spotify_card_generator = SpotifyCardGenerator(bot)
-        self._spotify_argument_parser = (
-            utils.ArgumentParser()
-            .argument("style", "--style", "-s", argmax=1, default="2")
-            .argument("hidden", "--hidden", "-h", argmax=0)
-            .argument("card", "--card", "-c", argmax=0)
-            .argument("time", "--time", "-t", argmax=0)
-            .argument("color", ["--color", "--colour"], "-cl", argmax=1)
-            .argument("member", "--member", "-m", argmax=0)
-        )
 
     async def send_spotify_card(
         self,

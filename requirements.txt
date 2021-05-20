@@ -4,6 +4,7 @@ python-dotenv
 python-dateutil
 uvloop
 psutil
+pytz
 pillow
 numpy
 numexpr
