@@ -209,6 +209,7 @@ class Track(BaseSpotify, SpotifyCodeable):
     popularity: int
     url: str
     track_number: int
+    _audio_features: typing.Optional[AudioFeatures] = None
 
     @property
     def album_cover_url(self) -> str:
@@ -223,10 +224,18 @@ class Track(BaseSpotify, SpotifyCodeable):
         return self.name
 
     async def get_audio_features(self) -> AudioFeatures:
-        audio_features = await self.app.loop.run_in_executor(
-            self.app.executor, self.state.audio_features, [self.id]
-        )
-        return AudioFeatures.from_dict(self.app, self.state, audio_features[0])
+        if self._audio_features is None:
+            self._audio_features = AudioFeatures.from_dict(
+                self.app,
+                self.state,
+                (
+                    await self.app.loop.run_in_executor(
+                        self.app.executor, self.state.audio_features, [self.id]
+                    )
+                )[0],
+            )
+
+        return self._audio_features
 
 
 @dataclass()
@@ -244,18 +253,18 @@ class Artist(BaseSpotify, SpotifyCodeable):
         return self._top_tracks
 
     async def get_top_tracks(self, country: str = "US") -> typing.List[Track]:
-        if self._top_tracks:
-            return self._top_tracks
+        if self._top_tracks is None:
 
-        top_tracks = await self.app.loop.run_in_executor(
-            self.app.executor, self.state.artist_top_tracks, self.id, country
-        )
+            top_tracks = await self.app.loop.run_in_executor(
+                self.app.executor, self.state.artist_top_tracks, self.id, country
+            )
 
-        self._top_tracks = tracks = [
-            Track.from_dict(self.app, self.state, track)
-            for track in top_tracks["tracks"]
-        ]
-        return tracks
+            self._top_tracks = [
+                Track.from_dict(self.app, self.state, track)
+                for track in top_tracks["tracks"]
+            ]
+
+        return self._top_tracks
 
 
 @dataclass()
