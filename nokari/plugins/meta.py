@@ -132,7 +132,7 @@ class Meta(plugins.Plugin):
             "bot": self.bot.__class__,
             "context": ctx.__class__,
             "cache": self.bot.cache.__class__,
-            "spotify": spotify.SpotifyCardGenerator,
+            "spotify": spotify.SpotifyClient,
             "paginator": paginator.Paginator,
             "parser": parser.ArgumentParser,
         }

@@ -16,6 +16,7 @@ import numpy
 import pytz
 import spotipy
 from colorthief import ColorThief
+from fuzzywuzzy import fuzz
 from lightbulb import Bot, utils
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
@@ -305,8 +306,8 @@ class Spotify:
         return self._act.timestamps
 
 
-class SpotifyCardGenerator:
-    """A class that generates spotify card"""
+class SpotifyClient:
+    """A class that generates Spotify cards as well as interacts with Spotify API"""
 
     SMALL_FONT = ImageFont.truetype("nokari/assets/fonts/arial-unicode-ms.ttf", size=40)
     BIG_FONT = ImageFont.truetype("nokari/assets/fonts/arial-unicode-ms.ttf", size=50)
@@ -1021,6 +1022,7 @@ class SpotifyCardGenerator:
         tracks = await self.get_track_from_query(q)
         return await self.pick_from_sequence(
             ctx,
+            q,
             tracks,
             ("Choose a Track", "No track was found..."),
             "{item.artists_str} - {item.title}",
@@ -1031,12 +1033,13 @@ class SpotifyCardGenerator:
     ) -> typing.Optional[Artist]:
         artists = await self.get_artist_from_query(q)
         return await self.pick_from_sequence(
-            ctx, artists, ("Choose an Artist", "No artist was found..."), "{item}"
+            ctx, q, artists, ("Choose an Artist", "No artist was found..."), "{item}"
         )
 
     async def pick_from_sequence(
         self,
         ctx: Context,
+        query: str,
         /,
         seq: typing.Sequence[T],
         title: typing.Tuple[str, str],
@@ -1047,6 +1050,16 @@ class SpotifyCardGenerator:
         if not seq:
             await ctx.respond("Couldn't find anything...")
             return ret
+
+        if len(seq) == 1:
+            return seq[0]
+
+        # This if statement adds an overhead, but w/e
+        if (
+            len(entries := [i for i in seq if str(i).lower() == query.lower()]) == 1
+            or len(entries := [i for i in seq if fuzz.ratio(str(i), query) >= 75]) == 1
+        ):
+            return entries[0]
 
         if len(seq) > 1:
             embed = hikari.Embed(
@@ -1075,8 +1088,5 @@ class SpotifyCardGenerator:
                         ret = seq[index]
 
             await respond.delete()
-
-        elif len(seq) == 1:
-            ret = seq[0]
 
         return ret

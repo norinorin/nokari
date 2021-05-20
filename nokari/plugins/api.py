@@ -1,19 +1,19 @@
 import datetime
-from functools import partial
 import time
 import types
 import typing
 from contextlib import suppress
+from functools import partial
 from io import BytesIO
 
 import hikari
 import lightbulb
-from sphobjinv import Inventory
 from fuzzywuzzy import fuzz
 from hikari.embeds import EmbedImage
 from hikari.files import AsyncReader
 from lightbulb import Bot, Context, plugins
 from lightbulb.errors import ConverterFailure
+from sphobjinv import Inventory
 
 from nokari import core, utils
 from nokari.utils import Paginator, chunk_from_list, converters, get_timestamp, plural
@@ -21,7 +21,8 @@ from nokari.utils.parser import ArgumentParser
 from nokari.utils.spotify import (
     Artist,
     NoSpotifyPresenceError,
-    SpotifyCardGenerator,
+    Spotify,
+    SpotifyClient,
     Track,
 )
 
@@ -42,7 +43,7 @@ class API(plugins.Plugin):
     def __init__(self, bot: Bot) -> None:
         super().__init__()
         self.bot = bot
-        self.spotify_card_generator = SpotifyCardGenerator(bot)
+        self.spotify_client = SpotifyClient(bot)
 
     async def send_spotify_card(
         self,
@@ -63,7 +64,7 @@ class API(plugins.Plugin):
 
         async with self.bot.rest.trigger_typing(ctx.channel_id):
             with BytesIO() as fp:
-                await self.spotify_card_generator(
+                await self.spotify_client(
                     fp,
                     data,
                     args.hidden
@@ -116,9 +117,7 @@ class API(plugins.Plugin):
                 if data.is_bot:
                     return await ctx.respond("I won't make a card for bots >:(")
         else:
-            maybe_track = await self.spotify_card_generator.get_item(
-                ctx, args.remainder, Track
-            )
+            maybe_track = await self.spotify_client.get_item(ctx, args.remainder, Track)
 
             if not maybe_track:
                 return
@@ -131,8 +130,8 @@ class API(plugins.Plugin):
                 return
 
             if isinstance(data, hikari.Member):
-                sync_id = self.spotify_card_generator.get_sync_id_from_member(data)
-                data = await self.spotify_card_generator.get_track_from_id(sync_id)
+                sync_id = self.spotify_client.get_sync_id_from_member(data)
+                data = await self.spotify_client.get_track_from_id(sync_id)
 
         except NoSpotifyPresenceError as e:
             raise e.__class__(
@@ -141,14 +140,12 @@ class API(plugins.Plugin):
 
         audio_features = await data.get_audio_features()
 
-        album = await self.spotify_card_generator._get_album(data.album_cover_url)
-        colors = self.spotify_card_generator._get_colors(
+        album = await self.spotify_client._get_album(data.album_cover_url)
+        colors = self.spotify_client._get_colors(
             BytesIO(album), "top-bottom blur", data.album_cover_url
         )
         spotify_code_url = data.get_code_url(hikari.Color.from_rgb(*colors[0]))
-        spotify_code = await self.spotify_card_generator._get_spotify_code(
-            spotify_code_url
-        )
+        spotify_code = await self.spotify_client._get_spotify_code(spotify_code_url)
 
         invoked_with = (
             ctx.content[len(ctx.prefix) + len(ctx.invoked_with) :]
@@ -218,16 +215,16 @@ class API(plugins.Plugin):
         if args.time:
             t0 = time.time()
 
-        artist = await self.spotify_card_generator.get_item(ctx, args.remainder, Artist)
+        artist = await self.spotify_client.get_item(ctx, args.remainder, Artist)
 
         if not artist:
             return
 
         if artist.cover_url:
-            cover: typing.Optional[
-                bytes
-            ] = await self.spotify_card_generator._get_album(artist.cover_url)
-            colors = self.spotify_card_generator._get_colors(
+            cover: typing.Optional[bytes] = await self.spotify_client._get_album(
+                artist.cover_url
+            )
+            colors = self.spotify_client._get_colors(
                 BytesIO(typing.cast(bytes, cover)), "top-bottom blur", artist.cover_url
             )[0]
         else:
@@ -235,9 +232,7 @@ class API(plugins.Plugin):
             colors = (0, 0, 0)
 
         spotify_code_url = artist.get_code_url(hikari.Color.from_rgb(*colors))
-        spotify_code = await self.spotify_card_generator._get_spotify_code(
-            spotify_code_url
-        )
+        spotify_code = await self.spotify_client._get_spotify_code(spotify_code_url)
 
         top_tracks = await artist.get_top_tracks()
         chunks = chunk_from_list(
@@ -309,34 +304,34 @@ class API(plugins.Plugin):
     @core.cooldown(1, 4, lightbulb.cooldowns.UserBucket)
     async def spotify_cache(self, ctx: Context) -> None:
         """Displays the Spotify cache."""
-        gen = self.spotify_card_generator
+        client = self.spotify_client
         embed = (
             hikari.Embed(title="Spotify Cache")
             .add_field(
                 name="Album",
-                value=f"{plural(len(gen.album_cache)):album}",
+                value=f"{plural(len(client.album_cache)):album}",
             )
             .add_field(
                 name="Color",
-                value=f"{plural(len(gen.color_cache)):color}",
+                value=f"{plural(len(client.color_cache)):color}",
             )
             .add_field(
                 name="Text",
-                value=f"{plural(len(gen.text_cache)):text}",
+                value=f"{plural(len(client.text_cache)):text}",
             )
             .add_field(
                 name="Tracks",
-                value=f"- from IDs: {plural(len(gen.track_from_id_cache)):track}\n"
-                f"- from queries: {plural(len(gen.track_from_query_cache)):track}",
+                value=f"- from IDs: {plural(len(client.track_from_id_cache)):track}\n"
+                f"- from queries: {plural(len(client.track_from_query_cache)):track}",
             )
             .add_field(
                 name="Artists",
-                value=f"- from IDs: {plural(len(gen.artist_from_id_cache)):artist}\n"
-                f"- from queries: {plural(len(gen.artist_from_query_cache)):artist}",
+                value=f"- from IDs: {plural(len(client.artist_from_id_cache)):artist}\n"
+                f"- from queries: {plural(len(client.artist_from_query_cache)):artist}",
             )
             .add_field(
                 name="Codes",
-                value=f"{plural(len(gen.code_cache)):code}",
+                value=f"{plural(len(client.code_cache)):code}",
             )
         )
 
