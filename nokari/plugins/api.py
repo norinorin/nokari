@@ -1,4 +1,5 @@
 import datetime
+from functools import partial
 import time
 import types
 import typing
@@ -7,6 +8,8 @@ from io import BytesIO
 
 import hikari
 import lightbulb
+from sphobjinv import Inventory
+from fuzzywuzzy import fuzz
 from hikari.embeds import EmbedImage
 from hikari.files import AsyncReader
 from lightbulb import Bot, Context, plugins
@@ -338,6 +341,52 @@ class API(plugins.Plugin):
         )
 
         await ctx.respond(embed=embed)
+
+    @core.commands.group(aliases=["rtfm"])
+    @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
+    async def rtfd(self, ctx: Context) -> None:
+        """Contains subcommands that links you to the specified object in the docs."""
+        await ctx.send_help(ctx.command)
+
+    @rtfd.command()
+    @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
+    async def hikari(self, ctx: Context, obj: typing.Optional[str]) -> None:
+        """Returns jump links to the specified object in Hikari docs page"""
+
+        BASE_URL = "https://hikari-py.github.io/hikari"
+
+        if not obj:
+            await ctx.respond(BASE_URL)
+            return
+
+        if not hasattr(self, "hikari_inv"):
+            inv = partial(Inventory, url=f"{BASE_URL}/objects.inv")
+            self.hikari_inv = await self.bot.loop.run_in_executor(
+                self.bot.executor, inv
+            )
+
+        entries = [
+            f"[`{name}`]({BASE_URL}/{hikari_obj.uri.rstrip('#$')}#{name})"
+            for hikari_obj in self.hikari_inv.objects
+            if fuzz.token_set_ratio(obj, hikari_obj.name.rsplit(".")[-1]) >= 75
+            and (name := hikari_obj.name)
+        ]
+
+        if not entries:
+            raise RuntimeError("Couldn't find anything...")
+
+        chunks = chunk_from_list(entries, 2048)
+        length = len(chunks)
+        paginator = Paginator.default(ctx)
+
+        for idx, chunk in enumerate(chunks, start=1):
+            paginator.add_page(
+                hikari.Embed(description=chunk, color=ctx.color)
+                .set_footer(text=f"Page {idx}/{length}")
+                .set_author(name="Hikari", url=BASE_URL, icon=f"{BASE_URL}/logo.png")
+            )
+
+        await paginator.start()
 
 
 def load(bot: Bot) -> None:

@@ -12,3 +12,5 @@ lru-dict
 colorthief
 asyncpg
 spotipy
+sphobjinv
+fuzzywuzzy[speedup]
