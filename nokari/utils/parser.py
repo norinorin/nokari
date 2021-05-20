@@ -195,6 +195,13 @@ class ArgumentInfo(typing.TypedDict):
     default: typing.Any
 
 
+class PartialArgument(typing.Protocol):
+    def __call__(
+        self, *keys: str, argmax: int = -1, default: typing.Any = None
+    ) -> ArgumentParser:
+        ...
+
+
 class ArgumentParser:
     def __init__(self, append_invalid_keys_to_remainder: bool = True) -> None:
         self.args: typing.Dict[str, ArgumentInfo] = {}
@@ -248,7 +255,5 @@ class ArgumentParser:
         cur = Cursor(self, argument)
         return cur.fetch_arguments()
 
-    def __getattr__(
-        self, attr: str
-    ) -> typing.Callable[..., ArgumentParser,]:
+    def __getattr__(self, attr: str) -> PartialArgument:
         return partial(self.argument, attr)
