@@ -23,7 +23,7 @@ DISCORD_BROWSER=
 ```
 
 ## Running
-After having all the requirements, just run the main file.
+After having all the requirements, just run the module as a script/executable.
 ```
 # Unix
 python3 -m nokari
