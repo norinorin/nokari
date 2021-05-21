@@ -1,5 +1,5 @@
-git+https://github.com/tandemdude/hikari-lightbulb@development
-git+https://github.com/hikari-py/hikari@master
+hikari
+hikari-lightbulb
 python-dotenv
 python-dateutil
 psutil
