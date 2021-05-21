@@ -339,7 +339,7 @@ class API(plugins.Plugin):
 
     @rtfd.command()
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
-    async def hikari(self, ctx: Context, obj: typing.Optional[str]) -> None:
+    async def hikari(self, ctx: Context, obj: typing.Optional[str] = None) -> None:
         """Returns jump links to the specified object in Hikari docs page"""
 
         BASE_URL = "https://hikari-py.github.io/hikari"
