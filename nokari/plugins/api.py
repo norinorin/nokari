@@ -18,13 +18,7 @@ from sphobjinv import Inventory
 from nokari import core, utils
 from nokari.utils import Paginator, chunk_from_list, converters, get_timestamp, plural
 from nokari.utils.parser import ArgumentParser
-from nokari.utils.spotify import (
-    Artist,
-    NoSpotifyPresenceError,
-    Spotify,
-    SpotifyClient,
-    Track,
-)
+from nokari.utils.spotify import Artist, NoSpotifyPresenceError, SpotifyClient, Track
 
 
 class API(plugins.Plugin):

@@ -1,11 +1,11 @@
-hikari
-hikari-lightbulb
+git+https://github.com/tandemdude/hikari-lightbulb@development
+git+https://github.com/hikari-py/hikari@master
 python-dotenv
 python-dateutil
-uvloop
 psutil
 pytz
 pillow
+uvloop; os_name!="nt"
 numpy
 numexpr
 lru-dict
