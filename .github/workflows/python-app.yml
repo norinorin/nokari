@@ -21,6 +21,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install tox
-    - name: Run automated tasks
+        tox -e py39
+    - name: Format and run tests
       run: |
-        tox
+        tox -e isort -e black -e test
