@@ -32,6 +32,8 @@ tuple_io_string = [
         False,
         "--m",
     ),
+    ('"-mnorizon"', "2", False, False, False, None, False, "-mnorizon"),
+    ("-mch\nline1\nline2", "2", True, True, False, None, True, "\nline1\nline2"),
 ]
 
 

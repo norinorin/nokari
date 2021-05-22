@@ -203,7 +203,7 @@ class StringView:
                 # we're quoted so it's okay
                 return "".join(result)
 
-            if current.isspace() and close_quote is None:
+            if current == " " and close_quote is None:
                 # end of word found
                 return "".join(result)
 

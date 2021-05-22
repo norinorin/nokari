@@ -7,9 +7,8 @@ from types import SimpleNamespace
 
 from lightbulb import utils
 
-from .view import StringView, UnexpectedQuoteError, _quotes
+from .view import StringView, UnexpectedQuoteError
 
-INVALID_OPENINGS = tuple(f"{quote}-" for quote in _quotes)
 TRUE = sys.intern("TRUE")
 FALSE = sys.intern("FALSE")
 
@@ -46,8 +45,7 @@ class Cursor:
             # we only wanna skip space, not other whitespaces
             self.view.skip_char(" ")
 
-            # we wanna treat it as argument if it starts with "-
-            valid = not self.view.buffer.startswith(INVALID_OPENINGS)
+            valid = self.view.buffer.startswith("-")
 
             # no"rizon" by default is invalid
             # we're gonna make it valid here
