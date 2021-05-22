@@ -18,7 +18,7 @@ import spotipy
 from colorthief import ColorThief
 from fuzzywuzzy import fuzz
 from lightbulb import Bot, utils
-from lru import LRU
+from lru import LRU  # pylint: disable=no-name-in-module
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from . import caches
@@ -112,6 +112,7 @@ def convert_data(
     return d
 
 
+# pylint: disable=redefined-builtin
 def get_type_name(type: typing.Type) -> str:
     return type.__name__.lower()
 
@@ -290,6 +291,7 @@ class SpotifyCache:
         self._top_tracks = LRU(50)
         self._queries: typing.Dict[str, LRU] = {i: LRU(50) for i in ("artist", "track")}
 
+    # pylint: disable=redefined-builtin
     def get_container(self, type: str) -> LRU:
         return getattr(self, f"{type}{'s'*(not type.endswith('s'))}")
 

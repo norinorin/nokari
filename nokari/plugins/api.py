@@ -156,7 +156,7 @@ class API(plugins.Plugin):
         embed = (
             hikari.Embed(
                 title=f"{invoked_with.capitalize()} Info",
-                description=f"**{data.formatted_url} [#{data.track_number}]({data.album.url}) by "
+                description=f"**[#{data.track_number}]({data.album.url}) {data.formatted_url} by "
                 f"{', '.join(artist.formatted_url for artist in data.artists)} "
                 f"on {data.formatted_url}**\n",
                 timestamp=data.album.release_date,
