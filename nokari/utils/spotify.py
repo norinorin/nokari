@@ -284,6 +284,7 @@ class SpotifyCache:
         self._artists = LRU(50)
         self._audio_features = LRU(50)
         self._top_tracks = LRU(50)
+        self._queries: typing.Dict[str, LRU] = {i: LRU(50) for i in ("artist", "track")}
 
     def get_type(self, type: str) -> str:
         return f"{type}{'s'*(not type.endswith('s'))}"
@@ -316,6 +317,13 @@ class SpotifyCache:
     @property
     def top_tracks(self) -> LRU:
         return self._top_tracks
+
+    @property
+    def queries(self) -> typing.Dict[str, LRU]:
+        return self._queries
+
+    def get_queries(self, type_name: str) -> LRU:
+        return self._queries[type_name]
 
 
 class SpotifyRest:
@@ -1011,15 +1019,9 @@ class SpotifyClient:
         if track:
             return track
 
-        track = await self.rest.track(_id)
-        self.cache.set_item(track)
+        res = await self.rest.track(_id)
+        track = self.cache.set_item(Track.from_dict(self, res))
         return track
-
-    async def get_track_from_query(self, q: str) -> typing.List[Track]:
-        res = await self.rest.search(q, 10, 0, "track", None)
-        tracks = [Track.from_dict(self, track) for track in res["tracks"]["items"]]
-        self.cache.update_items(tracks)
-        return tracks
 
     async def get_artist_from_id(self, _id: str) -> Artist:
         artist = self.cache.artists.get(_id)
@@ -1027,20 +1029,40 @@ class SpotifyClient:
         if artist:
             return artist
 
-        artist = await self.rest.artist(_id)
-        self.cache.set_item(artist)
+        res = await self.rest.artist(_id)
+        artist = self.cache.set_item(Artist.from_dict(self, res))
         return artist
 
-    async def get_artist_from_query(self, q: str) -> typing.List[Artist]:
-        res = await self.rest.search(q, 10, 0, "artist", None)
-        artists = [Artist.from_dict(self, track) for track in res["artists"]["items"]]
-        self.cache.update_items(artists)
-        return artists
+    async def search(
+        self, q: str, /, type: typing.Type[T], type_name: str
+    ) -> typing.List[T]:
+        plural = type_name + "s"
+        queries = self.cache.get_queries(type_name)
+        ids = queries.get(q)
+
+        if ids:
+            items: typing.List[T] = []
+            item_cache = getattr(self.cache, plural)
+            for id in ids:
+                item = item_cache.get(id)
+
+                if not item:
+                    break
+
+                items.append(item)
+            else:
+                return items
+
+        res = await self.rest.search(q, 10, 0, type_name, None)
+        items = [type.from_dict(self, track) for track in res[plural]["items"]]
+        self.cache.update_items(items)
+        queries[q] = [item.id for item in items]
+        return items
 
     async def search_and_pick_track(
         self, ctx: Context, /, q: str
     ) -> typing.Optional[Track]:
-        tracks = await self.get_track_from_query(q)
+        tracks = await self.search(q, Track, "track")
         return await self.pick_from_sequence(
             ctx,
             q,
@@ -1052,7 +1074,7 @@ class SpotifyClient:
     async def search_and_pick_artist(
         self, ctx: Context, /, q: str
     ) -> typing.Optional[Artist]:
-        artists = await self.get_artist_from_query(q)
+        artists = await self.search(q, Artist, "artist")
         return await self.pick_from_sequence(
             ctx, q, artists, ("Choose an Artist", "No artist was found..."), "{item}"
         )
@@ -1128,8 +1150,9 @@ class SpotifyClient:
         ids = self.cache.top_tracks.get(artist_id)
         if ids:
             top_tracks: typing.List[Track] = []
+            track_cache = self.cache.tracks
             for id in ids:
-                track = self.cache.tracks.get(id)
+                track = track_cache.get(id)
 
                 if not track:
                     break
