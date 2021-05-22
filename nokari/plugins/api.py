@@ -132,7 +132,9 @@ class API(plugins.Plugin):
 
             if isinstance(data, hikari.Member):
                 sync_id = self.spotify_client.get_sync_id_from_member(data)
-                data = await self.spotify_client.get_track_from_id(sync_id)
+                data = await self.spotify_client.get_item_from_id(
+                    sync_id, Track, "track"
+                )
 
         except NoSpotifyPresenceError as e:
             raise e.__class__(

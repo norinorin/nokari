@@ -1009,29 +1009,21 @@ class SpotifyClient:
         try:
             id = self._get_id(type_name, id_or_query)
         except RuntimeError:
-            return getattr(self, f"search_and_pick_{type_name}")(ctx, id_or_query)
+            return self.search_and_pick_item(ctx, id_or_query, type, type_name)
         else:
-            return getattr(self, f"get_{type_name}_from_id")(id)
+            return self.get_item_from_id(id, type, type_name)
 
-    async def get_track_from_id(self, _id: str) -> Track:
-        track = self.cache.tracks.get(_id)
+    async def get_item_from_id(
+        self, _id: str, /, type: typing.Type[T], type_name: str
+    ) -> T:
+        item = getattr(self.cache, type_name + "s").get(_id)
 
-        if track:
-            return track
+        if item:
+            return item
 
-        res = await self.rest.track(_id)
-        track = self.cache.set_item(Track.from_dict(self, res))
-        return track
-
-    async def get_artist_from_id(self, _id: str) -> Artist:
-        artist = self.cache.artists.get(_id)
-
-        if artist:
-            return artist
-
-        res = await self.rest.artist(_id)
-        artist = self.cache.set_item(Artist.from_dict(self, res))
-        return artist
+        res = await getattr(self.rest, type_name)(_id)
+        item = self.cache.set_item(type.from_dict(self, res))
+        return item
 
     async def search(
         self, q: str, /, type: typing.Type[T], type_name: str
@@ -1059,25 +1051,19 @@ class SpotifyClient:
         queries[q] = [item.id for item in items]
         return items
 
-    async def search_and_pick_track(
-        self, ctx: Context, /, q: str
-    ) -> typing.Optional[Track]:
-        tracks = await self.search(q, Track, "track")
-        return await self.pick_from_sequence(
-            ctx,
-            q,
-            tracks,
-            ("Choose a Track", "No track was found..."),
-            "{item.artists_str} - {item.title}",
-        )
-
-    async def search_and_pick_artist(
-        self, ctx: Context, /, q: str
-    ) -> typing.Optional[Artist]:
-        artists = await self.search(q, Artist, "artist")
-        return await self.pick_from_sequence(
-            ctx, q, artists, ("Choose an Artist", "No artist was found..."), "{item}"
-        )
+    async def search_and_pick_item(
+        self, ctx: Context, q: str, /, type: typing.Type[T], type_name: str
+    ) -> typing.Optional[T]:
+        tnf: typing.Dict[str, typing.Tuple[typing.Tuple[str, str], str]] = {
+            "track": (
+                ("Choose a Track", "No track was found..."),
+                "{item.artists_str} - {item.title}",
+            ),
+            "artist": (("Choose an Artist", "No artist was found..."), "{item}"),
+        }
+        items = await self.search(q, type, type_name)
+        title, format = tnf[type_name]
+        return await self.pick_from_sequence(ctx, q, items, title, format)
 
     async def pick_from_sequence(
         self,
