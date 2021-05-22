@@ -37,7 +37,14 @@ class API(plugins.Plugin):
     def __init__(self, bot: Bot) -> None:
         super().__init__()
         self.bot = bot
-        self.spotify_client = SpotifyClient(bot)
+
+        if not hasattr(bot, "spotify_client"):
+            # prevent reloading from flushing the cache
+            self.bot.spotify_client = SpotifyClient(bot)
+
+    @property
+    def spotify_client(self) -> SpotifyClient:
+        return self.bot.spotify_client
 
     async def send_spotify_card(
         self,
@@ -197,7 +204,7 @@ class API(plugins.Plugin):
 
         await ctx.respond(**kwargs)
 
-    @spotify.command(name="artist", hidden=True)
+    @spotify.command(name="artist")
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify_artist(self, ctx: Context, *, arguments: str) -> None:
         """
@@ -304,28 +311,31 @@ class API(plugins.Plugin):
             .add_field(
                 name="Album",
                 value=f"{plural(len(client.album_cache)):album}",
+                inline=True,
             )
             .add_field(
                 name="Color",
                 value=f"{plural(len(client.color_cache)):color}",
+                inline=True,
             )
             .add_field(
-                name="Text",
-                value=f"{plural(len(client.text_cache)):text}",
+                name="Text", value=f"{plural(len(client.text_cache)):text}", inline=True
             )
             .add_field(
                 name="Tracks",
-                value=f"- from IDs: {plural(len(client.track_from_id_cache)):track}\n"
-                f"- from queries: {plural(len(client.track_from_query_cache)):track}",
+                value=f"{plural(len(client.cache.tracks)):track}\n"
+                f"w/{len(client.cache.audio_features)} audio features",
+                inline=True,
             )
             .add_field(
                 name="Artists",
-                value=f"- from IDs: {plural(len(client.artist_from_id_cache)):artist}\n"
-                f"- from queries: {plural(len(client.artist_from_query_cache)):artist}",
+                value=f"{plural(len(client.cache.artists)):artist}",
+                inline=True,
             )
             .add_field(
                 name="Codes",
                 value=f"{plural(len(client.code_cache)):code}",
+                inline=True,
             )
         )
 

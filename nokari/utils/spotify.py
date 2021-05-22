@@ -18,6 +18,7 @@ import spotipy
 from colorthief import ColorThief
 from fuzzywuzzy import fuzz
 from lightbulb import Bot, utils
+from lru import LRU
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from . import caches
@@ -82,16 +83,14 @@ SPOTIFY_DATE = re.compile(r"(?P<Y>\d{4})(?:-(?P<m>\d{2})-(?P<d>\d{2}))?")
 
 
 def convert_data(
-    app: Nokari, state: spotipy.Spotify, d: typing.Dict[str, typing.Any]
+    client: SpotifyClient, d: typing.Dict[str, typing.Any]
 ) -> typing.Dict[str, typing.Any]:
     for k, v in d.items():
         if k == "artists":
-            d["artists"] = [
-                Artist.from_dict(app, state, artist) for artist in d["artists"]
-            ]
+            d["artists"] = [Artist.from_dict(client, artist) for artist in d["artists"]]
 
         elif k == "album":
-            d["album"] = Album.from_dict(app, state, d["album"])
+            d["album"] = Album.from_dict(client, d["album"])
 
         elif k == "release_date":
             # we couldn't really rely on "release_date_precision"
@@ -108,15 +107,14 @@ def convert_data(
             )
 
         elif isinstance(v, dict):
-            d[k] = convert_data(app, state, d[k])
+            d[k] = convert_data(client, d[k])
 
     return d
 
 
 @dataclass()
 class BaseSpotify:
-    app: Nokari
-    state: spotipy.Spotify
+    client: SpotifyClient
     id: str
     type: str
     uri: str
@@ -124,13 +122,11 @@ class BaseSpotify:
     @classmethod
     def from_dict(
         cls: typing.Type[T],
-        app: Nokari,
-        state: spotipy.Spotify,
+        client: SpotifyClient,
         payload: typing.Dict[str, typing.Any],
     ) -> T:
         kwargs = convert_data(
-            app,
-            state,
+            client,
             {
                 k: v
                 for k, v in payload.items()
@@ -149,7 +145,7 @@ class BaseSpotify:
         if "follower_count" in cls.__annotations__ and "followers" in payload:
             kwargs["follower_count"] = payload["followers"]["total"]
 
-        return cls(app, state, **kwargs)
+        return cls(client, **kwargs)
 
     def __str__(self) -> str:
         return getattr(self, "name", super().__str__())
@@ -210,7 +206,6 @@ class Track(BaseSpotify, SpotifyCodeable):
     popularity: int
     url: str
     track_number: int
-    _audio_features: typing.Optional[AudioFeatures] = None
 
     @property
     def album_cover_url(self) -> str:
@@ -224,19 +219,10 @@ class Track(BaseSpotify, SpotifyCodeable):
     def title(self) -> str:
         return self.name
 
-    async def get_audio_features(self) -> AudioFeatures:
-        if self._audio_features is None:
-            self._audio_features = AudioFeatures.from_dict(
-                self.app,
-                self.state,
-                (
-                    await self.app.loop.run_in_executor(
-                        self.app.executor, self.state.audio_features, [self.id]
-                    )
-                )[0],
-            )
-
-        return self._audio_features
+    def get_audio_features(
+        self,
+    ) -> typing.Coroutine[typing.Any, typing.Any, AudioFeatures]:
+        return self.client.get_audio_features(self.id)
 
 
 @dataclass()
@@ -247,25 +233,11 @@ class Artist(BaseSpotify, SpotifyCodeable):
     popularity: int = 0
     genres: typing.Optional[typing.List[str]] = None
     follower_count: int = 0
-    _top_tracks: typing.Optional[typing.List[Track]] = None
 
-    @property
-    def top_tracks(self) -> typing.Optional[typing.List[Track]]:
-        return self._top_tracks
-
-    async def get_top_tracks(self, country: str = "US") -> typing.List[Track]:
-        if self._top_tracks is None:
-
-            top_tracks = await self.app.loop.run_in_executor(
-                self.app.executor, self.state.artist_top_tracks, self.id, country
-            )
-
-            self._top_tracks = [
-                Track.from_dict(self.app, self.state, track)
-                for track in top_tracks["tracks"]
-            ]
-
-        return self._top_tracks
+    def get_top_tracks(
+        self, country: str = "US"
+    ) -> typing.Coroutine[typing.Any, typing.Any, typing.List[Track]]:
+        return self.client.get_top_tracks(self.id, country)
 
 
 @dataclass()
@@ -306,6 +278,63 @@ class Spotify:
         return self._act.timestamps
 
 
+class SpotifyCache:
+    def __init__(self) -> None:
+        self._tracks = LRU(50)
+        self._artists = LRU(50)
+        self._audio_features = LRU(50)
+        self._top_tracks = LRU(50)
+
+    def get_type(self, type: str) -> str:
+        return f"{type}{'s'*(not type.endswith('s'))}"
+
+    def get_container(self, type: str) -> LRU:
+        return getattr(self, self.get_type(type))
+
+    def update_items(self, items: typing.Sequence[BaseSpotify]) -> None:
+        if not items:
+            return
+
+        self.get_container(items[0].type).update({item.id: item for item in items})
+
+    def set_item(self, item: T) -> T:
+        self.get_container(item.type)[item.id] = item
+        return item
+
+    @property
+    def tracks(self) -> LRU:
+        return self._tracks
+
+    @property
+    def artists(self) -> LRU:
+        return self._artists
+
+    @property
+    def audio_features(self) -> LRU:
+        return self._audio_features
+
+    @property
+    def top_tracks(self) -> LRU:
+        return self._top_tracks
+
+
+class SpotifyRest:
+    def __init__(
+        self,
+        *,
+        loop: typing.Optional[asyncio.AbstractEventLoop] = None,
+        executor: typing.Any = None,
+    ) -> None:
+        self.spotipy = spotipy.Spotify(auth_manager=spotipy.SpotifyClientCredentials())
+        self._loop = loop or asyncio.get_event_loop()
+        self._executor = executor
+
+    def __getattr__(self, attr: str) -> partial[typing.Awaitable[typing.Any]]:
+        return partial(
+            self._loop.run_in_executor, self._executor, getattr(self.spotipy, attr)
+        )
+
+
 class SpotifyClient:
     """A class that generates Spotify cards as well as interacts with Spotify API"""
 
@@ -323,7 +352,8 @@ class SpotifyClient:
     def __init__(self, bot: Bot) -> None:
         self.bot = bot
         self.loop = bot.loop
-        self.spotipy = spotipy.Spotify(auth_manager=spotipy.SpotifyClientCredentials())
+        self.cache = SpotifyCache()
+        self.rest = SpotifyRest(loop=bot.loop)
 
     @staticmethod
     def _get_timestamp(spotify: Spotify) -> typing.Tuple[str, str, float]:
@@ -955,8 +985,8 @@ class SpotifyClient:
 
     # pylint: disable=redefined-builtin
     def _get_id(self, type: str, query: str) -> str:
-        if self.spotipy._is_uri(query):
-            return self.spotipy._get_id(type, query)
+        if self.rest.spotipy._is_uri(query):
+            return self.rest.spotipy._get_id(type, query)
 
         if (match := SPOTIFY_URL.match(query)) and (id := match.groupdict()["id"]):
             return id
@@ -975,46 +1005,37 @@ class SpotifyClient:
         else:
             return getattr(self, f"get_{type_name}_from_id")(id)
 
-    @caches.cache(50)
     async def get_track_from_id(self, _id: str) -> Track:
-        return Track.from_dict(
-            self.bot,
-            self.spotipy,
-            await self.loop.run_in_executor(self.bot.executor, self.spotipy.track, _id),
-        )
+        track = self.cache.tracks.get(_id)
 
-    @caches.cache(50)
+        if track:
+            return track
+
+        track = await self.rest.track(_id)
+        self.cache.set_item(track)
+        return track
+
     async def get_track_from_query(self, q: str) -> typing.List[Track]:
-        func = partial(self.spotipy.search, limit=10, type="track")
-        res = await self.loop.run_in_executor(self.bot.executor, func, q)
-        return [
-            Track.from_dict(self.bot, self.spotipy, track)
-            for track in res["tracks"]["items"]
-        ]
+        res = await self.rest.search(q, 10, 0, "track", None)
+        tracks = [Track.from_dict(self, track) for track in res["tracks"]["items"]]
+        self.cache.update_items(tracks)
+        return tracks
 
-    @caches.cache(50)
     async def get_artist_from_id(self, _id: str) -> Artist:
-        return Artist.from_dict(
-            self.bot,
-            self.spotipy,
-            await self.loop.run_in_executor(
-                self.bot.executor, self.spotipy.artist, _id
-            ),
-        )
+        artist = self.cache.artists.get(_id)
 
-    @caches.cache(50)
+        if artist:
+            return artist
+
+        artist = await self.rest.artist(_id)
+        self.cache.set_item(artist)
+        return artist
+
     async def get_artist_from_query(self, q: str) -> typing.List[Artist]:
-        func = partial(self.spotipy.search, limit=10, type="artist")
-        res = await self.loop.run_in_executor(self.bot.executor, func, q)
-        return [
-            Artist.from_dict(self.bot, self.spotipy, artst)
-            for artst in res["artists"]["items"]
-        ]
-
-    track_from_id_cache = get_track_from_id.cache  # type: ignore
-    track_from_query_cache = get_track_from_query.cache  # type: ignore
-    artist_from_id_cache = get_artist_from_id.cache  # type:ignore
-    artist_from_query_cache = get_artist_from_query.cache  # type: ignore
+        res = await self.rest.search(q, 10, 0, "artist", None)
+        artists = [Artist.from_dict(self, track) for track in res["artists"]["items"]]
+        self.cache.update_items(artists)
+        return artists
 
     async def search_and_pick_track(
         self, ctx: Context, /, q: str
@@ -1089,3 +1110,36 @@ class SpotifyClient:
         await respond.delete()
 
         return ret
+
+    async def get_audio_features(self, _id: str) -> AudioFeatures:
+        audio_features = self.cache.audio_features.get(_id)
+
+        if audio_features:
+            return audio_features
+
+        res = (await self.rest.audio_features([_id]))[0]
+        audio_features = AudioFeatures.from_dict(self, res)
+        self.cache.set_item(audio_features)
+        return audio_features
+
+    async def get_top_tracks(
+        self, artist_id: str, country: str = "US"
+    ) -> typing.List[Track]:
+        ids = self.cache.top_tracks.get(artist_id)
+        if ids:
+            top_tracks: typing.List[Track] = []
+            for id in ids:
+                track = self.cache.tracks.get(id)
+
+                if not track:
+                    break
+
+                top_tracks.append(track)
+            else:
+                return top_tracks
+
+        res = await self.rest.artist_top_tracks(artist_id, country)
+        top_tracks = [Track.from_dict(self, track) for track in res["tracks"]]
+        self.cache.update_items(top_tracks)
+        self.cache.top_tracks[artist_id] = [track.id for track in top_tracks]
+        return top_tracks
