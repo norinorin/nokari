@@ -112,6 +112,10 @@ def convert_data(
     return d
 
 
+def get_type_name(type: typing.Type) -> str:
+    return type.__name__.lower()
+
+
 @dataclass()
 class BaseSpotify:
     client: SpotifyClient
@@ -286,11 +290,8 @@ class SpotifyCache:
         self._top_tracks = LRU(50)
         self._queries: typing.Dict[str, LRU] = {i: LRU(50) for i in ("artist", "track")}
 
-    def get_type(self, type: str) -> str:
-        return f"{type}{'s'*(not type.endswith('s'))}"
-
     def get_container(self, type: str) -> LRU:
-        return getattr(self, self.get_type(type))
+        return getattr(self, f"{type}{'s'*(not type.endswith('s'))}")
 
     def update_items(self, items: typing.Sequence[BaseSpotify]) -> None:
         if not items:
@@ -1005,7 +1006,7 @@ class SpotifyClient:
     def get_item(
         self, ctx: Context, id_or_query: str, type: typing.Type[T]
     ) -> typing.Coroutine[typing.Any, typing.Any, typing.Optional[T]]:
-        type_name = type.__name__.lower()
+        type_name = get_type_name(type)
         try:
             id = self._get_id(type_name, id_or_query)
         except RuntimeError:
@@ -1014,8 +1015,11 @@ class SpotifyClient:
             return self.get_item_from_id(id, type, type_name)
 
     async def get_item_from_id(
-        self, _id: str, /, type: typing.Type[T], type_name: str
+        self, _id: str, /, type: typing.Type[T], type_name: typing.Optional[str] = None
     ) -> T:
+        if type_name is None:
+            type_name = get_type_name(type)
+
         item = getattr(self.cache, type_name + "s").get(_id)
 
         if item:
@@ -1026,13 +1030,16 @@ class SpotifyClient:
         return item
 
     async def search(
-        self, q: str, /, type: typing.Type[T], type_name: str
+        self, q: str, /, type: typing.Type[T], type_name: typing.Optional[str] = None
     ) -> typing.List[T]:
+        if type_name is None:
+            type_name = get_type_name(type)
+
         plural = type_name + "s"
         queries = self.cache.get_queries(type_name)
         ids = queries.get(q)
 
-        if ids:
+        if ids is not None:
             items: typing.List[T] = []
             item_cache = getattr(self.cache, plural)
             for id in ids:
@@ -1052,8 +1059,15 @@ class SpotifyClient:
         return items
 
     async def search_and_pick_item(
-        self, ctx: Context, q: str, /, type: typing.Type[T], type_name: str
+        self,
+        ctx: Context,
+        q: str,
+        /,
+        type: typing.Type[T],
+        type_name: typing.Optional[str] = None,
     ) -> typing.Optional[T]:
+        if type_name is None:
+            type_name = get_type_name(type)
         tnf: typing.Dict[str, typing.Tuple[typing.Tuple[str, str], str]] = {
             "track": (
                 ("Choose a Track", "No track was found..."),
@@ -1134,7 +1148,7 @@ class SpotifyClient:
         self, artist_id: str, country: str = "US"
     ) -> typing.List[Track]:
         ids = self.cache.top_tracks.get(artist_id)
-        if ids:
+        if ids is not None:
             top_tracks: typing.List[Track] = []
             track_cache = self.cache.tracks
             for id in ids:

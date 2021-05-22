@@ -132,9 +132,7 @@ class API(plugins.Plugin):
 
             if isinstance(data, hikari.Member):
                 sync_id = self.spotify_client.get_sync_id_from_member(data)
-                data = await self.spotify_client.get_item_from_id(
-                    sync_id, Track, "track"
-                )
+                data = await self.spotify_client.get_item_from_id(sync_id, Track)
 
         except NoSpotifyPresenceError as e:
             raise e.__class__(
@@ -325,13 +323,15 @@ class API(plugins.Plugin):
             )
             .add_field(
                 name="Tracks",
-                value=f"{plural(len(client.cache.tracks)):track}\n"
-                f"w/{len(client.cache.audio_features)} audio features",
+                value=f"{plural(len(client.cache.tracks)):object}\n"
+                f"w/{len(client.cache.audio_features)} audio features\n"
+                f"{plural(len(client.cache.get_queries('track'))):query|queries}",
                 inline=True,
             )
             .add_field(
                 name="Artists",
-                value=f"{plural(len(client.cache.artists)):artist}",
+                value=f"{plural(len(client.cache.artists)):object}\n"
+                f"{plural(len(client.cache.get_queries('artist'))):query|queries}",
                 inline=True,
             )
             .add_field(
