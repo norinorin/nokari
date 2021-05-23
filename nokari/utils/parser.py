@@ -44,14 +44,13 @@ class Cursor:
         while not self.view.eof:
             # we only wanna skip space, not other whitespaces
             self.view.skip_char(" ")
-
-            valid = self.view.buffer.lstrip().startswith("-")
+            index = self.view.index
+            valid = self.view.buffer[index:].lstrip().startswith("-")
 
             # no"rizon" by default is invalid
             # we're gonna make it valid here
             # it'll be parsed as norizon
             try:
-                index = self.view.index
                 argument = self.view.get_quoted_word() or ""
             except UnexpectedQuoteError:
                 argument = self.view.buffer[index : self.view.index] + (
@@ -180,6 +179,7 @@ class Cursor:
 
     def fetch_arguments(self) -> SimpleNamespace:
         for argument, valid in self.iterator():
+
             if not valid:
                 self.append(argument)
                 continue

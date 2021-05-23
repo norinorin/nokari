@@ -56,6 +56,7 @@ tuple_io_string = [
         True,
         "remainder\n remainder\n",
     ),
+    ("remainder -t", "2", False, False, True, None, False, "remainder"),
 ]
 
 
