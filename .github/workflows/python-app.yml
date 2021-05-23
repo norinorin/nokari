@@ -24,4 +24,4 @@ jobs:
         tox -e py39
     - name: Format and run tests
       run: |
-        tox -e isort -e black -e test
+        tox -e isort,black,lint,mypy,test
