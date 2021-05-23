@@ -20,18 +20,24 @@ def _apply_overwrites(
     return (perms & ~deny) | allow
 
 
-def _auto_pass_guild(func: FuncT) -> FuncT:
+def _auto_resolve_guild(func: FuncT) -> FuncT:
     """A decorator that makes the last variable (guild) optional"""
 
     @wraps(func)
     def wrapped(*args: typing.Any) -> typing.Any:
-        if len(args) < func.__code__.co_argcount:
-            bot, member, *_ = args
-            guild = bot.cache.get_guild(member.guild_id)
-            if guild is None:
+        if len(args) == func.__code__.co_argcount - 1:
+            args += (None,)
+
+        if args[-1] is None:
+            bot, member, *_, guild = args
+
+            if (
+                guild is None
+                and (guild := bot.cache.get_guild(member.guild_id)) is None
+            ):
                 raise RuntimeError("Unable to get the Guild object")
 
-            args += (guild,)
+            args = (bot, member, *_, guild)
 
         return func(*args)
 
@@ -73,32 +79,34 @@ def get_guild_perms(guild: hikari.Guild, member: hikari.Member) -> hikari.Permis
     return _ensure_perms(ret)
 
 
-@_auto_pass_guild
+@_auto_resolve_guild
 def has_guild_perms(
     bot: hikari.BotApp,
     member: hikari.Member,
     perms: hikari.Permissions,
-    guild: hikari.Guild,
+    guild: typing.Optional[hikari.Guild] = None,
 ) -> bool:
     """
     Returns whether or not the member has certain guild permissions.
     This might be overriden by channel overwrites.
     """
+    guild = typing.cast(hikari.Guild, guild)
     return (get_guild_perms(guild, member) & perms) == perms
 
 
-@_auto_pass_guild
+@_auto_resolve_guild
 def has_channel_perms(
     bot: hikari.BotApp,
     member: hikari.Member,
     channel: hikari.GuildChannel,
     perms: hikari.Permissions,
-    guild: hikari.Guild,
+    guild: typing.Optional[hikari.Guild] = None,
 ) -> bool:
     """
     Returns whether or not the member has certain guild permissions
     and is allowed in the channel.
     """
+    guild = typing.cast(hikari.Guild, guild)
     base = get_guild_perms(guild, member)
 
     if everyone := channel.permission_overwrites.get(guild.id):

@@ -164,10 +164,11 @@ class Context(lightbulb.Context):
     ) -> bool:
         """Returns whether or not a member has certain guild permissions"""
         if member is None:
+            if self.me is None:
+                raise RuntimeError("Couldn't resolve the Member object of the bot")
             member = self.me
 
-        # pylint: disable=no-value-for-parameter
-        return has_guild_perms(self.bot, member, perms)  # type: ignore
+        return has_guild_perms(self.bot, member, perms)
 
     def has_channel_perms(
         self, perms: hikari.Permissions, member: typing.Optional[hikari.Member] = None
@@ -177,7 +178,8 @@ class Context(lightbulb.Context):
         taking channel overwrites into account.
         """
         if member is None:
+            if self.me is None:
+                raise RuntimeError("Couldn't resolve the Member object of the bot")
             member = self.me
 
-        # pylint: disable=no-value-for-parameter
-        return has_channel_perms(self.bot, member, self.channel, perms)  # type: ignore
+        return has_channel_perms(self.bot, member, self.channel, perms)
