@@ -161,7 +161,7 @@ class Cursor:
         )
 
         for k, v in self.parser.args.items():
-            arg = data.get(k)
+            arg = data.pop(k, None)
             argmax = v["argmax"]
 
             if arg is None:
@@ -172,7 +172,7 @@ class Cursor:
                 )
                 continue
 
-            val = " ".join(self.data[k])
+            val = " ".join(typing.cast(typing.List[str], arg))
             data[k] = val is TRUE if argmax == 0 else val
 
         return data
