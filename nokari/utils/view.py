@@ -110,16 +110,12 @@ class StringView:
     def undo(self) -> None:
         self.index = self.previous
 
-    @property
-    def lowered_buffer(self) -> str:
-        return self.buffer.lower()
-
     def skip_string(self, string: str) -> bool:
         if string == "":
             return True
 
         strlen = len(string)
-        if self.lowered_buffer[self.index : self.index + strlen] == string.lower():
+        if self.buffer[self.index : self.index + strlen] == string.lower():
             self.previous = self.index
             self.index += strlen
             return True
@@ -203,9 +199,15 @@ class StringView:
                 # we're quoted so it's okay
                 return "".join(result)
 
-            if current == " " and close_quote is None:
-                # end of word found
-                return "".join(result)
+            prev = self.index
+            try:
+                if (
+                    current == " " or (current.isspace() and self.get() == "-")
+                ) and close_quote is None:
+                    # end of word found
+                    return "".join(result)
+            finally:
+                self.index = prev
 
             result.append(current)
 

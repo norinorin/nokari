@@ -45,7 +45,7 @@ class Cursor:
             # we only wanna skip space, not other whitespaces
             self.view.skip_char(" ")
 
-            valid = self.view.buffer.startswith("-")
+            valid = self.view.buffer.lstrip().startswith("-")
 
             # no"rizon" by default is invalid
             # we're gonna make it valid here
@@ -61,6 +61,9 @@ class Cursor:
             yield argument, valid
 
     def append(self, argument: str) -> None:
+        if not (argument := argument.lstrip()):
+            return
+
         argmax = (
             -1
             if self.remainder == self.current
@@ -76,7 +79,9 @@ class Cursor:
             self.current = self.remainder
 
     def parse_argument(self, argument: str) -> typing.Optional[str]:
+        argument = argument.lstrip()
         length = len(argument)
+
         if length >= 4 and "=" in argument:
             return self.parse_key_with_equals_sign(argument)
 
@@ -150,8 +155,7 @@ class Cursor:
         self,
     ) -> typing.Dict[str, typing.Union[typing.Literal[None], bool, str]]:
         data = typing.cast(
-            typing.Dict[str, typing.Union[typing.Literal[None], bool, str]],
-            self.data.copy(),
+            typing.Dict[str, typing.Union[typing.Literal[None], bool, str]], self.data
         )
         data[self.remainder] = " ".join(
             typing.cast(typing.List[str], data[self.remainder])

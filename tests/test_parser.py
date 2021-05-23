@@ -33,7 +33,29 @@ tuple_io_string = [
         "--m",
     ),
     ('"-mnorizon"', "2", False, False, False, None, False, "-mnorizon"),
-    ("-mch\nline1\nline2", "2", True, True, False, None, True, "\nline1\nline2"),
+    ("-mch\nline1\nline2", "2", True, True, False, None, True, "line1\nline2"),
+    ("-m\n-h", "2", True, False, False, None, True, ""),
+    ("-m\nh", "2", False, False, False, None, True, "h"),
+    (
+        "-mremainder\n-hremainder\n",
+        "2",
+        True,
+        False,
+        False,
+        None,
+        True,
+        "remainder remainder\n",
+    ),
+    (
+        "-mremainder\n -hremainder\n",
+        "2",
+        True,
+        False,
+        False,
+        None,
+        True,
+        "remainder\n remainder\n",
+    ),
 ]
 
 
