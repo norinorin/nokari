@@ -45,7 +45,7 @@ class Context(lightbulb.Context):
         paginator: typing.Optional["Paginator"] = None,
         initial_time: typing.Optional[int] = None,
     ) -> Message:
-        """Overrides respond method for command invoke on message edits support."""
+        """Overrides respond method for command invoke on message edit support."""
         if isinstance(embed, hikari.Embed) and not embed.color:
             embed.color = self.color
 

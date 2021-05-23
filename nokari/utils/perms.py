@@ -21,7 +21,7 @@ def _apply_overwrites(
 
 
 def _auto_resolve_guild(func: FuncT) -> FuncT:
-    """A decorator that makes the last variable (guild) optional"""
+    """A decorator that automatically resolves the guild object if it's None"""
 
     @wraps(func)
     def wrapped(*args: typing.Any) -> typing.Any:

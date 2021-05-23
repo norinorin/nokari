@@ -52,7 +52,7 @@ def cooldown(
     bucket: Bucket,
     **kwargs: typing.Union[int, typing.Sequence[int]],
 ) -> typing.Callable[[commands.Command], commands.Command]:
-    """Returns a decorator that applies customized cooldowns to a Command object."""
+    """Returns a decorator that applies customized cooldown to a Command object."""
 
     def decorate(command: commands.Command) -> commands.Command:
         command.cooldown_manager = CustomCooldown(length, usages, bucket, **kwargs)

@@ -24,7 +24,7 @@ def has_transparency(im: Image.Image) -> bool:
 
 
 def round_corners(im: Image.Image, rad: int) -> None:
-    """Round the corners of the image"""
+    """Rounds the corners of the image"""
     alpha, circle = Image.new("L", im.size, 255), Image.new("L", (rad * 2, rad * 2), 0)
 
     draw = ImageDraw.Draw(circle)

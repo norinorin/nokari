@@ -123,12 +123,12 @@ class Nokari(lightbulb.Bot):
 
     @property
     def responses_cache(self) -> LRU:
-        """Returns a mapping from message ids to its response message ids."""
+        """Returns a mapping from message IDs to its response message IDs."""
         return self._resp_cache
 
     @property
     def paginators(self) -> weakref.WeakValueDictionary:
-        """Returns a mapping from message ids to active paginators."""
+        """Returns a mapping from message IDs to active paginators."""
         return self._paginators
 
     @property
@@ -176,6 +176,7 @@ class Nokari(lightbulb.Bot):
             lowered_content = message.content.lower()
             content_length = len(lowered_content)
             for prefix in prefixes:
+                prefix = prefix.strip()
                 if lowered_content.startswith(prefix):
                     while (prefix_length := len(prefix)) < content_length and (
                         next_char := lowered_content[prefix_length : prefix_length + 1]
