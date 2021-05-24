@@ -18,7 +18,14 @@ from sphobjinv import Inventory
 from nokari import core, utils
 from nokari.utils import Paginator, chunk_from_list, converters, get_timestamp, plural
 from nokari.utils.parser import ArgumentParser
-from nokari.utils.spotify import Artist, NoSpotifyPresenceError, SpotifyClient, Track
+from nokari.utils.spotify import (
+    Album,
+    Artist,
+    NoSpotifyPresenceError,
+    PartialAlbum,
+    SpotifyClient,
+    Track,
+)
 
 
 class API(plugins.Plugin):
@@ -288,8 +295,84 @@ class API(plugins.Plugin):
 
     @spotify.command(name="album")
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
-    async def spotify_album(self, ctx: Context) -> None:
-        """Not implemented yet."""
+    async def spotify_album(self, ctx: Context, *, arguments: str) -> None:
+        args = self._spotify_argument_parser.parse(arguments)
+
+        if args.time:
+            t0 = time.time()
+
+        album = await self.spotify_client.get_item(ctx, args.remainder, Album)
+
+        if not album:
+            return
+
+        cover: typing.Optional[bytes] = await self.spotify_client._get_album(
+            album.cover_url
+        )
+        colors = self.spotify_client._get_colors(
+            BytesIO(typing.cast(bytes, cover)), "top-bottom blur", album.cover_url
+        )[0]
+
+        spotify_code_url = album.get_code_url(hikari.Color.from_rgb(*colors))
+        spotify_code = await self.spotify_client._get_spotify_code(spotify_code_url)
+
+        chunks = chunk_from_list(
+            [
+                f"{idx}. {track.formatted_url}"
+                for idx, track in enumerate(album.tracks, start=1)
+            ],
+            1024,
+        )
+
+        paginator = Paginator.default(ctx)
+
+        initial_embed = (
+            hikari.Embed(
+                title=f"{album.album_type.title()} Info", timestamp=album.release_date
+            )
+            .set_thumbnail(cover)
+            .set_image(spotify_code)
+            .add_field(
+                name="Name",
+                value=f"{album.formatted_url} | {plural(album.total_tracks):track}",
+            )
+            .add_field(name="Popularity", value=f"\N{fire} {album.popularity}")
+            .add_field(name="Label", value=album.label)
+            .add_field(
+                name="Copyright", value=f"\N{COPYRIGHT SIGN} {album.copyrights['C']}"
+            )
+            .add_field(
+                name="Phonogram",
+                value=f"\N{SOUND RECORDING COPYRIGHT} {album.copyrights['P']}",
+            )
+            .add_field(
+                name="Genres",
+                value=", ".join(album.genres) if album.genres else "Not available...",
+            )
+            .add_field(
+                name="Tracks",
+                value=chunks.pop(0),
+            )
+            .set_footer(text="Released on")
+        )
+
+        paginator.add_page(initial_embed)
+
+        image = typing.cast(EmbedImage[AsyncReader], initial_embed.image)
+        thumbnail = typing.cast(EmbedImage[AsyncReader], initial_embed.thumbnail)
+
+        for chunk in chunks:
+            embed = (
+                hikari.Embed(title="Tracks cont.", description=chunk, color=ctx.color)
+                .set_image(image)
+                .set_thumbnail(thumbnail)
+            )
+            paginator.add_page(embed)
+
+        if args.time:
+            paginator.set_initial_kwarg(initial_time=t0)
+
+        await paginator.start()
 
     @spotify.command(name="playlist")
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
@@ -309,11 +392,6 @@ class API(plugins.Plugin):
         embed = (
             hikari.Embed(title="Spotify Cache")
             .add_field(
-                name="Album",
-                value=f"{plural(len(client.album_cache)):album}",
-                inline=True,
-            )
-            .add_field(
                 name="Color",
                 value=f"{plural(len(client.color_cache)):color}",
                 inline=True,
@@ -322,21 +400,28 @@ class API(plugins.Plugin):
                 name="Text", value=f"{plural(len(client.text_cache)):text}", inline=True
             )
             .add_field(
-                name="Tracks",
-                value=f"{plural(len(client.cache.tracks)):object}\n"
-                f"w/{len(client.cache.audio_features)} audio features\n"
-                f"{plural(len(client.cache.get_queries('track'))):query|queries}",
+                name="Images",
+                value=f"- {plural(len(client.album_cache)):album}\n"
+                f"- {plural(len(client.code_cache)):code}",
                 inline=True,
             )
             .add_field(
-                name="Artists",
+                name="Album",
+                value=f"{plural(len(client.cache.albums)):object}\n"
+                f"{plural(len(client.cache.get_queries('album'))):query|queries}",
+                inline=True,
+            )
+            .add_field(
+                name="Artist",
                 value=f"{plural(len(client.cache.artists)):object}\n"
                 f"{plural(len(client.cache.get_queries('artist'))):query|queries}",
                 inline=True,
             )
             .add_field(
-                name="Codes",
-                value=f"{plural(len(client.code_cache)):code}",
+                name="Track",
+                value=f"{plural(len(client.cache.tracks)):object}\n"
+                f"w/{len(client.cache.audio_features)} audio features\n"
+                f"{plural(len(client.cache.get_queries('track'))):query|queries}",
                 inline=True,
             )
         )

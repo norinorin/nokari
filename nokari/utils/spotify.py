@@ -1,6 +1,7 @@
 """A module that contains a Spotify card generation implementation."""
 
 from __future__ import annotations
+import abc
 
 import asyncio
 import datetime
@@ -87,10 +88,12 @@ def convert_data(
 ) -> typing.Dict[str, typing.Any]:
     for k, v in d.items():
         if k == "artists":
-            d["artists"] = [Artist.from_dict(client, artist) for artist in d["artists"]]
+            d["artists"] = [
+                PartialArtist.from_dict(client, artist) for artist in d["artists"]
+            ]
 
         elif k == "album":
-            d["album"] = Album.from_dict(client, d["album"])
+            d["album"] = PartialAlbum.from_dict(client, d["album"])
 
         elif k == "release_date":
             # we couldn't really rely on "release_date_precision"
@@ -106,23 +109,26 @@ def convert_data(
                 tzinfo=pytz.UTC
             )
 
+        elif k == "copyrights":
+            d[k] = {c["type"]: c["text"] for c in v}
+
+        elif k == "tracks":
+            d[k] = [
+                PartialTrack.from_dict(client, track) for track in d["tracks"]["items"]
+            ]
+
         elif isinstance(v, dict):
             d[k] = convert_data(client, d[k])
 
     return d
 
 
-# pylint: disable=redefined-builtin
-def get_type_name(type: typing.Type) -> str:
-    return type.__name__.lower()
-
-
 @dataclass()
 class BaseSpotify:
     client: SpotifyClient
     id: str
-    type: str
     uri: str
+    type: typing.ClassVar[str] = "base"
 
     @classmethod
     def from_dict(
@@ -130,25 +136,33 @@ class BaseSpotify:
         client: SpotifyClient,
         payload: typing.Dict[str, typing.Any],
     ) -> T:
+        merged_annotations = {
+            **cls.__annotations__,
+            **{
+                k: v
+                for parent in cls.__mro__
+                if hasattr(parent, "__annotations__")
+                for k, v in parent.__annotations__.items()
+            },
+        }
+
         kwargs = convert_data(
             client,
-            {
-                k: v
-                for k, v in payload.items()
-                if k in {**cls.__annotations__, **BaseSpotify.__annotations__}
-            },
+            {k: v for k, v in payload.items() if k in merged_annotations},
         )
 
-        if "url" in cls.__annotations__:
+        if "url" in merged_annotations:
             kwargs["url"] = payload["external_urls"]["spotify"]
 
-        if "cover_url" in cls.__annotations__ and "images" in payload:
+        if "cover_url" in merged_annotations and "images" in payload:
             kwargs["cover_url"] = (
                 images[0]["url"] if (images := payload["images"]) else ""
             )
 
-        if "follower_count" in cls.__annotations__ and "followers" in payload:
+        if "follower_count" in merged_annotations and "followers" in payload:
             kwargs["follower_count"] = payload["followers"]["total"]
+
+        kwargs.pop("type", None)
 
         return cls(client, **kwargs)
 
@@ -195,6 +209,7 @@ class AudioFeatures(BaseSpotify):
     analysis_url: str
     duration_ms: int
     time_signature: int
+    type: typing.ClassVar[typing.Literal["audio_features"]] = "audio_features"
 
     def get_key(self) -> str:
         return f"{self.keys[self.key]} {self.modes[self.mode]}"
@@ -204,17 +219,12 @@ class AudioFeatures(BaseSpotify):
 
 
 @dataclass()
-class Track(BaseSpotify, SpotifyCodeable):
+class PartialTrack(BaseSpotify, SpotifyCodeable):
     name: str
-    artists: typing.List[Artist]
-    album: Album
-    popularity: int
+    artists: typing.List[PartialArtist]
     url: str
     track_number: int
-
-    @property
-    def album_cover_url(self) -> str:
-        return self.album.cover_url
+    type: typing.ClassVar[typing.Literal["track"]] = "track"
 
     @property
     def artists_str(self) -> str:
@@ -231,13 +241,21 @@ class Track(BaseSpotify, SpotifyCodeable):
 
 
 @dataclass()
-class Artist(BaseSpotify, SpotifyCodeable):
+class Track(PartialTrack):
+    album: PartialAlbum
+    popularity: int
+    duration_ms: int
+
+    @property
+    def album_cover_url(self) -> str:
+        return self.album.cover_url if self.album else ""
+
+
+@dataclass()
+class PartialArtist(BaseSpotify, SpotifyCodeable):
     name: str
     url: str
-    cover_url: str = ""
-    popularity: int = 0
-    genres: typing.Optional[typing.List[str]] = None
-    follower_count: int = 0
+    type: typing.ClassVar[typing.Literal["artist"]] = "artist"
 
     def get_top_tracks(
         self, country: str = "US"
@@ -246,13 +264,37 @@ class Artist(BaseSpotify, SpotifyCodeable):
 
 
 @dataclass()
-class Album(BaseSpotify, SpotifyCodeable):
+class Artist(PartialArtist):
+    popularity: int
+    genres: typing.List[str]
+    follower_count: int
+    cover_url: str = ""
+
+
+@dataclass()
+class PartialAlbum(BaseSpotify, SpotifyCodeable):
     album_type: typing.Literal["album", "single"]
-    artists: typing.List[Artist]
+    artists: typing.List[PartialArtist]
     name: str
     cover_url: str
     url: str
     release_date: datetime.datetime
+    type: typing.ClassVar[typing.Literal["album"]] = "album"
+
+
+@dataclass()
+class Album(PartialAlbum):
+    popularity: int
+    total_tracks: int
+    label: str
+    copyrights: Copyrights
+    genres: typing.List[str]
+    tracks: typing.List[PartialTrack]
+
+
+class Copyrights(typing.TypedDict, total=False):
+    C: str
+    P: str
 
 
 class Spotify:
@@ -289,7 +331,10 @@ class SpotifyCache:
         self._artists = LRU(50)
         self._audio_features = LRU(50)
         self._top_tracks = LRU(50)
-        self._queries: typing.Dict[str, LRU] = {i: LRU(50) for i in ("artist", "track")}
+        self._albums = LRU(50)
+        self._queries: typing.Dict[str, LRU] = {
+            i: LRU(50) for i in ("artist", "track", "album")
+        }
 
     # pylint: disable=redefined-builtin
     def get_container(self, type: str) -> LRU:
@@ -299,11 +344,24 @@ class SpotifyCache:
         if not items:
             return
 
-        self.get_container(items[0].type).update({item.id: item for item in items})
+        self.get_container(items[0].type).update(
+            {
+                item.id: item
+                for item in items
+                if not item.__class__.__name__.startswith("Partial")
+            }
+        )
 
     def set_item(self, item: T) -> T:
+        if item.__class__.__name__.startswith("Partial"):
+            return item
+
         self.get_container(item.type)[item.id] = item
         return item
+
+    @property
+    def albums(self) -> LRU:
+        return self._albums
 
     @property
     def tracks(self) -> LRU:
@@ -344,6 +402,18 @@ class SpotifyRest:
         return partial(
             self._loop.run_in_executor, self._executor, getattr(self.spotipy, attr)
         )
+
+    async def album(self, album_id: str) -> typing.Dict[str, typing.Any]:
+        # do I even need this?
+        res = await self.__getattr__("album")(album_id)
+        next = res["tracks"]["next"]
+
+        while next:
+            ext = await self.__getattr__("_get")(res["next"])
+            res["tracks"]["items"].extend(ext["items"])
+            next = ext["next"]
+
+        return res
 
 
 class SpotifyClient:
@@ -1008,37 +1078,26 @@ class SpotifyClient:
     def get_item(
         self, ctx: Context, id_or_query: str, type: typing.Type[T]
     ) -> typing.Coroutine[typing.Any, typing.Any, typing.Optional[T]]:
-        type_name = get_type_name(type)
         try:
-            id = self._get_id(type_name, id_or_query)
+            id = self._get_id(type.type, id_or_query)
         except RuntimeError:
-            return self.search_and_pick_item(ctx, id_or_query, type, type_name)
+            return self.search_and_pick_item(ctx, id_or_query, type)
         else:
-            return self.get_item_from_id(id, type, type_name)
+            return self.get_item_from_id(id, type)
 
-    async def get_item_from_id(
-        self, _id: str, /, type: typing.Type[T], type_name: typing.Optional[str] = None
-    ) -> T:
-        if type_name is None:
-            type_name = get_type_name(type)
-
-        item = getattr(self.cache, type_name + "s").get(_id)
+    async def get_item_from_id(self, _id: str, /, type: typing.Type[T]) -> T:
+        item = getattr(self.cache, type.type + "s").get(_id)
 
         if item:
             return item
 
-        res = await getattr(self.rest, type_name)(_id)
+        res = await getattr(self.rest, type.type)(_id)
         item = self.cache.set_item(type.from_dict(self, res))
         return item
 
-    async def search(
-        self, q: str, /, type: typing.Type[T], type_name: typing.Optional[str] = None
-    ) -> typing.List[T]:
-        if type_name is None:
-            type_name = get_type_name(type)
-
-        plural = type_name + "s"
-        queries = self.cache.get_queries(type_name)
+    async def search(self, q: str, /, type: typing.Type[T]) -> typing.List[T]:
+        plural = type.type + "s"
+        queries = self.cache.get_queries(type.type)
         ids = queries.get(q)
 
         if ids is not None:
@@ -1054,10 +1113,16 @@ class SpotifyClient:
             else:
                 return items
 
-        res = await self.rest.search(q, 10, 0, type_name, None)
-        items = [type.from_dict(self, track) for track in res[plural]["items"]]
+        res = await self.rest.search(q, 10, 0, type.type, None)
+        raw_items = res[plural]["items"]
+        queries[q] = ids = [item["id"] for item in raw_items]
+
+        if type is Album:
+            res = await self.rest.albums(ids)
+            raw_items = res[plural]
+
+        items = [type.from_dict(self, item) for item in raw_items]
         self.cache.update_items(items)
-        queries[q] = [item.id for item in items]
         return items
 
     async def search_and_pick_item(
@@ -1066,19 +1131,17 @@ class SpotifyClient:
         q: str,
         /,
         type: typing.Type[T],
-        type_name: typing.Optional[str] = None,
     ) -> typing.Optional[T]:
-        if type_name is None:
-            type_name = get_type_name(type)
         tnf: typing.Dict[str, typing.Tuple[typing.Tuple[str, str], str]] = {
             "track": (
                 ("Choose a Track", "No track was found..."),
                 "{item.artists_str} - {item.title}",
             ),
             "artist": (("Choose an Artist", "No artist was found..."), "{item}"),
+            "album": (("Choose an Album", "No album was found..."), "{item}"),
         }
-        items = await self.search(q, type, type_name)
-        title, format = tnf[type_name]
+        items = await self.search(q, type)
+        title, format = tnf[type.type]
         return await self.pick_from_sequence(ctx, q, items, title, format)
 
     async def pick_from_sequence(
