@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import time
 import typing
 from functools import partial
 from types import SimpleNamespace
@@ -8,6 +9,9 @@ from types import SimpleNamespace
 from lightbulb import utils
 
 from .view import StringView, UnexpectedQuoteError
+
+if typing.TYPE_CHECKING:
+    from nokari.core import Context
 
 TRUE = sys.intern("TRUE")
 FALSE = sys.intern("FALSE")
@@ -152,9 +156,10 @@ class Cursor:
 
     def get_parsed_data(
         self,
-    ) -> typing.Dict[str, typing.Union[typing.Literal[None], bool, str]]:
+    ) -> typing.Dict[str, typing.Union[typing.Literal[None], bool, str, float]]:
         data = typing.cast(
-            typing.Dict[str, typing.Union[typing.Literal[None], bool, str]], self.data
+            typing.Dict[str, typing.Union[typing.Literal[None], bool, str, float]],
+            self.data,
         )
         data[self.remainder] = " ".join(
             typing.cast(typing.List[str], data[self.remainder])
@@ -170,6 +175,11 @@ class Cursor:
                     if (default := v["default"]) is None and argmax == 0
                     else default
                 )
+                continue
+
+            # special key
+            if k == "time":
+                data[k] = time.time()
                 continue
 
             val = " ".join(typing.cast(typing.List[str], arg))
@@ -253,9 +263,16 @@ class ArgumentParser:
         self._remainder = name
         return self
 
-    def parse(self, argument: str) -> SimpleNamespace:
-        cur = Cursor(self, argument)
-        return cur.fetch_arguments()
+    def parse(self, ctx: typing.Optional[Context], argument: str) -> SimpleNamespace:
+        if ctx and ctx.parsed_arg:
+            return ctx.parsed_arg
+
+        ret = Cursor(self, argument).fetch_arguments()
+
+        if ctx:
+            ctx.parsed_arg = ret
+
+        return ret
 
     def __getattr__(self, attr: str) -> PartialArgument:
         return partial(self.argument, attr)

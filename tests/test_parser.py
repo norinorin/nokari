@@ -79,11 +79,11 @@ def test_parse(
     member: bool,
     remainder: str,
 ) -> None:
-    arguments = parser.parse(input_string)
+    arguments = parser.parse(None, input_string)
     assert arguments.style == style
     assert arguments.hidden is hidden
     assert arguments.card is card
-    assert arguments.time is time
+    assert bool(arguments.time) is time
     assert arguments.color == color
     assert arguments.member is member
     assert arguments.remainder == remainder

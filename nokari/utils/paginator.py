@@ -69,7 +69,6 @@ class Paginator:
         "mentions_everyone",
         "user_mentions",
         "role_mentions",
-        "initial_kwargs",
     ]
 
     def __init__(
@@ -95,7 +94,6 @@ class Paginator:
         self.role_mentions: undefined.UndefinedOr[
             Union[snowflakes.SnowflakeishSequence[hikari.PartialRole], bool]
         ] = undefined.UNDEFINED
-        self.initial_kwargs: Dict[str, Any] = {}
 
     def __eq__(self, other: Any) -> bool:
         return (
@@ -114,10 +112,6 @@ class Paginator:
             self._pages.extend(pages)
         else:
             self._pages.append(pages)
-
-    def set_initial_kwarg(self, **kwargs: Any) -> None:
-        """Sets the initial kwarg that will get passed when sending the initial message."""
-        self.initial_kwargs = kwargs
 
     def add_button(self, emoji: str, callback: _ButtonCallback) -> None:
         """Adds an emoji as a button that'll invoke the callback once reacted."""
@@ -172,7 +166,6 @@ class Paginator:
         """Starts paginating the contents."""
         options = await self.kwargs
         options["paginator"] = self if self.is_paginated else None
-        options.update(self.initial_kwargs)
 
         self.message = await self.ctx.respond(**options)
 

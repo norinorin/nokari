@@ -60,9 +60,6 @@ class API(plugins.Plugin):
         *,
         data: typing.Union[hikari.Member, Track],
     ) -> None:
-        if args.time:
-            t0 = time.time()
-
         style_map = {
             "dynamic": "1",
             "fixed": "2",
@@ -83,8 +80,6 @@ class API(plugins.Plugin):
                 kwargs: typing.Dict[str, typing.Any] = {
                     "attachment": hikari.Bytes(fp, f"{data}-card.png")
                 }
-                if args.time:
-                    kwargs["initial_time"] = t0
 
                 # if random.randint(0, 101) < 25:
                 #     kwargs["content"] = (
@@ -110,10 +105,7 @@ class API(plugins.Plugin):
         If -c/--card flag was present, it'll make a Spotify card.
         Else if -a/--album flag was present, it'll display the information of the album instead.
         """
-        args = self._spotify_argument_parser.parse(arguments or "")
-
-        if args.time:
-            t0 = time.time()
+        args = self._spotify_argument_parser.parse(ctx, arguments or "")
 
         if args.member or not args.remainder:
             data: typing.Union[hikari.Member, Track] = ctx.member
@@ -148,7 +140,8 @@ class API(plugins.Plugin):
             )
 
         if args.album:
-            return await self.spotify_album.invoke(ctx, arguments=data.album.uri)
+            ctx.parsed_arg.remainder = data.album.uri
+            return await self.spotify_album.invoke(ctx, arguments="")
 
         audio_features = await data.get_audio_features()
 
@@ -209,10 +202,6 @@ class API(plugins.Plugin):
             )
 
         kwargs: typing.Dict[str, typing.Any] = dict(embed=embed)
-
-        if args.time:
-            kwargs["initial_time"] = t0
-
         await ctx.respond(**kwargs)
 
     @spotify.command(name="artist", usage="<artist URI|URL|name>")
@@ -221,10 +210,7 @@ class API(plugins.Plugin):
         """
         Displays the information of an artist on Spotify.
         """
-        args = self._spotify_argument_parser.parse(arguments)
-
-        if args.time:
-            t0 = time.time()
+        args = self._spotify_argument_parser.parse(ctx, arguments)
 
         artist = await self.spotify_client.get_item(ctx, args.remainder, Artist)
 
@@ -297,19 +283,13 @@ class API(plugins.Plugin):
             )
             paginator.add_page(embed)
 
-        if args.time:
-            paginator.set_initial_kwarg(initial_time=t0)
-
         await paginator.start()
 
     @spotify.command(name="album", usage="<album URI|URL|name>")
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify_album(self, ctx: Context, *, arguments: str) -> None:
         """Displays the information of an album on Spotify."""
-        args = self._spotify_argument_parser.parse(arguments)
-
-        if args.time:
-            t0 = time.time()
+        args = self._spotify_argument_parser.parse(ctx, arguments)
 
         album = await self.spotify_client.get_item(ctx, args.remainder, Album)
 
@@ -401,9 +381,6 @@ class API(plugins.Plugin):
                 .set_footer(text=f"Pages {idx}/{length}")
             )
             paginator.add_page(embed)
-
-        if args.time:
-            paginator.set_initial_kwarg(initial_time=t0)
 
         await paginator.start()
 

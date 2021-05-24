@@ -2,6 +2,7 @@
 
 import time
 import typing
+from types import SimpleNamespace
 
 import hikari
 import lightbulb
@@ -19,6 +20,14 @@ __all__: typing.Final[typing.List[str]] = ["Context"]
 
 class Context(lightbulb.Context):
     """Custom Context class with overriden methods."""
+
+    parsed_arg: typing.Optional[SimpleNamespace]
+
+    __slots__: typing.List[str] = ["parsed_arg"]
+
+    def __init__(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.parsed_arg = None
 
     async def respond(  # pylint: disable=arguments-differ,too-many-locals
         self,
@@ -43,14 +52,15 @@ class Context(lightbulb.Context):
             ]
         ] = undefined.UNDEFINED,
         paginator: typing.Optional["Paginator"] = None,
-        initial_time: typing.Optional[int] = None,
     ) -> Message:
         """Overrides respond method for command invoke on message edit support."""
         if isinstance(embed, hikari.Embed) and not embed.color:
             embed.color = self.color
 
-        if initial_time:
-            time_taken = f"That took {round((time.time()-initial_time)*1000, 2)}ms!"
+        if self.parsed_arg and self.parsed_arg.time:
+            time_taken = (
+                f"That took {round((time.time()-self.parsed_arg.time)*1000, 2)}ms!"
+            )
             content = f"{(content or '')[:2000-len(time_taken)-2]}\n\n{time_taken}"
 
         resp = self.bot.cache.get_message(
