@@ -266,14 +266,14 @@ class API(plugins.Plugin):
                 value=f"{plural(artist.follower_count, _format=True):follower}",
             )
             .add_field(name="Popularity", value=f"\N{fire} {artist.popularity}")
-            .add_field(
-                name="Genres",
-                value=", ".join(artist.genres) if artist.genres else "Not available...",
-            )
-            .add_field(
-                name="Top Tracks",
-                value=chunks.pop(0),
-            )
+        )
+
+        if artist.genres:
+            initial_embed.add_field(name="Genres", value=", ".join(artist.genres))
+
+        initial_embed.add_field(
+            name="Top Tracks",
+            value=chunks.pop(0),
         )
 
         paginator.add_page(initial_embed)
@@ -348,15 +348,19 @@ class API(plugins.Plugin):
                     typing.cast(typing.Sequence[str], album.copyrights.values())
                 ),
             )
-            .add_field(
+        )
+
+        if album.genres:
+            initial_embed.add_field(
                 name="Genres",
-                value=", ".join(album.genres) if album.genres else "Not available...",
+                value=", ".join(album.genres),
             )
-            .add_field(
+
+        (
+            initial_embed.add_field(
                 name="Tracks",
                 value=chunks.pop(0),
-            )
-            .set_footer(text="Released on")
+            ).set_footer(text="Released on")
         )
 
         paginator.add_page(initial_embed)

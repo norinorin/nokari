@@ -428,12 +428,11 @@ class SpotifyRest:
 
     # pylint: disable=redefined-builtin
     async def album(self, album_id: str) -> typing.Dict[str, typing.Any]:
-        # do I even need this?
         res = await self.__getattr__("album")(album_id)
         next = res["tracks"]["next"]
 
         while next:
-            ext = await self.__getattr__("_get")(res["next"])
+            ext = await self.__getattr__("_get")(next)
             res["tracks"]["items"].extend(ext["items"])
             next = ext["next"]
 
