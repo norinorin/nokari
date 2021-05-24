@@ -1102,6 +1102,9 @@ class SpotifyClient:
     def get_item(
         self, ctx: Context, id_or_query: str, type: typing.Type[T]
     ) -> typing.Coroutine[typing.Any, typing.Any, typing.Optional[T]]:
+        if not id_or_query:
+            raise RuntimeError("Please pass in either URI/URL/name.")
+
         try:
             id = self._get_id(type.type, id_or_query)
         except RuntimeError:
