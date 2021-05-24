@@ -14,7 +14,6 @@ if typing.TYPE_CHECKING:
     from nokari.core import Context
 
 TRUE = sys.intern("TRUE")
-FALSE = sys.intern("FALSE")
 
 
 class Cursor:
