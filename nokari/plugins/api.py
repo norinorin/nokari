@@ -334,22 +334,16 @@ class API(plugins.Plugin):
             },
         }
 
-        initial_list = [
-            f"{idx-disc_offsets[track.disc_number]}. {track.get_formatted_url(prepend_artists=True)}"
-            for idx, track in enumerate(album.tracks, start=1)
-        ]
-
-        if len(disc_offsets) > 2:
-            for disc_number, offset in disc_offsets.items():
-                if offset == album.total_tracks:
-                    break
-
-                initial_list[
-                    offset
-                ] = f"\N{OPTICAL DISC} Disc {disc_number}\n{initial_list[offset]}"
+        def get_disc_text(disc_number: int) -> str:
+            return f"\N{OPTICAL DISC} Disc {disc_number}\n"
 
         chunks = chunk_from_list(
-            initial_list,
+            [
+                f"{get_disc_text(track.disc_number)*(len(disc_offsets) > 2 and index==1)}"
+                f"{index}. {track.get_formatted_url(prepend_artists=True)}"
+                for idx, track in enumerate(album.tracks, start=1)
+                if (index := idx - disc_offsets[track.disc_number])
+            ],
             1024,
         )
 
