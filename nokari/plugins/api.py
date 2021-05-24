@@ -29,7 +29,7 @@ from nokari.utils.spotify import (
 
 
 class API(plugins.Plugin):
-    """A plugin that utilizes external APIs"""
+    """A plugin that utilizes external APIs."""
 
     _spotify_argument_parser: typing.ClassVar[ArgumentParser] = (
         utils.ArgumentParser()
@@ -101,13 +101,13 @@ class API(plugins.Plugin):
         await ctx.send_help(ctx.command)
 
     # pylint: disable=too-many-locals
-    @spotify.command(name="track", aliases=["song"])
+    @spotify.command(name="track", aliases=["song"], usage="<artist URI|URL|name>")
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify_track(
         self, ctx: Context, *, arguments: typing.Optional[str] = None
     ) -> None:
         """
-        Shows the information of a Spotify track. If -c/--card flag was present,
+        Shows the information of a track on Spotify. If -c/--card flag was present,
         it'll make a Spotify card.
         """
         args = self._spotify_argument_parser.parse(arguments or "")
@@ -211,12 +211,11 @@ class API(plugins.Plugin):
 
         await ctx.respond(**kwargs)
 
-    @spotify.command(name="artist")
+    @spotify.command(name="artist", usage="<artist URI|URL|name>")
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify_artist(self, ctx: Context, *, arguments: str) -> None:
         """
-        Displays the information of a Spotify track. If -c/--card flag was present,
-        it'll make a Spotify card.
+        Displays the information of an artist on Spotify.
         """
         args = self._spotify_argument_parser.parse(arguments)
 
@@ -293,9 +292,10 @@ class API(plugins.Plugin):
 
         await paginator.start()
 
-    @spotify.command(name="album")
+    @spotify.command(name="album", usage="<album URI|URL|name>")
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify_album(self, ctx: Context, *, arguments: str) -> None:
+        """Displays the information of an album on Spotify."""
         args = self._spotify_argument_parser.parse(arguments)
 
         if args.time:
@@ -434,10 +434,10 @@ class API(plugins.Plugin):
         """Contains subcommands that links you to the specified object in the docs."""
         await ctx.send_help(ctx.command)
 
-    @rtfd.command()
+    @rtfd.command(name="hikari")
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
-    async def hikari(self, ctx: Context, obj: typing.Optional[str] = None) -> None:
-        """Returns jump links to the specified object in Hikari docs page"""
+    async def rtfd_hikari(self, ctx: Context, obj: typing.Optional[str] = None) -> None:
+        """Returns jump links to the specified object in Hikari docs page."""
 
         BASE_URL = "https://hikari-py.github.io/hikari"
 
