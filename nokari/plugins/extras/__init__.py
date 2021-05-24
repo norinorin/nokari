@@ -1,1 +1,1 @@
-"""Necessary for pylint"""
+"""Necessary for pylint."""

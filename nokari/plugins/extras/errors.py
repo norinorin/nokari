@@ -45,7 +45,7 @@ class Errors(plugins.Plugin):
 
     @plugins.listener(lightbulb.CommandErrorEvent)
     async def on_error(self, event: lightbulb.CommandErrorEvent) -> None:
-        """A listener that handles command errors"""
+        """A listener that handles command errors."""
         embed = hikari.Embed()
         author = event.message.author
         embed.set_author(
@@ -95,7 +95,7 @@ class Errors(plugins.Plugin):
         error: lightbulb.errors.NotEnoughArguments,
         embed: hikari.Embed,
     ) -> None:
-        """Handles NotEnoughArguments error"""
+        """Handles NotEnoughArguments error."""
         embed.description = "Please pass in the required argument"
         embed.add_field(
             name="Usage:",
@@ -108,7 +108,7 @@ class Errors(plugins.Plugin):
         error: lightbulb.errors.CommandIsOnCooldown,
         embed: hikari.Embed,
     ) -> None:
-        """Handles CommandIsOnCooldown error"""
+        """Handles CommandIsOnCooldown error."""
         embed.description = "You're on cooldown"
         embed.set_footer(text=f"Please try again in {round(error.retry_in, 2)} seconds")
 
@@ -118,7 +118,7 @@ class Errors(plugins.Plugin):
         error: lightbulb.errors.CommandInvocationError,
         embed: hikari.Embed,
     ) -> None:
-        """Handles CommandInvocationError error"""
+        """Handles CommandInvocationError error."""
         embed.description = str(error.original)
 
     @staticmethod
@@ -127,7 +127,7 @@ class Errors(plugins.Plugin):
         error: lightbulb.errors.MissingRequiredPermission,
         embed: hikari.Embed,
     ) -> None:
-        """Handles MissingRequiredPermissions error"""
+        """Handles MissingRequiredPermissions error."""
         perms = ", ".join(i.replace("_", " ").lower() for i in error.missing_perms)
         plural = f"permission{'s' * (len(error.missing_perms) > 1)}"
         embed.description = f"You're missing {perms} {plural} to invoke this command"
@@ -138,7 +138,7 @@ class Errors(plugins.Plugin):
         error: lightbulb.errors.BotMissingRequiredPermission,
         embed: hikari.Embed,
     ) -> None:
-        """Handles BotMissingPermission error"""
+        """Handles BotMissingPermission error."""
         perms = ", ".join(i.replace("_", " ").lower() for i in error.missing_perms)
         embed.description = (
             f"I'm missing {perms} permission{'s' * (len(error.missing_perms) > 1)}"
@@ -156,7 +156,7 @@ class Errors(plugins.Plugin):
         error: lightbulb.errors.ConverterFailure,
         embed: hikari.Embed,
     ) -> None:
-        """Handles ConverterFailure error"""
+        """Handles ConverterFailure error."""
         embed.description = error.text
 
 

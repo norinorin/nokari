@@ -25,7 +25,7 @@ def convert_prefix(arg: WrappedArg) -> str:
 
 
 class Config(plugins.Plugin):
-    """A plugin that contains config commands"""
+    """A plugin that contains config commands."""
 
     PREFIX_TOGGLE_QUERY: typing.ClassVar[
         str

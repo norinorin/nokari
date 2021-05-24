@@ -29,7 +29,7 @@ def chunk(text: str, length: int) -> Iterator[str]:
 
 
 def simple_chunk(text: str, length: int) -> List[str]:
-    """A lite version of the chunks function"""
+    """A lite version of the chunks function."""
     return [text[n : n + length] for n in range(0, len(text), length)]
 
 

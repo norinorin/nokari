@@ -116,7 +116,7 @@ class Paginator:
             self._pages.append(pages)
 
     def set_initial_kwarg(self, **kwargs: Any) -> None:
-        """Sets the initial kwarg that will get passed when sending the initial message"""
+        """Sets the initial kwarg that will get passed when sending the initial message."""
         self.initial_kwargs = kwargs
 
     def add_button(self, emoji: str, callback: _ButtonCallback) -> None:

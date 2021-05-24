@@ -8,7 +8,7 @@ __all__: typing.Final[typing.List[str]] = ["get_luminance", "get_alt_color"]
 def get_luminance(
     rgb: typing.Optional[typing.Sequence[int]] = None, *args: int
 ) -> float:
-    """Gets the luminance of an RGB"""
+    """Gets the luminance of an RGB."""
 
     if rgb is None:
         if not args:
@@ -24,7 +24,7 @@ def get_alt_color(
     intensity: int = 20,
     _cmp: typing.Optional[typing.Sequence[int]] = None,
 ) -> typing.Tuple[int, ...]:
-    """Gets a darker/lighter color"""
+    """Gets a darker/lighter color."""
 
     _cmp = _cmp or rgb
     Y = get_luminance(_cmp)

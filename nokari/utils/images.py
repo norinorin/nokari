@@ -16,7 +16,7 @@ __all__: typing.Final[typing.List[str]] = [
 
 
 def has_transparency(im: Image.Image) -> bool:
-    """Returns whether or not the image has transparency"""
+    """Returns whether or not the image has transparency."""
     if im.mode == "P":
         return "transparency" in im.info
 
@@ -24,7 +24,7 @@ def has_transparency(im: Image.Image) -> bool:
 
 
 def round_corners(im: Image.Image, rad: int) -> None:
-    """Rounds the corners of the image"""
+    """Rounds the corners of the image."""
     alpha, circle = Image.new("L", im.size, 255), Image.new("L", (rad * 2, rad * 2), 0)
 
     draw = ImageDraw.Draw(circle)
@@ -62,7 +62,7 @@ def get_dominant_color(im: Image.Image) -> typing.Tuple[int]:
 
 
 def right_fade(im: Image.Image, rad: int = 100) -> Image.Image:
-    """Returns the right-faded image"""
+    """Returns the right-faded image."""
 
     im = im.convert("RGBA")
     w, h = im.size

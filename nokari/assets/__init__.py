@@ -1,1 +1,1 @@
-"""Necessary for it to find banner.txt"""
+"""Necessary for it to find banner.txt."""

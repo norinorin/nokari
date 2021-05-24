@@ -162,7 +162,7 @@ class Context(lightbulb.Context):
     def has_guild_perms(
         self, perms: hikari.Permissions, member: typing.Optional[hikari.Member] = None
     ) -> bool:
-        """Returns whether or not a member has certain guild permissions"""
+        """Returns whether or not a member has certain guild permissions."""
         if member is None:
             if self.me is None:
                 raise RuntimeError("Couldn't resolve the Member object of the bot")

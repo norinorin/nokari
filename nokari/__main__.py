@@ -1,4 +1,4 @@
-"""The main entry of the program"""
+"""The main entry of the program."""
 import os
 
 from dotenv import load_dotenv

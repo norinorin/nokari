@@ -75,7 +75,7 @@ class Admin(plugins.Plugin):
     @checks.owner_only()
     @core.commands.command(name="eval")
     async def _eval(self, ctx: Context, *, cmd: str) -> None:
-        """Evaluates Python script"""
+        """Evaluates Python script."""
         env = {
             "sauce": getsource,
             "ctx": ctx,

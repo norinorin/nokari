@@ -16,12 +16,12 @@ FuncT = typing.TypeVar("FuncT", bound=typing.Callable[..., typing.Any])
 def _apply_overwrites(
     perms: hikari.Permissions, allow: hikari.Permissions, deny: hikari.Permissions
 ) -> hikari.Permissions:
-    """Applies overwrites to the permissions"""
+    """Applies overwrites to the permissions."""
     return (perms & ~deny) | allow
 
 
 def _auto_resolve_guild(func: FuncT) -> FuncT:
-    """A decorator that automatically resolves the guild object if it's None"""
+    """A decorator that automatically resolves the guild object if it's None."""
 
     @wraps(func)
     def wrapped(*args: typing.Any) -> typing.Any:
@@ -59,7 +59,7 @@ def _ensure_perms(perms: hikari.Permissions) -> hikari.Permissions:
 
 
 def get_guild_perms(guild: hikari.Guild, member: hikari.Member) -> hikari.Permissions:
-    """Returns the guild-wide permissions of a member"""
+    """Returns the guild-wide permissions of a member."""
     ALL = hikari.Permissions(0b111111111111111111111111111111111)
 
     if guild.owner_id == member.id:

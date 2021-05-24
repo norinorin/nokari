@@ -108,7 +108,7 @@ def human_timedelta(
 
 
 def get_timestamp(timedelta: datetime.timedelta) -> str:
-    """Gets the timestamp string of a timedelta object"""
+    """Gets the timestamp string of a timedelta object."""
     out = re.sub(" days?, ", ":", str(timedelta)).split(":")
     out = ":".join(f"{int(float(x)):02d}" for x in out)
     while out.startswith("00:") and len(out) > 5:

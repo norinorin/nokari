@@ -1,4 +1,4 @@
-"""A module that contains cache decorator implementations"""
+"""A module that contains cache decorator implementations."""
 import asyncio
 import typing
 from functools import wraps

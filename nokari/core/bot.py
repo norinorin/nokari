@@ -108,7 +108,7 @@ class Nokari(lightbulb.Bot):
 
     @property
     def default_color(self) -> hikari.Color:
-        """Returns the dominant color of the bot's avatar"""
+        """Returns the dominant color of the bot's avatar."""
         return hikari.Color.from_rgb(251, 172, 37)
 
     @property
@@ -118,7 +118,7 @@ class Nokari(lightbulb.Bot):
 
     @property
     def session(self) -> typing.Optional[aiohttp.ClientSession]:
-        """Returns a ClientSession"""
+        """Returns a ClientSession."""
         return self._rest._client_session
 
     @property
@@ -136,7 +136,7 @@ class Nokari(lightbulb.Bot):
         return self._pool if hasattr(self, "_pool") else None
 
     async def create_pool(self) -> None:
-        """Creates a connection pool"""
+        """Creates a connection pool."""
         self._pool = pool = await db.create_pool()
 
         if sys.argv[-1] == "init":

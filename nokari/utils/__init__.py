@@ -1,4 +1,4 @@
-"""Re-export things"""
+"""Re-export things."""
 
 from .algorithm import *
 from .caches import *

@@ -35,11 +35,11 @@ T = typing.TypeVar("T", bound="BaseSpotify")
 
 
 class NoSpotifyPresenceError(Exception):
-    """Raised when the member doesn't have Spotify presence"""
+    """Raised when the member doesn't have Spotify presence."""
 
 
 class LocalFilesDetected(Exception):
-    """Raised when the member is listening to local files on Spotify"""
+    """Raised when the member is listening to local files on Spotify."""
 
 
 class _SpotifyCardMetadata(typing.TypedDict):
@@ -73,7 +73,7 @@ class _CamelotType(type):
 
 
 class Camelot(metaclass=_CamelotType):
-    """The actual Camelot class"""
+    """The actual Camelot class."""
 
 
 SPOTIFY_URL = re.compile(
@@ -443,7 +443,7 @@ class SpotifyRest:
 
 
 class SpotifyClient:
-    """A class that generates Spotify cards as well as interacts with Spotify API"""
+    """A class that generates Spotify cards as well as interacts with Spotify API."""
 
     SMALL_FONT = ImageFont.truetype("nokari/assets/fonts/arial-unicode-ms.ttf", size=40)
     BIG_FONT = ImageFont.truetype("nokari/assets/fonts/arial-unicode-ms.ttf", size=50)
@@ -464,7 +464,7 @@ class SpotifyClient:
 
     @staticmethod
     def _get_timestamp(spotify: Spotify) -> typing.Tuple[str, str, float]:
-        """Gets the timestamp of the playing song"""
+        """Gets the timestamp of the playing song."""
 
         if (
             (timestamps := spotify.timestamps) is None
@@ -497,7 +497,7 @@ class SpotifyClient:
     def _generate_rounded_rectangle(
         size: typing.Tuple[int, int], rad: int, fill: _RGB
     ) -> Image.Image:
-        """Generates a rounded rectangle image"""
+        """Generates a rounded rectangle image."""
 
         rectangle = Image.new("RGBA", size, fill)
         round_corners(rectangle, rad)
@@ -537,7 +537,7 @@ class SpotifyClient:
         mode: str = "full",
         image_url: str = "",  # necessary for caching
     ) -> typing.Tuple[_RGB, _RGBs]:
-        """Returns the dominant color as well as other colors present in the image"""
+        """Returns the dominant color as well as other colors present in the image."""
 
         def get_palette() -> _RGBs:
             color_thief = ColorThief(image)
@@ -1062,7 +1062,7 @@ class SpotifyClient:
     def _get_font_color(
         base: typing.Sequence[int], seq: typing.Sequence[typing.Sequence[int]]
     ) -> typing.Tuple[int, ...]:
-        """Gets the font color"""
+        """Gets the font color."""
         base_y = get_luminance(base)
         for rgb in seq:
             y = get_luminance(rgb)

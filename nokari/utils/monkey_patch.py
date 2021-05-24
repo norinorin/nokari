@@ -1,4 +1,4 @@
-"""A module that monkey patches the identify payload"""
+"""A module that monkey patches the identify payload."""
 
 import ast
 import inspect
