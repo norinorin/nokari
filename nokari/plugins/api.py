@@ -38,6 +38,7 @@ class API(plugins.Plugin):
         .time("--time", "-t", argmax=0)
         .color("--color", "--colour", "-cl", argmax=1)
         .member("--member", "-m", argmax=0)
+        .album("--album", "-a", argmax=0)
     )
 
     def __init__(self, bot: Bot) -> None:
@@ -106,8 +107,9 @@ class API(plugins.Plugin):
         self, ctx: Context, *, arguments: typing.Optional[str] = None
     ) -> None:
         """
-        Shows the information of a track on Spotify. If -c/--card flag was present,
-        it'll make a Spotify card.
+        Shows the information of a track on Spotify.
+        If -c/--card flag was present, it'll make a Spotify card.
+        Else if -a/--album flag was present, it'll display the information of the album instead.
         """
         args = self._spotify_argument_parser.parse(arguments or "")
 
@@ -144,6 +146,9 @@ class API(plugins.Plugin):
             raise e.__class__(
                 f"{'You' if data == ctx.author else 'They'} have no Spotify activity"
             )
+
+        if args.album:
+            return await self.spotify_album.invoke(ctx, arguments=data.album.uri)
 
         audio_features = await data.get_audio_features()
 
