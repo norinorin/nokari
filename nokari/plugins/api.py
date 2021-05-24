@@ -317,7 +317,7 @@ class API(plugins.Plugin):
 
         chunks = chunk_from_list(
             [
-                f"{idx}. {track.formatted_url}"
+                f"{idx}. {track.get_formatted_url(prepend_artists=True)}"
                 for idx, track in enumerate(album.tracks, start=1)
             ],
             1024,
@@ -337,14 +337,16 @@ class API(plugins.Plugin):
             )
             .add_field(name="Popularity", value=f"\N{fire} {album.popularity}")
             .add_field(name="Label", value=album.label)
-            .add_field(
-                name="Copyright", value=f"\N{COPYRIGHT SIGN} {album.copyrights['C']}"
-            )
-            .add_field(
-                name="Phonogram",
-                value=f"\N{SOUND RECORDING COPYRIGHT} {album.copyrights['P']}",
-            )
-            .add_field(
+        )
+
+        if album.copyright:
+            initial_embed.add_field(name="Copyright", value=album.copyright)
+
+        if album.phonogram:
+            initial_embed.add_field(name="Phonogram", value=album.phonogram)
+
+        (
+            initial_embed.add_field(
                 name="Genres",
                 value=", ".join(album.genres) if album.genres else "Not available...",
             )

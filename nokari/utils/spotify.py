@@ -176,6 +176,14 @@ class BaseSpotify:
         return f"[{self}]({getattr(self, 'url')} '{self} on Spotify')"
 
 
+class ArtistAware:
+    artists: typing.Sequence[PartialArtist]
+
+    @property
+    def artists_str(self) -> str:
+        return ", ".join(map(str, self.artists))
+
+
 # pylint: disable=too-many-instance-attributes
 @dataclass()
 class AudioFeatures(BaseSpotify):
@@ -218,7 +226,7 @@ class AudioFeatures(BaseSpotify):
 
 
 @dataclass()
-class PartialTrack(BaseSpotify, SpotifyCodeable):
+class PartialTrack(BaseSpotify, ArtistAware, SpotifyCodeable):
     name: str
     artists: typing.List[PartialArtist]
     url: str
@@ -226,12 +234,14 @@ class PartialTrack(BaseSpotify, SpotifyCodeable):
     type: typing.ClassVar[typing.Literal["track"]] = "track"
 
     @property
-    def artists_str(self) -> str:
-        return ", ".join(map(str, self.artists))
-
-    @property
     def title(self) -> str:
         return self.name
+
+    def get_formatted_url(self, prepend_artists: bool = True) -> str:
+        if not prepend_artists:
+            return self.formatted_url
+
+        return f"[{self.artists_str} - {self}]({self.url} '{self} on Spotify')"
 
     def get_audio_features(
         self,
@@ -271,7 +281,7 @@ class Artist(PartialArtist):
 
 
 @dataclass()
-class PartialAlbum(BaseSpotify, SpotifyCodeable):
+class PartialAlbum(BaseSpotify, ArtistAware, SpotifyCodeable):
     album_type: typing.Literal["album", "single"]
     artists: typing.List[PartialArtist]
     name: str
@@ -289,6 +299,22 @@ class Album(PartialAlbum):
     copyrights: Copyrights
     genres: typing.List[str]
     tracks: typing.List[PartialTrack]
+
+    @property
+    def copyright(self) -> typing.Optional[str]:
+        if "C" not in self.copyrights:
+            return None
+
+        ret = self.copyrights["C"].replace("(C) ", "")
+        return f"\N{COPYRIGHT SIGN} {ret}"
+
+    @property
+    def phonogram(self) -> typing.Optional[str]:
+        if "P" not in self.copyrights:
+            return None
+
+        ret = self.copyrights["P"].replace("(P) ", "")
+        return f"\N{SOUND RECORDING COPYRIGHT} {ret}"
 
 
 class Copyrights(typing.TypedDict, total=False):
@@ -1138,7 +1164,10 @@ class SpotifyClient:
                 "{item.artists_str} - {item.title}",
             ),
             "artist": (("Choose an Artist", "No artist was found..."), "{item}"),
-            "album": (("Choose an Album", "No album was found..."), "{item}"),
+            "album": (
+                ("Choose an Album", "No album was found..."),
+                "{item.artists_str} - {item}",
+            ),
         }
         items = await self.search(q, type)
         title, format = tnf[type.type]
