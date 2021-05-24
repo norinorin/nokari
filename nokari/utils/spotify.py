@@ -109,7 +109,13 @@ def convert_data(
             )
 
         elif k == "copyrights":
-            d[k] = {c["type"]: c["text"] for c in v}
+            texts = {"C": "Copyright", "P": "Phonogram"}
+            signs = {"C": "\N{COPYRIGHT SIGN} ", "P": "\N{SOUND RECORDING COPYRIGHT} "}
+            d[k] = {
+                texts[c["type"]]: signs[c["type"]]
+                + c["text"].replace(f"({c['type']}) ", "")
+                for c in v
+            }
 
         elif k == "tracks":
             d[k] = [
@@ -302,24 +308,16 @@ class Album(PartialAlbum):
 
     @property
     def copyright(self) -> typing.Optional[str]:
-        if "C" not in self.copyrights:
-            return None
-
-        ret = self.copyrights["C"].replace("(C) ", "")
-        return f"\N{COPYRIGHT SIGN} {ret}"
+        return self.copyrights.get("Copyright")
 
     @property
     def phonogram(self) -> typing.Optional[str]:
-        if "P" not in self.copyrights:
-            return None
-
-        ret = self.copyrights["P"].replace("(P) ", "")
-        return f"\N{SOUND RECORDING COPYRIGHT} {ret}"
+        return self.copyrights.get("Phonogram")
 
 
 class Copyrights(typing.TypedDict, total=False):
-    C: str
-    P: str
+    Copyright: str
+    Phonogram: str
 
 
 class Spotify:

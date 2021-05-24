@@ -342,16 +342,13 @@ class API(plugins.Plugin):
             )
             .add_field(name="Popularity", value=f"\N{fire} {album.popularity}")
             .add_field(name="Label", value=album.label)
-        )
-
-        if album.copyright:
-            initial_embed.add_field(name="Copyright", value=album.copyright)
-
-        if album.phonogram:
-            initial_embed.add_field(name="Phonogram", value=album.phonogram)
-
-        (
-            initial_embed.add_field(
+            .add_field(
+                name=" and ".join(album.copyrights),
+                value="\n".join(
+                    typing.cast(typing.Sequence[str], album.copyrights.values())
+                ),
+            )
+            .add_field(
                 name="Genres",
                 value=", ".join(album.genres) if album.genres else "Not available...",
             )
