@@ -236,6 +236,7 @@ class PartialTrack(BaseSpotify, ArtistAware, SpotifyCodeable):
     name: str
     artists: typing.List[PartialArtist]
     url: str
+    disc_number: int
     track_number: int
     type: typing.ClassVar[typing.Literal["track"]] = "track"
 

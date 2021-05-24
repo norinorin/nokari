@@ -276,18 +276,24 @@ class API(plugins.Plugin):
             value=chunks.pop(0),
         )
 
+        if chunks:
+            # TODO: implement higher level API for this
+            length = len(chunks) + 1
+            initial_embed.set_footer(text=f"Page 1/{length}")
+
         paginator.add_page(initial_embed)
 
         image = typing.cast(EmbedImage[AsyncReader], initial_embed.image)
         thumbnail = typing.cast(EmbedImage[AsyncReader], initial_embed.thumbnail)
 
-        for chunk in chunks:
+        for idx, chunk in enumerate(chunks, start=2):
             embed = (
                 hikari.Embed(
                     title="Top tracks cont.", description=chunk, color=ctx.color
                 )
                 .set_image(image)
                 .set_thumbnail(thumbnail)
+                .set_footer(text=f"Page {idx}/{length}")
             )
             paginator.add_page(embed)
 
@@ -320,11 +326,30 @@ class API(plugins.Plugin):
         spotify_code_url = album.get_code_url(hikari.Color.from_rgb(*colors))
         spotify_code = await self.spotify_client._get_spotify_code(spotify_code_url)
 
-        chunks = chunk_from_list(
-            [
-                f"{idx}. {track.get_formatted_url(prepend_artists=True)}"
+        disc_offsets = {
+            1: 0,
+            **{
+                track.disc_number + 1: idx
                 for idx, track in enumerate(album.tracks, start=1)
-            ],
+            },
+        }
+
+        initial_list = [
+            f"{idx-disc_offsets[track.disc_number]}. {track.get_formatted_url(prepend_artists=True)}"
+            for idx, track in enumerate(album.tracks, start=1)
+        ]
+
+        if len(disc_offsets) > 2:
+            for disc_number, offset in disc_offsets.items():
+                if offset == album.total_tracks:
+                    break
+
+                initial_list[
+                    offset
+                ] = f"\N{OPTICAL DISC} Disc {disc_number}\n{initial_list[offset]}"
+
+        chunks = chunk_from_list(
+            initial_list,
             1024,
         )
 
@@ -363,16 +388,23 @@ class API(plugins.Plugin):
             ).set_footer(text="Released on")
         )
 
+        if chunks:
+            length = len(chunks) + 1
+            typing.cast(
+                hikari.EmbedFooter, initial_embed.footer
+            ).text = f"Page 1/{length} | Released on"
+
         paginator.add_page(initial_embed)
 
         image = typing.cast(EmbedImage[AsyncReader], initial_embed.image)
         thumbnail = typing.cast(EmbedImage[AsyncReader], initial_embed.thumbnail)
 
-        for chunk in chunks:
+        for idx, chunk in enumerate(chunks, start=2):
             embed = (
                 hikari.Embed(title="Tracks cont.", description=chunk, color=ctx.color)
                 .set_image(image)
                 .set_thumbnail(thumbnail)
+                .set_footer(text=f"Pages {idx}/{length}")
             )
             paginator.add_page(embed)
 
