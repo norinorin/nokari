@@ -75,8 +75,7 @@ class API(plugins.Plugin):
                 await self.spotify_client(
                     fp,
                     data,
-                    args.hidden
-                    or not (args.member or (not args.member and not args.remainder)),
+                    args.hidden,
                     args.color,
                     style,
                 )
@@ -116,7 +115,7 @@ class API(plugins.Plugin):
         if args.time:
             t0 = time.time()
 
-        if args.member or (not args.member and not args.remainder):
+        if args.member or not args.remainder:
             data: typing.Union[hikari.Member, Track] = ctx.member
             with suppress(ConverterFailure):
                 data = await converters.member_converter(
@@ -126,6 +125,7 @@ class API(plugins.Plugin):
                 if data.is_bot:
                     return await ctx.respond("I won't make a card for bots >:(")
         else:
+            args.hidden = True
             maybe_track = await self.spotify_client.get_item(ctx, args.remainder, Track)
 
             if not maybe_track:
