@@ -110,6 +110,21 @@ class StringView:
     def undo(self) -> None:
         self.index = self.previous
 
+    def skip_ws(self) -> bool:
+        pos = 0
+        while not self.eof:
+            try:
+                current = self.buffer[self.index + pos]
+                if not current.isspace():
+                    break
+                pos += 1
+            except IndexError:
+                break
+
+        self.previous = self.index
+        self.index += pos
+        return self.previous != self.index
+
     def skip_string(self, string: str) -> bool:
         if string == "":
             return True
@@ -136,6 +151,12 @@ class StringView:
         finally:
             self.previous = self.index
             self.index += 1
+
+    def read(self, n: int) -> str:
+        result = self.buffer[self.index : self.index + n]
+        self.previous = self.index
+        self.index += n
+        return result
 
     # pylint: disable=too-many-branches
     def get_quoted_word(self) -> typing.Optional[str]:

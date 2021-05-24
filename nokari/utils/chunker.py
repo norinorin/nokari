@@ -1,6 +1,11 @@
 """A module that contains chunking helper functions."""
 
+import string
 from typing import Final, Iterator, List, Sequence
+
+from lightbulb import utils
+
+from nokari.utils.view import StringView
 
 __all__: Final[List[str]] = ["chunk", "simple_chunk", "chunk_from_list"]
 
@@ -13,19 +18,18 @@ def chunk(text: str, length: int) -> Iterator[str]:
     This will yield the chunked text split by newline character
     or by space.
     """
-    start, end = 1, 0
-    while (end := start + length) < len(text):
-        sliced = text[start - 1 : end]
-        cue = "\n" if "\n" in sliced else " "
-        end = text.rfind(cue, start, end + 1)
-        if end - start > length or end < 0:
-            start -= 1
-            end = start + length
+    view = StringView(text)
 
-        yield text[start:end]
-        start = end + 1
+    while not view.eof:
+        view.skip_ws()
+        sliced = view.read(length)
 
-    yield text[start:]
+        if not (sub := utils.find(string.whitespace, lambda x: x in sliced)):
+            yield sliced
+            continue
+
+        view.undo()
+        yield view.read(text.rfind(sub, view.index, view.index + length) - view.index)
 
 
 def simple_chunk(text: str, length: int) -> List[str]:
