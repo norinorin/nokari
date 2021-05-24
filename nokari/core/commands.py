@@ -1,4 +1,5 @@
 """A module that contains custom command class and decorator implementations."""
+from __future__ import annotations
 
 import typing
 
@@ -25,6 +26,7 @@ class Command(commands.Command):
 
 
 class Group(commands.Group):
+    # pylint: disable=too-many-arguments,arguments-differ
     def command(
         self,
         name: typing.Optional[str] = None,
@@ -57,6 +59,7 @@ class Group(commands.Group):
 
         return decorate
 
+    # pylint: disable=too-many-arguments,arguments-differ
     def group(
         self,
         name: typing.Optional[str] = None,
@@ -70,7 +73,7 @@ class Group(commands.Group):
         def decorate(func: _CommandCallbackT) -> Group:
             nonlocal name
             name = name or func.__name__
-            self._subcommands[name] = Group(
+            self._subcommands[name] = self.__class__(
                 func,
                 name or func.__name__,
                 allow_extra_arguments,
@@ -118,6 +121,7 @@ def command(
     return decorate
 
 
+# pylint: disable=too-many-arguments
 def group(
     name: typing.Optional[str] = None,
     cls: typing.Type[commands.Group] = Group,

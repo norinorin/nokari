@@ -22,7 +22,6 @@ from nokari.utils.spotify import (
     Album,
     Artist,
     NoSpotifyPresenceError,
-    PartialAlbum,
     SpotifyClient,
     Track,
 )

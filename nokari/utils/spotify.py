@@ -1,7 +1,6 @@
 """A module that contains a Spotify card generation implementation."""
 
 from __future__ import annotations
-import abc
 
 import asyncio
 import datetime
@@ -403,6 +402,7 @@ class SpotifyRest:
             self._loop.run_in_executor, self._executor, getattr(self.spotipy, attr)
         )
 
+    # pylint: disable=redefined-builtin
     async def album(self, album_id: str) -> typing.Dict[str, typing.Any]:
         # do I even need this?
         res = await self.__getattr__("album")(album_id)
