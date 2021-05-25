@@ -258,7 +258,7 @@ class CustomHelp(help_.HelpCommand):
         matches.sort(key=lambda x: (x, len(x)))
         matches = {f"`{i}`" for i in matches}
         embed = CustomHelp.get_base_embed(context)
-        embed.title = f'{plural(len(matches)):result} on "{query}"'
+        embed.title = f'{plural(len(matches)):result,} on "{query}"'
         embed.description = ", ".join(matches) or "Oops, seems there's nothing found"
         return embed
 

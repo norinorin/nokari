@@ -122,7 +122,7 @@ class Config(plugins.Plugin):
         embed = (
             hikari.Embed(title="Prefix Cache")
             .add_field(
-                name="Global", value=f"{plural(len(self.bot.prefixes)):hash|hashes}"
+                name="Global", value=f"{plural(len(self.bot.prefixes)):hash|hashes,}"
             )
             .add_field(
                 name="Guild",

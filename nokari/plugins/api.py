@@ -248,7 +248,7 @@ class API(plugins.Plugin):
             .add_field(name="Name", value=artist.formatted_url)
             .add_field(
                 name="Follower Count",
-                value=f"{plural(artist.follower_count, _format=True):follower}",
+                value=f"{plural(artist.follower_count):follower,}",
             )
             .add_field(name="Popularity", value=f"\N{fire} {artist.popularity}")
         )
@@ -336,7 +336,7 @@ class API(plugins.Plugin):
             .set_image(spotify_code)
             .add_field(
                 name="Name",
-                value=f"{album.formatted_url} | {plural(album.total_tracks):track}",
+                value=f"{album.formatted_url} | {plural(album.total_tracks):track,}",
             )
             .add_field(name="Popularity", value=f"\N{fire} {album.popularity}")
             .add_field(name="Label", value=album.label)
@@ -402,35 +402,37 @@ class API(plugins.Plugin):
             hikari.Embed(title="Spotify Cache")
             .add_field(
                 name="Color",
-                value=f"{plural(len(client.color_cache)):color}",
+                value=f"{plural(len(client.color_cache)):color,}",
                 inline=True,
             )
             .add_field(
-                name="Text", value=f"{plural(len(client.text_cache)):text}", inline=True
+                name="Text",
+                value=f"{plural(len(client.text_cache)):text,}",
+                inline=True,
             )
             .add_field(
                 name="Images",
-                value=f"- {plural(len(client.album_cache)):album}\n"
-                f"- {plural(len(client.code_cache)):code}",
+                value=f"- {plural(len(client.album_cache)):album,}\n"
+                f"- {plural(len(client.code_cache)):code,}",
                 inline=True,
             )
             .add_field(
                 name="Album",
                 value=f"{plural(len(client.cache.albums)):object}\n"
-                f"{plural(len(client.cache.get_queries('album'))):query|queries}",
+                f"{plural(len(client.cache.get_queries('album'))):query|queries,}",
                 inline=True,
             )
             .add_field(
                 name="Artist",
                 value=f"{plural(len(client.cache.artists)):object}\n"
-                f"{plural(len(client.cache.get_queries('artist'))):query|queries}",
+                f"{plural(len(client.cache.get_queries('artist'))):query|queries,}",
                 inline=True,
             )
             .add_field(
                 name="Track",
                 value=f"{plural(len(client.cache.tracks)):object}\n"
                 f"w/{len(client.cache.audio_features)} audio features\n"
-                f"{plural(len(client.cache.get_queries('track'))):query|queries}",
+                f"{plural(len(client.cache.get_queries('track'))):query|queries,}",
                 inline=True,
             )
         )

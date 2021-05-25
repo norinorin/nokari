@@ -72,8 +72,8 @@ class Meta(plugins.Plugin):
                 name="Total cached members:",
                 value=(
                     f"{human:,}h & {bots:,}b out of {total_members:,}\n"
-                    f"{plural(presences):presence}\n"
-                    f"{plural(len(converters._member_cache)):converted member}"
+                    f"{plural(presences):presence,}\n"
+                    f"{plural(len(converters._member_cache)):converted member,}"
                 ),
                 inline=True,
             )

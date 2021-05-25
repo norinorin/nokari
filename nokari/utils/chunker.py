@@ -43,8 +43,9 @@ def chunk_from_list(seq: Sequence[str], length: int) -> List[str]:
     for item in seq:
         if len(temp := f"{ret[index]}\n{item}") <= length:
             ret[index] = temp
-        else:
-            index += 1
-            ret.append(item)
+            continue
+
+        index += 1
+        ret.append(item)
 
     return ret
