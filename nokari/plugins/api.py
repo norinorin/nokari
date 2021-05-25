@@ -256,10 +256,11 @@ class API(plugins.Plugin):
         if artist.genres:
             initial_embed.add_field(name="Genres", value=", ".join(artist.genres))
 
-        initial_embed.add_field(
-            name="Top Tracks",
-            value=chunks.pop(0),
-        )
+        if chunk := chunks.pop(0):
+            initial_embed.add_field(
+                name="Top Tracks",
+                value=chunk,
+            )
 
         if chunks:
             # TODO: implement higher level API for this
