@@ -109,12 +109,16 @@ def convert_data(
             )
 
         elif k == "copyrights":
-            texts = {"C": "Copyright", "P": "Phonogram"}
-            signs = {"C": "\N{COPYRIGHT SIGN} ", "P": "\N{SOUND RECORDING COPYRIGHT} "}
+            # YIIIKKKKEEESSS
+            mapping = {
+                "C": ("Copyright", "\N{COPYRIGHT SIGN} "),
+                "P": ("Phonogram", "\N{SOUND RECORDING COPYRIGHT} "),
+            }
             d[k] = {
-                texts[c["type"]]: signs[c["type"]]
-                + c["text"].replace(f"({c['type']}) ", "")
+                cp[0]: cp[1]
+                + c["text"].replace(f"({_type})", "").replace(cp[1], "").strip()
                 for c in v
+                if (_type := c["type"]) and (cp := mapping[_type])
             }
 
         elif k == "tracks":
