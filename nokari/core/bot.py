@@ -272,13 +272,25 @@ async def reload_module(ctx: Context, *, modules: str) -> None:
     """Hot-reload modules."""
     modules = set(modules.split())
     failed = set()
+    # parents = set()
     for mod in modules:
+        # parents.add(".".join(mod.split(".")[:-1]))
         try:
             module = sys.modules[mod]
             importlib.reload(module)
         except Exception as e:  # pylint: disable=broad-except
             ctx.bot.log.error("Failed to reload %s", mod, exc_info=e)
             failed.add((mod, e.__class__.__name__))
+
+    # TODO: figure out if I need this
+    # for parent in parents:
+    #     parent_split = parent.split(".")
+    #     for idx in reversed(range(1, len(parent_split) + 1)):
+    #         try:
+    #             module = sys.modules[".".join(parent_split[:idx])]
+    #             importlib.reload(module)
+    #         except Exception as e:  # pylint: disable=broad-except
+    #             ctx.bot.log.error("Failed to reload parent %s", parent, exc_info=e)
 
     loaded = "\n".join(f"+ {i}" for i in modules ^ {x[0] for x in failed})
     failed = "\n".join(f"- {m} {e}" for m, e in failed)
