@@ -15,8 +15,7 @@ def chunk(text: str, length: int) -> Iterator[str]:
     Chunks the text. This is useful for getting pages
     that'll be passed to the Paginator object.
 
-    This will yield the chunked text split by newline character
-    or by space.
+    This will yield the chunked text split by whitespaces if applicable.
     """
     view = StringView(text)
 
