@@ -94,17 +94,17 @@ class API(plugins.Plugin):
         await ctx.send_help(ctx.command)
 
     # pylint: disable=too-many-locals
-    @spotify.command(name="track", aliases=["song"], usage="<artist URI|URL|name>")
+    @spotify.command(name="track", aliases=["song"], usage="[artist URI|URL|name]")
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
-    async def spotify_track(
-        self, ctx: Context, *, arguments: typing.Optional[str] = None
-    ) -> None:
+    async def spotify_track(self, ctx: Context, *, arguments: str = "") -> None:
         """
         Shows the information of a track on Spotify.
-        If -c/--card flag was present, it'll make a Spotify card.
-        Else if -a/--album flag was present, it'll display the information of the album instead.
+        If -c/--card flag was present, it'll make a Spotify card,
+        else if -a/--album flag was present, it'll display the information of the album instead.
+
+        If no argument was passed, the song you're listening to will be fetched if applicable.
         """
-        args = self._spotify_argument_parser.parse(ctx, arguments or "")
+        args = self._spotify_argument_parser.parse(ctx, arguments)
 
         if args.member or not args.remainder:
             data: typing.Union[hikari.Member, Track] = ctx.member
@@ -140,7 +140,7 @@ class API(plugins.Plugin):
 
         if args.album:
             ctx.parsed_arg.remainder = data.album.uri
-            return await self.spotify_album.invoke(ctx, arguments="")
+            return await self.spotify_album.invoke(ctx)
 
         audio_features = await data.get_audio_features()
 
@@ -284,11 +284,18 @@ class API(plugins.Plugin):
 
         await paginator.start()
 
-    @spotify.command(name="album", usage="<album URI|URL|name>")
+    @spotify.command(name="album", usage="[album URI|URL|name]")
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
-    async def spotify_album(self, ctx: Context, *, arguments: str) -> None:
-        """Displays the information of an album on Spotify."""
+    async def spotify_album(self, ctx: Context, *, arguments: str = "") -> None:
+        """
+        Displays the information of an album on Spotify.
+        If no argument was passed, the album of the song you're listening to will be fetched if applicable.
+        """
         args = self._spotify_argument_parser.parse(ctx, arguments)
+
+        if args.member or not args.remainder:
+            args.album = True
+            return await self.spotify_track.invoke(ctx)
 
         album = await self.spotify_client.get_item(ctx, args.remainder, Album)
 
