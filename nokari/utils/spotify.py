@@ -1149,6 +1149,9 @@ class SpotifyClient:
         queries[q] = ids = [item["id"] for item in raw_items]
 
         if type is Album:
+            if not ids:
+                return []
+
             res = await self.rest.albums(ids)
             raw_items = res[plural]
 
