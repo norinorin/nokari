@@ -528,9 +528,10 @@ class SpotifyClient:
         self, album_url: str, height: int, mode: str
     ) -> typing.Tuple[typing.Tuple[_RGB, _RGBs], Image.Image]:
         album = BytesIO(await self._get_album(album_url))
-        return self._get_colors(album, mode, album_url), Image.open(album).convert(
-            "RGBA"
-        ).resize((height,) * 2)
+        colors = await self.loop.run_in_executor(
+            self.bot.executor, self._get_colors, album, mode, album_url
+        )
+        return colors, Image.open(album).convert("RGBA").resize((height,) * 2)
 
     @caches.cache(20)
     @staticmethod
