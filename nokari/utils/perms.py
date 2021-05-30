@@ -9,6 +9,8 @@ __all__: typing.Final[typing.List[str]] = [
     "get_guild_perms",
     "has_guild_perms",
     "has_channel_perms",
+    "has_any_guild_perms",
+    "has_any_channel_perms",
 ]
 FuncT = typing.TypeVar("FuncT", bound=typing.Callable[..., typing.Any])
 
@@ -79,34 +81,10 @@ def get_guild_perms(guild: hikari.Guild, member: hikari.Member) -> hikari.Permis
     return _ensure_perms(ret)
 
 
-@_auto_resolve_guild
-def has_guild_perms(
-    bot: hikari.BotApp,
-    member: hikari.Member,
-    perms: hikari.Permissions,
-    guild: typing.Optional[hikari.Guild] = None,
-) -> bool:
-    """
-    Returns whether or not the member has certain guild permissions.
-    This might be overriden by channel overwrites.
-    """
-    guild = typing.cast(hikari.Guild, guild)
-    return (get_guild_perms(guild, member) & perms) == perms
-
-
-@_auto_resolve_guild
-def has_channel_perms(
-    bot: hikari.BotApp,
-    member: hikari.Member,
-    channel: hikari.GuildChannel,
-    perms: hikari.Permissions,
-    guild: typing.Optional[hikari.Guild] = None,
-) -> bool:
-    """
-    Returns whether or not the member has certain guild permissions
-    and is allowed in the channel.
-    """
-    guild = typing.cast(hikari.Guild, guild)
+def get_channel_perms(
+    guild: hikari.Guild, member: hikari.Member, channel: hikari.GuildChannel
+) -> hikari.Permissions:
+    """Returns the guild-wide permissions with channel overwrites applied."""
     base = get_guild_perms(guild, member)
 
     if everyone := channel.permission_overwrites.get(guild.id):
@@ -126,6 +104,66 @@ def has_channel_perms(
     if (overwrite := channel.permission_overwrites.get(member.id)) is not None:
         base = _apply_overwrites(base, overwrite.allow, overwrite.deny)
 
-    base = _ensure_perms(base)
+    return _ensure_perms(base)
 
-    return (base & perms) == perms
+
+@_auto_resolve_guild
+def has_guild_perms(
+    bot: hikari.BotApp,
+    member: hikari.Member,
+    perms: hikari.Permissions,
+    guild: typing.Optional[hikari.Guild] = None,
+) -> bool:
+    """
+    Returns whether or not the member has certain guild permissions.
+    This might be overriden by channel overwrites.
+    """
+    guild = typing.cast(hikari.Guild, guild)
+    return get_guild_perms(guild, member).all(perms)
+
+
+@_auto_resolve_guild
+def has_any_guild_perms(
+    bot: hikari.BotApp,
+    member: hikari.Member,
+    perms: hikari.Permissions,
+    guild: typing.Optional[hikari.Guild] = None,
+) -> bool:
+    """
+    Returns whether or not the member has any of the permissions specified.
+    This might be overriden by channel overwrites.
+    """
+    guild = typing.cast(hikari.Guild, guild)
+    return get_guild_perms(guild, member).any(perms)
+
+
+@_auto_resolve_guild
+def has_channel_perms(
+    bot: hikari.BotApp,
+    member: hikari.Member,
+    channel: hikari.GuildChannel,
+    perms: hikari.Permissions,
+    guild: typing.Optional[hikari.Guild] = None,
+) -> bool:
+    """
+    Returns whether or not the member has certain guild permissions
+    and is allowed in the channel.
+    """
+    guild = typing.cast(hikari.Guild, guild)
+    return get_channel_perms(guild, member, channel).all(perms)
+
+
+@_auto_resolve_guild
+def has_any_channel_perms(
+    bot: hikari.BotApp,
+    member: hikari.Member,
+    channel: hikari.GuildChannel,
+    perms: hikari.Permissions,
+    guild: typing.Optional[hikari.Guild] = None,
+) -> bool:
+    """
+    Returns whether or not the member has any of the permissions specified
+    and is allowed in the channel.
+    """
+    guild = typing.cast(hikari.Guild, guild)
+    return get_channel_perms(guild, member, channel).any(perms)
