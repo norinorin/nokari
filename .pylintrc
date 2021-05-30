@@ -1,6 +1,7 @@
 [MASTER]
 suggestion-mode=yes
 fail-under=9.5
+jobs=0
 
 [MESSAGES CONTROL]
 confidence=UNDEFINED
