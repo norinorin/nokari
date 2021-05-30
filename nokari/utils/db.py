@@ -64,6 +64,28 @@ class Table:
     def get_all_tables(cls) -> typing.List[typing.Type[Table]]:
         return cls.__subclasses__()
 
+    @classmethod
+    def get_query(cls, if_not_exists: bool = True) -> str:
+        queries = ["CREATE TABLE"]
+
+        if if_not_exists:
+            queries.append("IF NOT EXISTS")
+
+        queries.append(cls.name)
+
+        has_multiple_primary_keys = len(cls.primary_keys) > 1
+
+        columns = ", ".join(
+            f"{name} {column}"
+            f"{' PRIMARY KEY'*(not has_multiple_primary_keys and name in cls.primary_keys)}"
+            for name, column in cls.columns.items()
+        )
+
+        if has_multiple_primary_keys:
+            columns += f", PRIMARY KEY ({', '.join(cls.primary_keys)})"
+
+        return f"{' '.join(queries)} ({columns});"
+
 
 def create_tables(
     con: typing.Union[asyncpg.Connection, asyncpg.Pool], if_not_exists: bool = True
@@ -71,25 +93,7 @@ def create_tables(
     statements = []
 
     for table in Table.get_all_tables():
-        queries = ["CREATE TABLE"]
-
-        if if_not_exists:
-            queries.append("IF NOT EXISTS")
-
-        queries.append(table.name)
-
-        has_multiple_primary_keys = len(table.primary_keys) > 1
-
-        columns = ", ".join(
-            f"{name} {column}"
-            f"{' PRIMARY KEY'*(not has_multiple_primary_keys and name in table.primary_keys)}"
-            for name, column in table.columns.items()
-        )
-
-        if has_multiple_primary_keys:
-            columns += f", PRIMARY KEY ({', '.join(table.primary_keys)})"
-
-        statements.append(f"{' '.join(queries)} ({columns});")
+        statements.append(table.get_query(if_not_exists=if_not_exists))
 
     return con.execute(" ".join(statements))
 
