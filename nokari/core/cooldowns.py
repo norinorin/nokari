@@ -31,4 +31,4 @@ def cooldown(
 
         return bucket(length, usages)
 
-    return cooldowns.cooldown(callback=callback)
+    return cooldowns.dynamic_cooldown(callback=callback)
