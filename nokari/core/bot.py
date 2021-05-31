@@ -9,6 +9,7 @@ import sys
 import traceback
 import typing
 import weakref
+import pathlib
 
 import aiohttp
 import asyncpg
@@ -197,16 +198,15 @@ class Nokari(lightbulb.Bot):
         return Context(self, message, prefix, invoked_with, invoked_command)
 
     @property
-    def raw_plugins(self) -> typing.List[str]:
-        """Returns the Pythonic plugins path."""
-        return [
-            f"{path.strip('/').replace('/', '.')}.{file[:-3]}"
-            for path, folders, files in os.walk("nokari/plugins/")
-            for file in files
-            if file.endswith(".py")
-            and "__pycache__" not in path
-            and "__init__" not in file
-        ]
+    def raw_plugins(self) -> typing.Iterator[str]:
+        """Returns the plugins' path component."""
+        return (
+            ".".join(
+                parent.stem for parent in [*list(reversed(path.parents))[1:], path]
+            )
+            for path in (pathlib.Path("nokari") / "plugins").glob("**/*.py")
+            if path.stem != "__init__"
+        )
 
     @property
     def brief_uptime(self) -> str:
