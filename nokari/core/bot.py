@@ -5,11 +5,11 @@ import datetime
 import importlib
 import logging
 import os
+import pathlib
 import sys
 import traceback
 import typing
 import weakref
-import pathlib
 
 import aiohttp
 import asyncpg
