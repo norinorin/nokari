@@ -1,5 +1,4 @@
 import typing
-from itertools import count
 
 import hikari
 from lightbulb import utils
@@ -32,11 +31,11 @@ async def caret_converter(arg: WrappedArg) -> typing.Optional[hikari.Message]:
                 and i.channel_id == arg.context.channel_id
             ][-n]
         except IndexError:
-            history = arg.context.channel.history(before=arg.context.message_id)
-            for c in count(start=1):
-                ret = await history.next()
-                if n == c:
-                    break
+            ret = await (
+                arg.context.channel.history(before=arg.context.message_id)
+                .limit(n)
+                .last()
+            )
 
     return ret
 
