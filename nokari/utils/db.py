@@ -1,3 +1,5 @@
+"""Inspired by RoboDanny's db.py."""
+
 from __future__ import annotations
 
 import json

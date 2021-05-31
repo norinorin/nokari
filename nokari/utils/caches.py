@@ -1,4 +1,7 @@
-"""A module that contains cache decorator implementations."""
+"""
+A module that contains cache decorator implementations.
+Based on Danny a.k.a Rapptz's implementation.
+"""
 import asyncio
 import typing
 from functools import wraps
