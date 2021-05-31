@@ -23,12 +23,20 @@ def chunk(text: str, length: int) -> Iterator[str]:
         view.skip_ws()
         sliced = view.read(length)
 
-        if not (sub := utils.find(string.whitespace, lambda x: x in sliced)):
-            yield sliced
+        if (
+            not (space := utils.find(string.whitespace, lambda x: x in sliced))
+            or view.eof
+        ):
+            if sliced:
+                yield sliced
             continue
 
         view.undo()
-        yield view.read(text.rfind(sub, view.index, view.index + length) - view.index)
+
+        if sub := view.read(
+            text.rfind(space, view.index, view.index + length + 1) - view.index
+        ):
+            yield sub
 
 
 def simple_chunk(text: str, length: int) -> List[str]:

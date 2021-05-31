@@ -97,7 +97,7 @@ class Admin(plugins.Plugin):
                 result = str(await func())
                 timedelta = time.monotonic() - t0
 
-            n = 1600
+            n = 1900
             measured_time = f"⏲️ {timedelta * 1000}ms"
             stdout_val = stdout.getvalue()
 

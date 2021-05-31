@@ -152,11 +152,11 @@ class StringView:
             self.previous = self.index
             self.index += 1
 
-    def read(self, n: int) -> str:
+    def read(self, n: int, strip: bool = True) -> str:
         result = self.buffer[self.index : self.index + n]
         self.previous = self.index
         self.index += n
-        return result
+        return result.strip() if strip else result
 
     # pylint: disable=too-many-branches
     def get_quoted_word(self) -> typing.Optional[str]:
