@@ -20,11 +20,14 @@ class plural:
 
     def __format__(self, format_spec: str) -> str:
         v = self.value
-        str_v = str(v)
+        fmt = ""
+
         # should I even use endswith here? w/e
         if format_spec[-1] == ",":
             format_spec = format_spec[:-1]
-            str_v = f"{v:,}"
+            fmt = ","
+
+        str_v = format(v, fmt)
         singular, _, _plural = format_spec.partition("|")
         _plural = _plural or f"{singular}s"
         if abs(v) != 1:
