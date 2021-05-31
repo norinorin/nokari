@@ -8,9 +8,7 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python 3.9
@@ -25,3 +23,14 @@ jobs:
     - name: Format and run tests
       run: |
         tox -e isort,black,test
+    - name: Check for modified files
+      id: git-check
+      run: echo ::set-output name=modified::$(if git diff-index --quiet HEAD --; then echo "false"; else echo "true"; fi)
+    - name: Push changes
+      if: steps.git-check.outputs.modified == 'true'
+      run: |
+        git config --global user.name 'Norizon'
+        git config --global user.email '69400842+norinorin@users.noreply.github.com'
+        git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+        git commit -am "Automated changes"
+        git push
