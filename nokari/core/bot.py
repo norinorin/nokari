@@ -5,7 +5,6 @@ import datetime
 import importlib
 import logging
 import os
-import pathlib
 import sys
 import traceback
 import typing
@@ -201,11 +200,12 @@ class Nokari(lightbulb.Bot):
     def raw_plugins(self) -> typing.Iterator[str]:
         """Returns the plugins' path component."""
         return (
-            ".".join(
-                parent.stem for parent in [*list(reversed(path.parents))[1:], path]
-            )
-            for path in (pathlib.Path("nokari") / "plugins").glob("**/*.py")
-            if path.stem != "__init__"
+            f"{path.strip('/').replace('/', '.')}.{file[:-3]}"
+            for path, folders, files in os.walk("nokari/plugins/")
+            for file in files
+            if file.endswith(".py")
+            and "__pycache__" not in path
+            and "__init__" not in file
         )
 
     @property
