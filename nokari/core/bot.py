@@ -201,7 +201,7 @@ class Nokari(lightbulb.Bot):
         """Returns the plugins' path component."""
         return (
             f"{path.strip('/').replace('/', '.')}.{file[:-3]}"
-            for path, folders, files in os.walk("nokari/plugins/")
+            for path, _, files in os.walk("nokari/plugins/")
             for file in files
             if file.endswith(".py")
             and "__pycache__" not in path
