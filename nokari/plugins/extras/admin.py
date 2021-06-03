@@ -169,7 +169,7 @@ Error: ```py
                 )
             except hikari.HTTPResponseError:
                 await ctx.message.add_reaction("❌")
-                self.bot.logger.error(traceback_info)
+                self.bot.log.error(traceback_info)
 
 
 def load(bot: Bot) -> None:
