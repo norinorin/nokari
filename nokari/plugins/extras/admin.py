@@ -1,9 +1,11 @@
 import ast
+import asyncio
 import importlib
 import re
 import time
 import traceback
 import typing
+import subprocess
 from contextlib import redirect_stdout
 from inspect import getsource
 from io import StringIO
@@ -172,6 +174,26 @@ Error: ```py
             except hikari.HTTPResponseError:
                 await ctx.message.add_reaction("❌")
                 self.bot.log.error(traceback_info)
+
+    async def run_command_in_shell(self, command: str) -> typing.List[str]:
+        process = await asyncio.create_subprocess_shell(
+            command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        return [output.decode() for output in await process.communicate()]
+
+    @checks.owner_only()
+    @core.command(name="bash")
+    async def bash(self, ctx: Context, *, command: str) -> None:
+        stdout, stderr = await self.run_command_in_shell(command)
+        output = f"Stdout:\n{stdout}\n" if stdout else ""
+        if stderr:
+            output += f"Stderr:\n{stderr}"
+
+        paginator = utils.Paginator.default(ctx)
+        paginator._pages = [
+            f"```{i.replace('`', ZWS+'`')}```" for i in utils.chunk(output, 1900)
+        ]
+        await paginator.start()
 
 
 def load(bot: Bot) -> None:
