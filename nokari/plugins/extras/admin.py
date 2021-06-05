@@ -15,6 +15,9 @@ from nokari import core, utils
 from nokari.core import Context
 
 
+ZWS = "\u200b"
+
+
 class Admin(plugins.Plugin):
     """A plugin with restricted commands."""
 
@@ -89,7 +92,6 @@ class Admin(plugins.Plugin):
         exec(compile(parsed, filename="<ast>", mode="exec"), env)
         func = env[fn_name]
         stdout = StringIO()
-        zws = "\u200b"
 
         try:
             with redirect_stdout(stdout):
@@ -105,11 +107,11 @@ class Admin(plugins.Plugin):
                 return
 
             output = (
-                f"Standard Output: ```py\n{stdout_val.replace('`', zws+'`')}```\n"
+                f"Standard Output: ```py\n{stdout_val.replace('`', ZWS+'`')}```\n"
                 if stdout_val
                 else ""
             )
-            output = f"{output}Return Value: ```py\n{result.replace('`', zws+'`')}```\n"
+            output = f"{output}Return Value: ```py\n{result.replace('`', ZWS+'`')}```\n"
 
             if len(output) < n:
                 output = f"{output}{measured_time}"
@@ -129,10 +131,10 @@ class Admin(plugins.Plugin):
                 for idx, page in enumerate(texts):
                     if chunked_output and idx <= stdout_indexes:
                         page = (
-                            f"Standard Output: ```py\n{page.replace('`', zws+'`')}```\n"
+                            f"Standard Output: ```py\n{page.replace('`', ZWS+'`')}```\n"
                         )
                     else:
-                        page = f"Return Value: ```py\n{page.replace('`', zws+'`')}```\n"
+                        page = f"Return Value: ```py\n{page.replace('`', ZWS+'`')}```\n"
 
                     page = f"{page}{measured_time} | {idx + 1}/{len(texts)}"
                     pages.append(page)
@@ -162,7 +164,7 @@ class Admin(plugins.Plugin):
                 await ctx.respond(
                     f"""
 Error: ```py
-{traceback_info.replace('`', zws+'`')}
+{traceback_info.replace('`', ZWS+'`')}
 ```
 {measured_time}
 """
