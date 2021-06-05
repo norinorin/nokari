@@ -154,7 +154,7 @@ class Meta(plugins.Plugin):
 
         admin = self.bot.get_plugin("Admin")
         stdout, stderr = await admin.run_command_in_shell("git rev-parse HEAD")
-        commit_hash = stdout if not stderr else "master"
+        commit_hash = stdout.strip() if not stderr else "master"
 
         await ctx.respond(f"<{base_url}/blob/{commit_hash}/{blob}{hash_jump}>")
 
