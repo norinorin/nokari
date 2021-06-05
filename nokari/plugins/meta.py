@@ -152,7 +152,11 @@ class Meta(plugins.Plugin):
         hash_jump = f"#L{lineno}-L{lineno+len(lines)-1}"
         blob = f"{actual_obj.__module__.replace('.', '/')}.py"
 
-        await ctx.respond(f"<{base_url}/blob/master/{blob}{hash_jump}>")
+        admin = self.bot.get_plugin("Admin")
+        stdout, stderr = await admin.run_command_in_shell("git rev-parse HEAD")
+        commit_hash = stdout if not stderr else "master"
+
+        await ctx.respond(f"<{base_url}/blob/{commit_hash}/{blob}{hash_jump}>")
 
 
 def load(bot: Bot) -> None:
