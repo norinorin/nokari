@@ -2,10 +2,10 @@ import ast
 import asyncio
 import importlib
 import re
+import subprocess
 import time
 import traceback
 import typing
-import subprocess
 from contextlib import redirect_stdout
 from inspect import getsource
 from io import StringIO
@@ -15,7 +15,6 @@ from lightbulb import Bot, checks, plugins
 
 from nokari import core, utils
 from nokari.core import Context
-
 
 ZWS = "\u200b"
 
