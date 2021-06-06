@@ -16,7 +16,7 @@ from lightbulb import Bot, checks, plugins
 from nokari import core, utils
 from nokari.core import Context
 
-ZWS = "\u200b"
+ZWS_ACUTE = "\u200b`"
 
 
 class Admin(plugins.Plugin):
@@ -108,11 +108,13 @@ class Admin(plugins.Plugin):
                 return
 
             output = (
-                f"Standard Output: ```py\n{stdout_val.replace('`', ZWS+'`')}```\n"
+                f"Standard Output: ```py\n{stdout_val.replace('`', ZWS_ACUTE)}```\n"
                 if stdout_val
                 else ""
             )
-            output = f"{output}Return Value: ```py\n{result.replace('`', ZWS+'`')}```\n"
+            output = (
+                f"{output}Return Value: ```py\n{result.replace('`', ZWS_ACUTE)}```\n"
+            )
 
             if len(output) < n:
                 output = f"{output}{measured_time}"
@@ -131,11 +133,11 @@ class Admin(plugins.Plugin):
 
                 for idx, page in enumerate(texts):
                     if chunked_output and idx <= stdout_indexes:
-                        page = (
-                            f"Standard Output: ```py\n{page.replace('`', ZWS+'`')}```\n"
-                        )
+                        page = f"Standard Output: ```py\n{page.replace('`', ZWS_ACUTE)}```\n"
                     else:
-                        page = f"Return Value: ```py\n{page.replace('`', ZWS+'`')}```\n"
+                        page = (
+                            f"Return Value: ```py\n{page.replace('`', ZWS_ACUTE)}```\n"
+                        )
 
                     page = f"{page}{measured_time} | {idx + 1}/{len(texts)}"
                     pages.append(page)
@@ -165,7 +167,7 @@ class Admin(plugins.Plugin):
                 await ctx.respond(
                     f"""
 Error: ```py
-{traceback_info.replace('`', ZWS+'`')}
+{traceback_info.replace('`', ZWS_ACUTE)}
 ```
 {measured_time}
 """
@@ -190,7 +192,7 @@ Error: ```py
 
         paginator = utils.Paginator.default(ctx)
         paginator._pages = [
-            f"```{i.replace('`', ZWS+'`')}```" for i in utils.chunk(output, 1900)
+            f"```{i.replace('`', ZWS_ACUTE)}```" for i in utils.chunk(output, 1900)
         ]
         await paginator.start()
 
