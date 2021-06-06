@@ -48,12 +48,17 @@ def get_dominant_color(im: Image.Image) -> typing.Tuple[int]:
     """Gets the color with the most occurences."""
     arr = numpy.array(im)
     a2D = arr.reshape(-1, arr.shape[-1])
+
+    if a2D.shape[-1] == 4:
+        a2D = a2D[a2D.T[-1] > 128]
+
     env = {
         "r": a2D[:, 0],
         "g": a2D[:, 1],
         "b": a2D[:, 2],
         "ucs": U_CHAR_OVERFLOW,
     }
+
     return numpy.unravel_index(
         numpy.bincount(numexpr.evaluate("r*ucs*ucs+g*ucs+b", env)).argmax(),
         (U_CHAR_OVERFLOW,) * 3,
