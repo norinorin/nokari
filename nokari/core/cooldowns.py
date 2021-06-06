@@ -1,6 +1,5 @@
 """A module that contains custom cooldown implementation."""
 
-import time
 import typing
 
 from lightbulb import Bucket, commands, cooldowns
@@ -14,6 +13,7 @@ def cooldown(
     length: float,
     usages: int,
     bucket: Bucket,
+    *,
     elements: typing.Optional[typing.Sequence[int]] = None,
     alter_length: float = 0,
     alter_usages: int = 1,
