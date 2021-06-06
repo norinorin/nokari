@@ -49,14 +49,13 @@ def get_dominant_color(im: Image.Image) -> typing.Tuple[int]:
     arr = numpy.array(im)
     a2D = arr.reshape(-1, arr.shape[-1])
     env = {
-        "a0": a2D[:, 0],
-        "a1": a2D[:, 1],
-        "a2": a2D[:, 2],
-        "s0": U_CHAR_OVERFLOW,
-        "s1": U_CHAR_OVERFLOW,
+        "r": a2D[:, 0],
+        "g": a2D[:, 1],
+        "b": a2D[:, 2],
+        "ucs": U_CHAR_OVERFLOW,
     }
     return numpy.unravel_index(
-        numpy.bincount(numexpr.evaluate("a0*s0*s1+a1*s0+a2", env)).argmax(),
+        numpy.bincount(numexpr.evaluate("r*ucs*ucs+g*ucs+b", env)).argmax(),
         (U_CHAR_OVERFLOW,) * 3,
     )
 
