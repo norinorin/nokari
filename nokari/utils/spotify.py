@@ -549,7 +549,7 @@ class SpotifyClient:
 
         def get_dom_color() -> typing.Optional[_RGB]:
             im = Image.open(image)
-            if has_transparency(im) or mode == "colorthief":
+            if mode == "colorthief":
                 return None
 
             w, h = [i // 4 for i in im.size]
@@ -562,20 +562,20 @@ class SpotifyClient:
 
             elif "left-right" in mode:
                 div = w // 6
-                back_im = Image.new("RGB", (div * 2, h), 0)
+                back_im = Image.new("RGBA", (div * 2, h), 0)
                 left = im.crop((0, 0, div, h))
                 right = im.crop((w - div, 0, w, h))
-                back_im.paste(left, (0, 0))
-                back_im.paste(right, (div, 0))
+                back_im.paste(left, (0, 0), left)
+                back_im.paste(right, (div, 0), right)
                 im = back_im
 
             elif "top-bottom" in mode:
                 div = h // 6
-                back_im = Image.new("RGB", (w, div * 2), 0)
+                back_im = Image.new("RGBA", (w, div * 2), 0)
                 top = im.crop((0, 0, w, div))
                 bot = im.crop((0, h - div, w, h))
-                back_im.paste(top, (0, 0))
-                back_im.paste(bot, (0, div))
+                back_im.paste(top, (0, 0), top)
+                back_im.paste(bot, (0, div), bot)
                 im = back_im
 
             if "blur" in mode:
