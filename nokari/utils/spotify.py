@@ -586,7 +586,7 @@ class SpotifyClient:
             return dom_color
 
         dom_color, palette = get_dom_color(), get_palette()
-        if dom_color is None and palette is not None:
+        if dom_color is None:
             dom_color = palette.pop(0)
 
         return dom_color, palette
