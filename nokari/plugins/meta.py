@@ -87,12 +87,12 @@ class Meta(plugins.Plugin):
         memory_full_info = self.process.memory_full_info()
         if not owner:
             name = "Memory:"
-            value = f"{round(memory_full_info.uss / 1024** 2, 2)}MiB"
+            value = f"{round(memory_full_info.uss / 1_024 ** 2, 2)}MiB"
         else:
             name = "RSS / USS:"
             value = (
-                f"{round(memory_full_info.rss / 1024 ** 2, 2)}MiB "
-                f"/ {round(memory_full_info.uss / 1024** 2, 2)}MiB"
+                f"{round(memory_full_info.rss / 1_024 ** 2, 2)}MiB "
+                f"/ {round(memory_full_info.uss / 1_024 ** 2, 2)}MiB"
             )
 
         embed.add_field(name=name, value=value, inline=True)
@@ -101,7 +101,7 @@ class Meta(plugins.Plugin):
     @core.commands.command(aliases=["pong", "latency"])
     async def ping(self, ctx: Context) -> None:
         """Displays the WebSocket latency to the Discord gateway."""
-        latency = int(ctx.bot.heartbeat_latency * 1000)
+        latency = int(ctx.bot.heartbeat_latency * 1_000)
         emoji = "🔴" if latency > 500 else "🟡" if latency > 100 else "🟢"
         await ctx.respond(f"Pong? {emoji} {latency}ms")
 

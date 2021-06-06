@@ -456,7 +456,7 @@ class SpotifyClient:
         "nokari/assets/fonts/Arial-Unicode-Bold.ttf", size=60
     )
     SIDE_GAP = 50
-    WIDTH = 1280
+    WIDTH = 1_280
 
     def __init__(self, bot: Bot) -> None:
         self.bot = bot

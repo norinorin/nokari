@@ -100,8 +100,8 @@ class Admin(plugins.Plugin):
                 result = str(await func())
                 timedelta = time.monotonic() - t0
 
-            n = 1900
-            measured_time = f"⏲️ {timedelta * 1000}ms"
+            n = 1_900
+            measured_time = f"⏲️ {timedelta * 1_000}ms"
             stdout_val = stdout.getvalue()
 
             if status:
@@ -157,7 +157,7 @@ class Admin(plugins.Plugin):
         # pylint: disable=broad-except
         except Exception:
             timedelta = time.monotonic() - t0
-            measured_time = f"⏲️ {timedelta * 1000}ms"
+            measured_time = f"⏲️ {timedelta * 1_000}ms"
             try:
                 traceback_info = re.sub(
                     fr'"[\W\w]+\/{__name__}\.py"',

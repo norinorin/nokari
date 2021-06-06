@@ -480,7 +480,7 @@ class API(plugins.Plugin):
         if not entries:
             raise RuntimeError("Couldn't find anything...")
 
-        chunks = chunk_from_list(entries, 2048)
+        chunks = chunk_from_list(entries, 2_048)
         length = len(chunks)
         paginator = Paginator.default(ctx)
 
