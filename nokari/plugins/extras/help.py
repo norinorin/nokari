@@ -1,10 +1,10 @@
 import datetime
-import inspect
 import typing
 from operator import attrgetter
 
 import hikari
-from lightbulb import Bot, commands
+from lightbulb import context as context_
+from lightbulb import Bot, commands, converters
 from lightbulb import help as help_
 from lightbulb import plugins
 
@@ -59,6 +59,19 @@ class CustomHelp(help_.HelpCommand):
         return embed
 
     @staticmethod
+    def is_consume_rest_converter(
+        converter: converters._BaseConverter,
+    ) -> bool:
+        while 1:
+            if isinstance(converter, converters._ConsumeRestConverter):
+                return True
+
+            if not (converter := getattr(converter, "converter", None)):
+                break
+
+        return False
+
+    @staticmethod
     def get_command_signature(command: commands.Command) -> str:
         """
         Gets the command signature for a command or a command group.
@@ -78,16 +91,20 @@ class CustomHelp(help_.HelpCommand):
         if usage := getattr(command, "usage", None):
             items.append(usage)
         else:
-            for argname, arginfo in command.arg_details.args.items():
-                if arginfo.ignore or argname in ("self", "ctx"):
+            for argname, converter in zip(
+                command.arg_details.arguments, command.arg_details.converters
+            ):
+                if isinstance(converter, converters._Converter) and issubclass(
+                    converter.conversion_func, context_.Context
+                ):
                     continue
 
-                if arginfo.default is inspect.Parameter.empty:
-                    items.append(f"<{argname}>")
+                if isinstance(converter, converters._DefaultingConverter):
+                    items.append(f"[{argname}={converter.default!r}]")
                 else:
-                    items.append(f"[{argname}={arginfo.default!r}]")
+                    items.append(f"<{argname}>")
 
-                if arginfo.argtype is inspect.Parameter.KEYWORD_ONLY:
+                if CustomHelp.is_consume_rest_converter(converter):
                     break
 
         return " ".join(items)
