@@ -112,17 +112,14 @@ class Cursor:
             return key[len(option) :]
 
         short_flags: typing.Set[str] = {flag.lstrip("-") for flag in self.short_flags}
-        used_flags: typing.Set[str] = set()
 
         while key:
-            flag = utils.find(
-                short_flags, lambda x: x not in used_flags and key.startswith(x)
-            )
+            flag = utils.find(short_flags, key.startswith)
 
             if not flag:
                 break
 
-            used_flags.add(flag)
+            short_flags.remove(flag)
             key = key[len(flag) :]
             self.data[self.short_flags[f"-{flag}"]] = [TRUE]
         else:
