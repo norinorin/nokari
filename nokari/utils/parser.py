@@ -22,6 +22,12 @@ class Cursor:
         self.parser = parser
         self.current = parser._remainder
         self.data: typing.Dict[str, typing.List[str]] = {self.current: []}
+        self._short_options: typing.Set[str] = {
+            option.lstrip("-") for option in self.short_options
+        }
+        self._short_flags: typing.Set[str] = {
+            flag.lstrip("-") for flag in self.short_flags
+        }
 
     @property
     def remainder(self) -> str:
@@ -102,24 +108,19 @@ class Cursor:
 
     def parse_short_keys(self, argument: str) -> str:
         key = argument[1:]
-        short_options: typing.Set[str] = {
-            option.lstrip("-") for option in self.short_options
-        }
-        option = utils.find(short_options, key.startswith)
+        option = utils.find(self._short_options, key.startswith)
 
         if option:
             self.current = self.short_options[f"-{option}"]
             return key[len(option) :]
 
-        short_flags: typing.Set[str] = {flag.lstrip("-") for flag in self.short_flags}
-
         while key:
-            flag = utils.find(short_flags, key.startswith)
+            flag = utils.find(self._short_flags, key.startswith)
 
             if not flag:
                 break
 
-            short_flags.remove(flag)
+            self._short_flags.remove(flag)
             key = key[len(flag) :]
             self.data[self.short_flags[f"-{flag}"]] = [TRUE]
         else:
