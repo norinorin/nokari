@@ -1,6 +1,7 @@
 """A module that contains helper function for image generating purpose."""
 
 import typing
+from functools import cache  # type: ignore
 
 import numexpr
 import numpy
@@ -23,12 +24,13 @@ def has_transparency(im: Image.Image) -> bool:
     return im.mode == "RGBA"
 
 
-def round_corners(im: Image.Image, rad: int) -> None:
-    """Rounds the corners of the image."""
-    alpha, circle = Image.new("L", im.size, 255), Image.new("L", (rad * 2, rad * 2), 0)
+@cache
+def _get_alpha_mask(size: typing.Tuple[int, int], rad: int) -> Image.Image:
+    """Gets the alpha mask."""
+    alpha, circle = Image.new("L", size, 255), Image.new("L", (rad * 2, rad * 2), 0)
     draw = ImageDraw.Draw(circle)
     draw.ellipse((0, 0, rad * 2, rad * 2), fill=255)
-    w, h = im.size
+    w, h = size
 
     bboxes = (
         (0, 0, rad, rad),
@@ -41,7 +43,12 @@ def round_corners(im: Image.Image, rad: int) -> None:
     for bbox, coord in zip(bboxes, coords):
         alpha.paste(circle.crop(bbox), coord)
 
-    im.putalpha(alpha)
+    return alpha
+
+
+def round_corners(im: Image.Image, rad: int) -> None:
+    """Rounds the corners of the image."""
+    im.putalpha(_get_alpha_mask(im.size, rad))
 
 
 def get_dominant_color(im: Image.Image) -> typing.Tuple[int]:
