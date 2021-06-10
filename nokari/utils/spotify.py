@@ -500,7 +500,6 @@ class SpotifyClient:
         size: typing.Tuple[int, int], rad: int, fill: _RGB
     ) -> Image.Image:
         """Generates a rounded rectangle image."""
-
         rectangle = Image.new("RGBA", size, fill)
         round_corners(rectangle, rad)
         return rectangle
@@ -655,7 +654,7 @@ class SpotifyClient:
             rgbs: typing.Tuple[typing.Tuple[_RGB, _RGBs]],
             im: Image.Image,
         ) -> typing.Tuple[Image.Image, typing.Optional[_SpotifyCardMetadata]]:
-            canvas = Image.new("RGB", (width, height), rgbs[0])
+            canvas = Image.new("RGBA", (width, height), rgbs[0])
 
             round_corners(im, self.SIDE_GAP)
 
@@ -762,7 +761,7 @@ class SpotifyClient:
         def wrapper(
             metadata: SongMetadata,
         ) -> typing.Tuple[Image.Image, typing.Optional[_SpotifyCardMetadata]]:
-            canvas = Image.new("RGB", (width, height), rgbs[0])
+            canvas = Image.new("RGBA", (width, height), rgbs[0])
 
             base_rad = width * 0.0609375
 
