@@ -32,6 +32,7 @@ if typing.TYPE_CHECKING:
 _RGB = typing.Tuple[int, ...]
 _RGBs = typing.List[_RGB]
 T = typing.TypeVar("T", bound="BaseSpotify")
+PI_RAD: int = 180
 
 
 class NoSpotifyPresenceError(Exception):
@@ -500,9 +501,17 @@ class SpotifyClient:
         size: typing.Tuple[int, int], rad: int, fill: _RGB
     ) -> Image.Image:
         """Generates a rounded rectangle image."""
-        rectangle = Image.new("RGBA", size, fill)
-        round_corners(rectangle, rad)
-        return rectangle
+        base = Image.new("RGBA", size, fill)
+        corner = Image.new("RGBA", (rad,) * 2, (0,) * 4)
+        draw = ImageDraw.Draw(corner)
+        draw.pieslice([*(0,) * 2, *(rad * 2,) * 2], PI_RAD, PI_RAD * 3 / 2, fill=fill)
+
+        for i, coord in enumerate(
+            zip([*(0,) * 2, *(size[0] - rad,) * 2], [0, *(size[1] - rad,) * 2, 0])
+        ):
+            base.paste(corner.rotate(i * 90), coord)
+
+        return base
 
     @caches.cache(20)
     async def _get_album(self, album_url: str) -> bytes:

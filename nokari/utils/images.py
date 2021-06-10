@@ -7,7 +7,6 @@ import numpy
 from PIL import Image, ImageDraw, ImageFilter
 
 U_CHAR_OVERFLOW: int = 2 << 7
-PI_RAD: int = 180
 __all__: typing.Final[typing.List[str]] = [
     "has_transparency",
     "round_corners",
@@ -26,17 +25,23 @@ def has_transparency(im: Image.Image) -> bool:
 
 def round_corners(im: Image.Image, rad: int) -> None:
     """Rounds the corners of the image."""
-    fill = im.getpixel((0,) * 2)
+    alpha, circle = Image.new("L", im.size, 255), Image.new("L", (rad * 2, rad * 2), 0)
+    draw = ImageDraw.Draw(circle)
+    draw.ellipse((0, 0, rad * 2, rad * 2), fill=255)
     w, h = im.size
 
-    corner = Image.new("RGBA", (rad,) * 2, (0,) * 4)
-    draw = ImageDraw.Draw(corner)
-    draw.pieslice([*(0,) * 2, *(rad * 2,) * 2], PI_RAD, PI_RAD * 3 / 2, fill=fill)
+    bboxes = (
+        (0, 0, rad, rad),
+        (0, rad, rad, rad * 2),
+        (rad, 0, rad * 2, rad),
+        (rad, rad, rad * 2, rad * 2),
+    )
+    coords = (0, 0), (0, h - rad), (w - rad, 0), (w - rad, h - rad)
 
-    for i, coord in enumerate(
-        zip([*(0,) * 2, *(w - rad,) * 2], [0, *(h - rad,) * 2, 0])
-    ):
-        im.paste(corner.rotate(i * 90), coord)
+    for bbox, coord in zip(bboxes, coords):
+        alpha.paste(circle.crop(bbox), coord)
+
+    im.putalpha(alpha)
 
 
 def get_dominant_color(im: Image.Image) -> typing.Tuple[int]:
