@@ -1,7 +1,7 @@
 """A module that contains helper function for image generating purpose."""
 
-import typing
 import math
+import typing
 
 import numexpr
 import numpy
