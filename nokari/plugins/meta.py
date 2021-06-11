@@ -27,24 +27,26 @@ class Meta(plugins.Plugin):
     def get_info(self, embed: hikari.Embed, owner: bool = False) -> None:
         """Modifies the embed to contain the statistics."""
         total_members = sum(
-            g.member_count
-            for g in self.bot.cache.get_available_guilds_view().iterator()
+            [
+                g.member_count
+                for g in self.bot.cache.get_available_guilds_view().values()
+            ]
         )
         channels = (
             "\n".join(
                 f"{v} {str(k).split('_', 2)[-1].lower()}"
                 for k, v in Counter(
-                    c.type for c in self.bot.cache.get_guild_channels_view().iterator()
+                    [c.type for c in self.bot.cache.get_guild_channels_view().values()]
                 ).items()
             )
             or "No cached channels..."
         )
-        presences = sum(len(i) for i in self.bot.cache.get_presences_view().iterator())
+        presences = sum([len(i) for i in self.bot.cache.get_presences_view().values()])
         counter = Counter(
             [
                 m.is_bot
-                for mapping in self.bot.cache.get_members_view().iterator()
-                for m in mapping.iterator()
+                for mapping in self.bot.cache.get_members_view().values()
+                for m in mapping.values()
             ]
         )
         bots, human = counter[True], counter[False]
