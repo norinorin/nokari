@@ -24,12 +24,17 @@ async def caret_converter(arg: WrappedArg) -> typing.Optional[hikari.Message]:
     if set(arg) == {"^"}:
         n = len(arg)
         try:
-            ret = [
-                i
-                for i in arg.context.bot.cache.get_messages_view().iterator()
-                if i.created_at < arg.context.message.created_at
-                and i.channel_id == arg.context.channel_id
-            ][-n]
+            ret = (
+                await arg.context.bot.cache.get_messages_view()
+                .iterator()
+                .filter(
+                    lambda m: m.created_at < arg.context.message.created_at
+                    and m.channel_id == arg.context.channel_id
+                )
+                .reversed()
+                .limit(n)
+                .collect(list)
+            )[n]
         except IndexError:
             ret = await (
                 arg.context.channel.history(before=arg.context.message_id)
