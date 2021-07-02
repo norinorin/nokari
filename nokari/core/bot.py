@@ -58,6 +58,7 @@ class Nokari(lightbulb.Bot):
             insensitive_commands=True,
             prefix=lightbulb.when_mentioned_or(_get_prefixes),
             owner_ids=[265080794911866881],
+            logs=os.getenv("LOG_LEVEL", "INFO"),
         )
 
         # Custom cache

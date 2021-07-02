@@ -17,6 +17,7 @@ DISCORD_BOT_TOKEN=TOKEN
 SPOTIPY_CLIENT_ID=SPOTIFY_CLIENT_ID
 SPOTIPY_CLIENT_SECRET=SPOTIFY_CLIENT_SECRET
 POSTGRESQL_DSN=postgresql://user:pass@ip:port/database
+LOG_LEVEL=INFO  # Defaults to INFO if not present.
 
 # This one is optional, use it at your own risk.
 DISCORD_BROWSER=
