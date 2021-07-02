@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import hikari
 import lightbulb
-from hikari import Message
+from hikari import Message, PartialMessage
 from hikari import embeds as embeds_
 from hikari import files, guilds, snowflakes, undefined, users
 
@@ -34,22 +34,25 @@ class Context(lightbulb.Context):
         content: undefined.UndefinedOr[typing.Any] = undefined.UNDEFINED,
         *,
         embed: undefined.UndefinedOr[embeds_.Embed] = undefined.UNDEFINED,
+        embeds: undefined.UndefinedOr[
+            typing.Sequence[embeds_.Embed]
+        ] = undefined.UNDEFINED,
         attachment: undefined.UndefinedOr[files.Resourceish] = undefined.UNDEFINED,
         attachments: undefined.UndefinedOr[
             typing.Sequence[files.Resourceish]
         ] = undefined.UNDEFINED,
-        tts: undefined.UndefinedOr[bool] = undefined.UNDEFINED,
         nonce: undefined.UndefinedOr[str] = undefined.UNDEFINED,
+        tts: undefined.UndefinedOr[bool] = undefined.UNDEFINED,
+        reply: undefined.UndefinedOr[
+            snowflakes.SnowflakeishOr[PartialMessage]
+        ] = undefined.UNDEFINED,
         mentions_everyone: undefined.UndefinedOr[bool] = undefined.UNDEFINED,
+        mentions_reply: undefined.UndefinedOr[bool] = undefined.UNDEFINED,
         user_mentions: undefined.UndefinedOr[
-            typing.Union[
-                typing.Collection[snowflakes.SnowflakeishOr[users.PartialUser]], bool
-            ]
+            typing.Union[snowflakes.SnowflakeishSequence[users.PartialUser], bool]
         ] = undefined.UNDEFINED,
         role_mentions: undefined.UndefinedOr[
-            typing.Union[
-                typing.Collection[snowflakes.SnowflakeishOr[guilds.PartialRole]], bool
-            ]
+            typing.Union[snowflakes.SnowflakeishSequence[guilds.PartialRole], bool]
         ] = undefined.UNDEFINED,
         paginator: typing.Optional["Paginator"] = None,
     ) -> Message:
@@ -67,44 +70,37 @@ class Context(lightbulb.Context):
             self.bot.responses_cache.get(self.message_id, 0)
         )
         if resp is not None and self.edited_timestamp:
-            contains_embed_attachments = (
-                resp.embeds
-                and (image := resp.embeds[0].image)
-                and f"/attachments/{self.channel_id}/" in image.url
+            if current_paginator := self.bot.paginators.get(resp.id):
+                await current_paginator.stop(not current_paginator == paginator)
+
+            return await resp.edit(
+                content=content or None,
+                embed=embed or None,
+                attachment=attachment,
+                attachments=attachments,
+                replace_attachments=True,
+                mentions_reply=mentions_reply,
+                mentions_everyone=mentions_everyone,
+                user_mentions=user_mentions,
+                role_mentions=role_mentions,
             )
-            if (
-                contains_embed_attachments
-                or resp.attachments
-                or attachment
-                or attachments
-            ):
-                await resp.delete()
-
-            else:
-                if current_paginator := self.bot.paginators.get(resp.id):
-                    await current_paginator.stop(not current_paginator == paginator)
-
-                return await resp.edit(
-                    content=content or None,
-                    embed=embed or None,
-                    mentions_everyone=mentions_everyone,
-                    user_mentions=user_mentions,
-                    role_mentions=role_mentions,
-                )
 
         elif resp is None:
             self.bot.responses_cache.pop(self.message_id, None)
 
         resp = await super().respond(
             content=content,
-            tts=tts,
             embed=embed,
+            embeds=embeds,
             attachment=attachment,
             attachments=attachments,
             nonce=nonce,
+            tts=tts,
+            reply=reply,
             mentions_everyone=mentions_everyone,
             user_mentions=user_mentions,
             role_mentions=role_mentions,
+            mentions_reply=mentions_reply,
         )
 
         self.bot.responses_cache[self.message_id] = resp.id
