@@ -77,7 +77,7 @@ class Config(plugins.Plugin):
 
         if not prefixes.get(ctx.guild_id):
             self.bot.prefixes.pop(ctx.guild_id, None)
-            prefixes[ctx.guild_id] = self.bot.default_prefix
+            prefixes[ctx.guild_id] = self.bot.default_prefixes
 
         embed = hikari.Embed(
             title="Prefixes",

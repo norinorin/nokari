@@ -2,6 +2,7 @@
 
 import asyncio
 import datetime
+import functools
 import importlib
 import logging
 import os
@@ -30,7 +31,7 @@ __all__: typing.Final[typing.List[str]] = ["Nokari"]
 
 def _get_prefixes(bot: lightbulb.Bot, message: hikari.Message) -> typing.List[str]:
     prefixes = bot.prefixes
-    return prefixes.get(message.guild_id, bot.default_prefix) + prefixes.get(
+    return prefixes.get(message.guild_id, bot.default_prefixes) + prefixes.get(
         message.author.id, []
     )
 
@@ -77,9 +78,6 @@ class Nokari(lightbulb.Bot):
         # Responses cache
         self._resp_cache = LRU(1024)
 
-        # load extensions
-        self.load_extensions()
-
         # Paginator caches
         self._paginators: weakref.WeakValueDictionary = weakref.WeakValueDictionary()
 
@@ -99,12 +97,21 @@ class Nokari(lightbulb.Bot):
         # Set Launch time
         self.launch_time: typing.Optional[datetime.datetime] = None
 
-        # Create a pool
-        self.loop.run_until_complete(self.create_pool())
+        # Default prefixes
+        self.default_prefixes = ["nokari", "n!"]
 
-        # Cache prefixes
-        self.default_prefix = ["nokari", "n!"]
-        self.loop.run_until_complete(self._load_prefixes())
+    @functools.wraps(lightbulb.Bot.start)
+    async def start(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+        await super().start(*args, **kwargs)
+        await self.create_pool()
+        await self._load_prefixes()
+
+    @functools.wraps(lightbulb.Bot.close)
+    async def close(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+        if self.pool:
+            await self.pool.close()
+
+        await super().close(*args, **kwargs)
 
     @property
     def default_color(self) -> hikari.Color:
@@ -113,8 +120,8 @@ class Nokari(lightbulb.Bot):
 
     @property
     def loop(self) -> asyncio.AbstractEventLoop:
-        """Returns an asyncio event loop."""
-        return asyncio.get_event_loop()
+        """Returns the running event loop."""
+        return asyncio.get_running_loop()
 
     @property
     def session(self) -> typing.Optional[aiohttp.ClientSession]:
@@ -150,6 +157,10 @@ class Nokari(lightbulb.Bot):
 
     async def on_started(self, _: hikari.StartedEvent) -> None:
         """Sets the launch time as soon as it connected to Discord gateway."""
+        # load extensions
+        # Ensure every cogs are in async context.
+        self.load_extensions()
+
         if self.launch_time is None:
             self.launch_time = datetime.datetime.utcnow()
 
@@ -237,13 +248,6 @@ class Nokari(lightbulb.Bot):
                         )
                     )
                 )
-
-    def run(self, *args: typing.Any, **kwargs: typing.Any) -> None:
-        try:
-            return super().run(close_loop=False, *args, **kwargs)
-        finally:
-            if self.pool:
-                self.loop.run_until_complete(self.pool.close())
 
 
 @checks.owner_only()

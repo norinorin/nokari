@@ -1,4 +1,5 @@
 """The main entry of the program."""
+import asyncio
 import os
 import sys
 from pathlib import Path
@@ -32,4 +33,13 @@ if browser := os.getenv("DISCORD_BROWSER"):
     set_browser(browser)
 
 
-Nokari().run()
+async def main() -> None:
+    nokari = Nokari()
+    try:
+        await nokari.start()
+        await nokari.join()
+    finally:
+        await nokari.close()
+
+
+asyncio.run(main())

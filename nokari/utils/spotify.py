@@ -364,6 +364,7 @@ class SpotifyCache:
         self._queries: typing.Dict[str, LRU] = {
             i: LRU(50) for i in ("artist", "track", "album")
         }
+        asyncio.get_running_loop().create_task(self.clear())
 
     # pylint: disable=redefined-builtin
     def get_container(self, type: str) -> LRU:
@@ -415,6 +416,16 @@ class SpotifyCache:
     def get_queries(self, type_name: str) -> LRU:
         return self._queries[type_name]
 
+    async def clear(self) -> None:
+        while 1:
+            await asyncio.sleep(86400)
+            self._tracks.clear()
+            self._artists.clear()
+            self._audio_features.clear()
+            self._top_tracks.clear()
+            self._albums.clear()
+            _ = [i.clear() for i in self._queries.values()]
+
 
 class SpotifyRest:
     def __init__(
@@ -424,7 +435,7 @@ class SpotifyRest:
         executor: typing.Any = None,
     ) -> None:
         self.spotipy = spotipy.Spotify(auth_manager=spotipy.SpotifyClientCredentials())
-        self._loop = loop or asyncio.get_event_loop()
+        self._loop = loop or asyncio.get_running_loop()
         self._executor = executor
 
     def __getattr__(self, attr: str) -> partial[typing.Awaitable[typing.Any]]:
