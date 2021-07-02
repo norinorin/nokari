@@ -1,6 +1,5 @@
 """The main entry of the program."""
 import os
-
 import sys
 from pathlib import Path
 
