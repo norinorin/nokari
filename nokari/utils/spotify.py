@@ -364,7 +364,7 @@ class SpotifyCache:
         self._queries: typing.Dict[str, LRU] = {
             i: LRU(50) for i in ("artist", "track", "album")
         }
-        asyncio.get_running_loop().create_task(self.clear())
+        asyncio.create_task(self.start_clear_loop())
 
     # pylint: disable=redefined-builtin
     def get_container(self, type: str) -> LRU:
@@ -416,7 +416,7 @@ class SpotifyCache:
     def get_queries(self, type_name: str) -> LRU:
         return self._queries[type_name]
 
-    async def clear(self) -> None:
+    async def start_clear_loop(self) -> None:
         while 1:
             await asyncio.sleep(86400)
             self._tracks.clear()

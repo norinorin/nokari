@@ -42,4 +42,8 @@ async def main() -> None:
         await nokari.close()
 
 
-asyncio.run(main())
+try:
+    asyncio.run(main(), debug=True)
+except KeyboardInterrupt:
+    # Don't propagate interrupts
+    pass
