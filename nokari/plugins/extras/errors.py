@@ -104,7 +104,7 @@ class Errors(plugins.Plugin):
 
     @staticmethod
     def handle_command_is_on_cooldown(
-        ctx: Context,
+        _ctx: Context,
         error: lightbulb.errors.CommandIsOnCooldown,
         embed: hikari.Embed,
     ) -> None:
@@ -123,7 +123,7 @@ class Errors(plugins.Plugin):
 
     @staticmethod
     def handle_missing_required_permission(
-        ctx: Context,
+        _ctx: Context,
         error: lightbulb.errors.MissingRequiredPermission,
         embed: hikari.Embed,
     ) -> None:
@@ -134,7 +134,7 @@ class Errors(plugins.Plugin):
 
     @staticmethod
     def handle_bot_missing_required_permission(
-        ctx: Context,
+        _ctx: Context,
         error: lightbulb.errors.BotMissingRequiredPermission,
         embed: hikari.Embed,
     ) -> None:
@@ -152,7 +152,7 @@ class Errors(plugins.Plugin):
         "_BaseError",  # Errors raised in view.py
     )
     def handle_converter_failure(
-        ctx: Context,
+        _ctx: Context,
         error: lightbulb.errors.ConverterFailure,
         embed: hikari.Embed,
     ) -> None:
