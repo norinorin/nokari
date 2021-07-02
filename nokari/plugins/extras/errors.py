@@ -1,10 +1,20 @@
 import typing
 from inspect import getmembers
-from string import capwords
 
 import hikari
 import lightbulb
 from lightbulb import Bot, plugins, utils
+from lightbulb.errors import (
+    BotMissingRequiredPermission,
+    CheckFailure,
+    CommandInvocationError,
+    CommandIsOnCooldown,
+    CommandSyntaxError,
+    ConverterFailure,
+    MissingRequiredPermission,
+    NotEnoughArguments,
+    UnclosedQuotes,
+)
 
 from nokari.core import Context
 
@@ -17,13 +27,13 @@ _ErrorHandlerT = typing.TypeVar(
 )
 
 
-def aliases(
-    *aliases_: str,
+def handle(
+    *errors: Exception,
 ) -> typing.Callable[[_ErrorHandlerT], _ErrorHandlerT]:
     def decorator(
         func: _ErrorHandlerT,
     ) -> _ErrorHandlerT:
-        func.__aliases__ = aliases_  # type: ignore
+        func.__errors__ = errors  # type: ignore
         return func
 
     return decorator
@@ -36,12 +46,9 @@ class Errors(plugins.Plugin):
         super().__init__()
         self.bot = bot
         self.handlers = {}
-        for attr, func in getmembers(self):
-            if attr.startswith("handle_"):
-                self.handlers[capwords(attr[7:], sep="_").replace("_", "")] = func
-                if hasattr(func, "__aliases__"):
-                    for alias in func.__aliases__:
-                        self.handlers[alias] = func
+        for _, func in getmembers(self):
+            for error in getattr(func, "__errors__", []):
+                self.handlers[error] = func
 
     @plugins.listener(lightbulb.CommandErrorEvent)
     async def on_error(self, event: lightbulb.CommandErrorEvent) -> None:
@@ -55,13 +62,13 @@ class Errors(plugins.Plugin):
         error = event.exception or event.exception.__cause__
         class_t = t if (t := error.__class__) is not type else error
         func = self.handlers.get(
-            class_t.__name__,
+            class_t,
             self.handlers.get(
-                parent.__name__  # pylint: disable=used-before-assignment
+                parent  # pylint: disable=used-before-assignment
                 if (
                     parent := utils.find(
                         class_t.__mro__,
-                        lambda cls: cls.__name__ in self.handlers,
+                        lambda cls: cls in self.handlers,
                     )
                 )
                 else None
@@ -90,6 +97,7 @@ class Errors(plugins.Plugin):
         )
 
     @staticmethod
+    @handle(NotEnoughArguments)
     def handle_not_enough_arguments(
         ctx: Context,
         error: lightbulb.errors.NotEnoughArguments,
@@ -103,6 +111,7 @@ class Errors(plugins.Plugin):
         )
 
     @staticmethod
+    @handle(CommandIsOnCooldown)
     def handle_command_is_on_cooldown(
         _ctx: Context,
         error: lightbulb.errors.CommandIsOnCooldown,
@@ -113,6 +122,7 @@ class Errors(plugins.Plugin):
         embed.set_footer(text=f"Please try again in {round(error.retry_in, 2)} seconds")
 
     @staticmethod
+    @handle(CommandInvocationError)
     def handle_command_invocation_error(
         ctx: Context,
         error: lightbulb.errors.CommandInvocationError,
@@ -122,6 +132,7 @@ class Errors(plugins.Plugin):
         embed.description = str(error.original)
 
     @staticmethod
+    @handle(MissingRequiredPermission)
     def handle_missing_required_permission(
         _ctx: Context,
         error: lightbulb.errors.MissingRequiredPermission,
@@ -133,6 +144,7 @@ class Errors(plugins.Plugin):
         embed.description = f"You're missing {perms} {plural} to invoke this command"
 
     @staticmethod
+    @handle(BotMissingRequiredPermission)
     def handle_bot_missing_required_permission(
         _ctx: Context,
         error: lightbulb.errors.BotMissingRequiredPermission,
@@ -145,12 +157,7 @@ class Errors(plugins.Plugin):
         )
 
     @staticmethod
-    @aliases(
-        "UnclosedQuotes",
-        "CheckFailure",
-        "CommandSyntaxError",
-        "_BaseError",  # Errors raised in view.py
-    )
+    @handle(ConverterFailure, UnclosedQuotes, CheckFailure, CommandSyntaxError)
     def handle_converter_failure(
         _ctx: Context,
         error: lightbulb.errors.ConverterFailure,
