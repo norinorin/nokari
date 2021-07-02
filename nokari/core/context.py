@@ -85,7 +85,7 @@ class Context(lightbulb.Context):
                 role_mentions=role_mentions,
             )
 
-        elif resp is None:
+        if resp is None:
             self.bot.responses_cache.pop(self.message_id, None)
 
         resp = await super().respond(
