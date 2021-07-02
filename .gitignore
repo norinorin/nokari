@@ -13,3 +13,6 @@ nokari.log
 
 # spotipy access token
 .cache
+
+# zipped app
+nokari.pyz
