@@ -1,7 +1,6 @@
 import ast
 import asyncio
 import importlib
-import re
 import subprocess
 import time
 import traceback
@@ -159,10 +158,8 @@ class Admin(plugins.Plugin):
             timedelta = time.monotonic() - t0
             measured_time = f"⏲️ {timedelta * 1_000}ms"
             try:
-                traceback_info = re.sub(
-                    fr'"[\W\w]+\/{__name__}\.py"',
-                    '"/dev/eval.py"',
-                    traceback.format_exc(),
+                traceback_info = traceback.format_exc().replace(
+                    __file__, "/dev/eval.py"
                 )
                 await ctx.respond(
                     f"""
