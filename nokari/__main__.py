@@ -1,11 +1,5 @@
 """The main entry of the program."""
-import asyncio
 import os
-import sys
-from pathlib import Path
-
-if (nokari_path := str(Path(__file__).parent / "..")) not in sys.path:
-    sys.path.insert(0, nokari_path)
 
 from dotenv import load_dotenv
 
@@ -32,18 +26,4 @@ if browser := os.getenv("DISCORD_BROWSER"):
 
     set_browser(browser)
 
-
-async def main() -> None:
-    nokari = Nokari()
-    try:
-        await nokari.start()
-        await nokari.join()
-    finally:
-        await nokari.close()
-
-
-try:
-    asyncio.run(main(), debug=True)
-except KeyboardInterrupt:
-    # Don't propagate interrupts
-    pass
+Nokari().run()

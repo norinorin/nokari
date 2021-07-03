@@ -111,6 +111,7 @@ class Nokari(lightbulb.Bot):
     async def close(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         if self.pool:
             await self.pool.close()
+            delattr(self, "_pool")
 
         await super().close(*args, **kwargs)
 
