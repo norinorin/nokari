@@ -103,55 +103,55 @@ class Admin(plugins.Plugin):
             measured_time = f"⏲️ {timedelta * 1_000}ms"
             stdout_val = stdout.getvalue()
 
-            if status:
-                return
-
             output = (
                 f"Standard Output: ```py\n{stdout_val.replace('`', ZWS_ACUTE)}```\n"
                 if stdout_val
                 else ""
             )
-            output = (
-                f"{output}Return Value: ```py\n{result.replace('`', ZWS_ACUTE)}```\n"
-            )
+
+            if not status:
+                output = f"{output}Return Value: ```py\n{result.replace('`', ZWS_ACUTE)}```\n"
+
+            if not output:
+                return
 
             if len(output) < n:
                 output = f"{output}{measured_time}"
                 await ctx.respond(output)
+                return
 
-            else:
-                chunked_output = (
-                    list(utils.chunk(stdout_val.strip(), n)) if stdout_val else []
-                )
-                chunked_return_value = list(utils.chunk(str(result), n))
+            chunked_output = (
+                list(utils.chunk(stdout_val.strip(), n)) if stdout_val else []
+            )
+            chunked_return_value = list(utils.chunk(str(result), n))
 
-                stdout_indexes = len(chunked_output) - 1
+            stdout_indexes = len(chunked_output) - 1
 
-                texts = chunked_output + chunked_return_value
-                pages = []
+            texts = chunked_output if status else chunked_output + chunked_return_value
+            pages = []
 
-                for idx, page in enumerate(texts):
-                    if chunked_output and idx <= stdout_indexes:
-                        page = f"Standard Output: ```py\n{page.replace('`', ZWS_ACUTE)}```\n"
-                    else:
-                        page = (
-                            f"Return Value: ```py\n{page.replace('`', ZWS_ACUTE)}```\n"
-                        )
+            for idx, page in enumerate(texts):
+                if chunked_output and idx <= stdout_indexes:
+                    page = (
+                        f"Standard Output: ```py\n{page.replace('`', ZWS_ACUTE)}```\n"
+                    )
+                else:
+                    page = f"Return Value: ```py\n{page.replace('`', ZWS_ACUTE)}```\n"
 
-                    page = f"{page}{measured_time} | {idx + 1}/{len(texts)}"
-                    pages.append(page)
+                page = f"{page}{measured_time} | {idx + 1}/{len(texts)}"
+                pages.append(page)
 
-                # IDK if this is a good idea, w/e
-                del texts
-                del stdout
-                del result
-                del chunked_output
-                del chunked_return_value
+            # IDK if this is a good idea, w/e
+            del texts
+            del stdout
+            del result
+            del chunked_output
+            del chunked_return_value
 
-                paginator = utils.Paginator.default(ctx)
-                paginator.add_page(pages)
+            paginator = utils.Paginator.default(ctx)
+            paginator.add_page(pages)
 
-                await paginator.start()
+            await paginator.start()
 
         # pylint: disable=broad-except
         except Exception:

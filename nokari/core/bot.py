@@ -82,9 +82,6 @@ class Nokari(lightbulb.Bot):
         # Paginator caches
         self._paginators: weakref.WeakValueDictionary = weakref.WeakValueDictionary()
 
-        # Subscribe to events
-        self.event_manager.subscribe(hikari.StartedEvent, self.on_started)
-
         # Setup logger
         self.setup_logger()
 
@@ -106,6 +103,8 @@ class Nokari(lightbulb.Bot):
         await super().start(*args, **kwargs)
         await self.create_pool()
         await self._load_prefixes()
+        self.load_extensions()
+        self.launch_time = datetime.datetime.utcnow()
 
     @functools.wraps(lightbulb.Bot.close)
     async def close(self, *args: typing.Any, **kwargs: typing.Any) -> None:
@@ -156,15 +155,6 @@ class Nokari(lightbulb.Bot):
             record["hash"]: record["prefixes"]
             for record in await self._pool.fetch("SELECT * FROM prefixes")
         }
-
-    async def on_started(self, _: hikari.StartedEvent) -> None:
-        """Sets the launch time as soon as it connected to Discord gateway."""
-        # load extensions
-        # Ensure every cogs are in async context.
-        self.load_extensions()
-
-        if self.launch_time is None:
-            self.launch_time = datetime.datetime.utcnow()
 
     def setup_logger(self) -> None:
         """Sets a logger that outputs to a file as well as stdout."""
