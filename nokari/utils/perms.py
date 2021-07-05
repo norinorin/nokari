@@ -1,7 +1,7 @@
 """A module that contains helper functions for permissions checking."""
 
 import typing
-from functools import wraps
+from functools import reduce, wraps
 
 import hikari
 
@@ -48,6 +48,9 @@ def _auto_resolve_guild(func: FuncT) -> FuncT:
 
 def _ensure_perms(perms: hikari.Permissions) -> hikari.Permissions:
     """Ensures the permissions."""
+    if perms & hikari.Permissions.ADMINISTRATOR:
+        return hikari.Permissions.all_permissions()
+
     if not perms & hikari.Permissions.SEND_MESSAGES:
         perms &= ~hikari.Permissions.SEND_TTS_MESSAGES
         perms &= ~hikari.Permissions.MENTION_ROLES
@@ -62,23 +65,14 @@ def _ensure_perms(perms: hikari.Permissions) -> hikari.Permissions:
 
 def get_guild_perms(guild: hikari.Guild, member: hikari.Member) -> hikari.Permissions:
     """Returns the guild-wide permissions of a member."""
-    ALL = hikari.Permissions(0b111111111111111111111111111111111)
-
     if guild.owner_id == member.id:
-        return ALL
+        return hikari.Permissions.all_permissions()
 
-    ret = guild.roles[guild.id].permissions
-
-    for role_id in member.role_ids:
-        if (role := guild.get_role(role_id)) is None:
-            continue
-
-        ret |= role.permissions
-
-    if ret & hikari.Permissions.ADMINISTRATOR:
-        return ALL
-
-    return _ensure_perms(ret)
+    return _ensure_perms(
+        reduce(
+            lambda acc, val: acc | val.permissions, member.roles, hikari.Permissions()
+        )
+    )
 
 
 def get_channel_perms(
