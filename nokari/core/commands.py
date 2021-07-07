@@ -41,7 +41,7 @@ class Group(commands.Group):
             name = name or func.__name__
             self._subcommands[name] = cls(
                 func,
-                name or func.__name__,
+                name,
                 allow_extra_arguments,
                 aliases or [],
                 hidden,
@@ -75,7 +75,7 @@ class Group(commands.Group):
             name = name or func.__name__
             self._subcommands[name] = self.__class__(
                 func,
-                name or func.__name__,
+                name,
                 allow_extra_arguments,
                 aliases or [],
                 hidden,
