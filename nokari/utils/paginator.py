@@ -18,7 +18,7 @@ from typing import (
 
 import hikari
 from hikari import snowflakes, undefined
-from hikari.impl.special_endpoints import _ButtonBuilder, ActionRowBuilder
+from hikari.impl.special_endpoints import ActionRowBuilder, _ButtonBuilder
 from hikari.interactions.component_interactions import ComponentInteraction
 from lightbulb.utils import maybe_await
 
