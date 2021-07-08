@@ -325,8 +325,12 @@ class Paginator:
         if self.is_paginated:
             kwargs["component"] = self.component
 
-        for button_wrapper in self._buttons.values():
-            await button_wrapper.ensure_button(self)
+        await asyncio.gather(
+            *[
+                button_wrapper.ensure_button(self)
+                for button_wrapper in self._buttons.values()
+            ]
+        )
 
         kwargs["response_type"] = hikari.ResponseType.MESSAGE_UPDATE
 
@@ -424,5 +428,5 @@ class Paginator:
         # Gonna ditch this as we can only have 5 buttons in an action row.
         # self.add_button(hikari.ButtonStyle.DANGER, "stop", "🔴", self.stop)
 
-        self.add_button(hikari.ButtonStyle.DANGER, "destroy", "❌", self.destroy)
+        self.add_button(hikari.ButtonStyle.DANGER, "destroy", "🗑️", self.destroy)
         return self
