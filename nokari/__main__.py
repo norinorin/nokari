@@ -26,4 +26,13 @@ if browser := os.getenv("DISCORD_BROWSER"):
 
     set_browser(browser)
 
-Nokari().run()
+
+nokari = Nokari()
+
+while 1:
+    try:
+        nokari.run()
+    except TimeoutError:
+        continue
+    
+    break
