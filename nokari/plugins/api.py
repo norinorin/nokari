@@ -269,16 +269,11 @@ class API(plugins.Plugin):
 
         paginator.add_page(initial_embed)
 
-        image = typing.cast(EmbedImage[AsyncReader], initial_embed.image)
-        thumbnail = typing.cast(EmbedImage[AsyncReader], initial_embed.thumbnail)
-
         for idx, chunk in enumerate(chunks, start=2):
             embed = (
-                hikari.Embed(
-                    title="Top tracks cont.", description=chunk, color=ctx.color
-                )
-                .set_image(image)
-                .set_thumbnail(thumbnail)
+                hikari.Embed(title="Top tracks cont.", description=chunk)
+                .set_image(initial_embed.image)
+                .set_thumbnail(initial_embed.thumbnail)
                 .set_footer(text=f"Page {idx}/{length}")
             )
             paginator.add_page(embed)
@@ -382,7 +377,7 @@ class API(plugins.Plugin):
 
         for idx, chunk in enumerate(chunks, start=2):
             embed = (
-                hikari.Embed(title="Tracks cont.", description=chunk, color=ctx.color)
+                hikari.Embed(title="Tracks cont.", description=chunk)
                 .set_image(image)
                 .set_thumbnail(thumbnail)
                 .set_footer(text=f"Pages {idx}/{length}")
@@ -486,7 +481,7 @@ class API(plugins.Plugin):
 
         for idx, chunk in enumerate(chunks, start=1):
             paginator.add_page(
-                hikari.Embed(description=chunk, color=ctx.color)
+                hikari.Embed(description=chunk)
                 .set_footer(text=f"Page {idx}/{length}")
                 .set_author(name="Hikari", url=BASE_URL, icon=f"{BASE_URL}/logo.png")
             )

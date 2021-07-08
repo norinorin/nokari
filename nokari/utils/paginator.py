@@ -1,7 +1,6 @@
 """A module that contains a paginator implementation."""
 
 import asyncio
-import enum
 from contextlib import suppress
 from typing import (
     TYPE_CHECKING,
@@ -14,21 +13,47 @@ from typing import (
     Optional,
     TypeVar,
     Union,
+    cast,
 )
 
 import hikari
 from hikari import snowflakes, undefined
-from lightbulb.utils import find, maybe_await
+from hikari.impl.special_endpoints import _ButtonBuilder, ActionRowBuilder
+from hikari.interactions.component_interactions import ComponentInteraction
+from lightbulb.utils import maybe_await
 
 if TYPE_CHECKING:
     from nokari.core.context import Context
 
-__all__: Final[List[str]] = ["EmptyPages", "Mode", "Paginator"]
+__all__: Final[List[str]] = ["EmptyPages", "Paginator"]
 _T = TypeVar("_T")
-_ButtonCallback = Callable[[], Union[Any, Coroutine[Any, Any, None]]]
+_ButtonCallback = Callable[..., Union[Any, Coroutine[Any, Any, None]]]
 _Pages = List[_T]
 _EventT_co = TypeVar("_EventT_co", bound=hikari.Event, covariant=True)
 _PredicateT = Callable[[_EventT_co], bool]
+
+
+def _handle_local_attachment(embed: hikari.Embed) -> None:
+    """
+    We've sent the attachments along with the components.
+    So, we just need to refer to them using the `attachment://` format.
+    This is just a hacky workaround for now.
+    """
+    if (url := str(embed.image)).startswith("attachment://"):
+        embed.set_image(hikari.URL(url))
+
+    if (url := str(embed.thumbnail)).startswith("attachment://"):
+        embed.set_thumbnail(hikari.URL(url))
+
+    if embed.footer and (url := str(embed.footer.icon)).startswith("attachment://"):
+        embed.set_footer(text=embed.footer.text, icon=hikari.URL(url))
+
+    if embed.author and (url := str(embed.author.icon)).startswith("attachment://"):
+        embed.set_author(
+            name=embed.author.name,
+            url=embed.author.url,
+            icon=hikari.URL(url),
+        )
 
 
 class EmptyPages(Exception):
@@ -38,14 +63,23 @@ class EmptyPages(Exception):
     """
 
 
-class Mode(enum.Enum):
-    """
-    Mode.STANDARD will listen to reaction remove,
-    while Mode.REMOVE will remove the reaction once the user reacted with it.
-    """
+class ButtonWrapper:
+    def __init__(
+        self,
+        button: hikari.impl.special_endpoints._ButtonBuilder,
+        callback: _ButtonCallback,
+        disable_if: Optional[_ButtonCallback] = None,
+    ):
+        self.button = button
+        self.callback = callback
+        self.disable_if = disable_if
 
-    STANDARD = 0
-    REMOVE = 1
+    async def ensure_button(self, paginator: "Paginator") -> None:
+        if self.disable_if is None:
+            # Keep the state as it was
+            return None
+
+        self.button._is_disabled = bool(await maybe_await(self.disable_if, paginator))
 
 
 class Paginator:
@@ -54,39 +88,37 @@ class Paginator:
     # pylint: disable=too-many-instance-attributes
 
     __slots__: List[str] = [
-        "allowed_mentions",
         "ctx",
         "_pages",
         "index",
         "message",
         "_task",
         "_buttons",
-        "mode",
-        "__weakref__",
-        "loop",
         "_callback",
         "length",
         "mentions_everyone",
         "user_mentions",
         "role_mentions",
+        "component",
     ]
+
+    message: hikari.Message
 
     def __init__(
         self,
         ctx: "Context",
-        mode: Mode = Mode.STANDARD,
         pages: Optional[_Pages] = None,
     ):
         self.ctx: "Context" = ctx
-        self.loop = ctx.bot.loop
-        self._pages: _Pages = pages if pages is not None else []
+
         self.index: int = 0
-        self.message: Optional[hikari.Message] = None
-        self._task: Optional[asyncio.Task] = None
-        self._buttons: Dict[str, _ButtonCallback] = {}
-        self.mode: Mode = mode
-        self._callback: Optional[Callable[["Paginator"], _Pages]] = None
         self.length: int = 0
+
+        self._pages: _Pages = pages if pages is not None else []
+        self._task: Optional[asyncio.Task] = None
+        self._buttons: Dict[str, ButtonWrapper] = {}
+        self._callback: Optional[Callable[["Paginator"], _Pages]] = None
+
         self.mentions_everyone: undefined.UndefinedOr[bool] = undefined.UNDEFINED
         self.user_mentions: undefined.UndefinedOr[
             Union[snowflakes.SnowflakeishSequence[hikari.PartialUser], bool]
@@ -95,11 +127,7 @@ class Paginator:
             Union[snowflakes.SnowflakeishSequence[hikari.PartialRole], bool]
         ] = undefined.UNDEFINED
 
-    def __eq__(self, other: Any) -> bool:
-        return (
-            isinstance(other, Paginator)
-            and self._buttons.keys() == other._buttons.keys()
-        )
+        self.component = ActionRowBuilder()
 
     @property
     def is_paginated(self) -> bool:
@@ -113,30 +141,45 @@ class Paginator:
         else:
             self._pages.append(pages)
 
-    def add_button(self, emoji: str, callback: _ButtonCallback) -> None:
+    def add_button(
+        self,
+        style: Union[int, hikari.ButtonStyle],
+        custom_id: Optional[str],
+        emoji: Union[snowflakes.Snowflakeish, hikari.Emojiish],
+        callback: _ButtonCallback,
+        disable_if: Optional[_ButtonCallback] = None,
+    ) -> None:
         """Adds an emoji as a button that'll invoke the callback once reacted."""
-        self._buttons[emoji] = callback
+        custom_id = custom_id or callback.__name__
+        self.component.add_button(style, emoji=emoji, custom_id=custom_id)
+        self._buttons[custom_id] = ButtonWrapper(
+            cast(_ButtonBuilder, self.component._components[-1]), callback, disable_if
+        )
 
-    def button(self, emoji: str) -> Callable[[_ButtonCallback], _ButtonCallback]:
+    def button(
+        self,
+        style: Union[int, hikari.ButtonStyle],
+        custom_id: Optional[str],
+        emoji: Union[snowflakes.Snowflakeish, hikari.Emojiish],
+        disable_if: Optional[_ButtonCallback] = None,
+    ) -> Callable[[_ButtonCallback], _ButtonCallback]:
         """Returns a decorator that will register the decorated function as the callback."""
 
         def decorator(func: _ButtonCallback) -> _ButtonCallback:
-            self.add_button(emoji, func)
+            self.add_button(style, custom_id, emoji, func, disable_if)
 
             return func
 
         return decorator
 
-    async def stop(self, clear_reactions: bool = True) -> None:
+    async def stop(self) -> None:
         """The default callback that stops the internal loop and does a clean up."""
         if not self._task:
             return
 
         self._task.cancel()
 
-        if clear_reactions:
-            with suppress(hikari.HTTPResponseError):
-                await self.message.remove_all_reactions()  # type: ignore
+        await self.message.edit(component=None)
 
         self.clean_up()
 
@@ -165,39 +208,19 @@ class Paginator:
     async def start(self, **kwargs: Any) -> Optional[hikari.Message]:
         """Starts paginating the contents."""
         options = await self.kwargs
-        options["paginator"] = self if self.is_paginated else None
-
-        self.message = await self.ctx.respond(**options)
-
-        self.ctx.bot.paginators[self.message.id] = self
+        options.pop("response_type", None)
+        self.message = await self.ctx.message.respond(**options)
 
         if not self.is_paginated:
             self.clean_up()
             return None
 
-        self.loop.create_task(self.add_reactions())
-
-        self._task = self.loop.create_task(self._run_paginator(**kwargs))
+        self._task = asyncio.create_task(self._run_paginator(**kwargs))
 
         with suppress(asyncio.CancelledError):
-            return await self._task  # type: ignore
+            return await self._task
 
         return None
-
-    async def add_reactions(self) -> None:
-        """Reacts to the message with the registered buttons a.k.a emojis."""
-        if self.message is None:
-            return
-
-        for emoji in self._buttons:
-            # pylint: disable=cell-var-from-loop
-            if find(
-                self.message.reactions,
-                lambda r: str(r.emoji) == emoji and r.is_me,
-            ):
-                continue
-
-            await self.message.add_reaction(emoji)
 
     async def _run_paginator(
         self,
@@ -206,7 +229,7 @@ class Paginator:
         return_message: bool = False,
         message_timeout: float = 10.0,
         message_check: Optional[_PredicateT[hikari.MessageCreateEvent]] = None,
-        reaction_check: Optional[_PredicateT[hikari.ReactionAddEvent]] = None
+        interaction_check: Optional[_PredicateT[hikari.InteractionCreateEvent]] = None,
     ) -> Optional[hikari.Message]:
         """
         Runs the internal loop. This shouldn't get called.
@@ -219,29 +242,21 @@ class Paginator:
             and x.channel_id == self.ctx.channel_id
         )
 
-        reaction_check = reaction_check or (
-            lambda x: x.user_id == self.ctx.author.id
-            and x.message_id == self.message.id  # type: ignore
+        interaction_check = interaction_check or (
+            lambda x: isinstance(x.interaction, ComponentInteraction)
+            and x.interaction.user.id == self.ctx.author.id
+            and x.interaction.message_id == self.message.id
         )
 
         while True:
             try:
                 events = [
                     self.ctx.bot.wait_for(
-                        hikari.GuildReactionAddEvent,
+                        hikari.InteractionCreateEvent,
                         timeout=timeout,
-                        predicate=reaction_check,
+                        predicate=interaction_check,
                     )
                 ]
-
-                if self.mode is Mode.STANDARD:
-                    events.append(
-                        self.ctx.bot.wait_for(
-                            hikari.GuildReactionDeleteEvent,
-                            timeout=timeout,
-                            predicate=reaction_check,
-                        )
-                    )
 
                 if return_message:
                     events.append(
@@ -253,14 +268,14 @@ class Paginator:
                     )
 
                 done, pending = await asyncio.wait(
-                    [self.loop.create_task(event) for event in events],
+                    [asyncio.create_task(event) for event in events],
                     return_when=asyncio.FIRST_COMPLETED,
                 )
 
                 try:
                     result = done.pop().result()
                 except Exception:
-                    raise asyncio.TimeoutError() from None
+                    raise asyncio.TimeoutError from None
 
                 for future in pending:
                     future.cancel()
@@ -268,25 +283,13 @@ class Paginator:
                 if isinstance(result, hikari.Message):
                     return result
 
-                emoji = str(result.emoji)
+                interaction = result.interaction
+                callback = self._buttons[interaction.custom_id].callback
 
-                if (
-                    self.mode is Mode.REMOVE
-                    and self.ctx.me is not None
-                    and self.ctx.has_channel_perms(hikari.Permissions.MANAGE_MESSAGES)
-                    and result.member
-                ):
-                    await self.message.remove_reaction(result.emoji, result.member)  # type: ignore
-
-                callback = self._buttons.get(emoji)
-
-                if callback is None:
-                    continue
-
-                if hasattr(callback, "__self__") and callback.__self__ is self:  # type: ignore
-                    await maybe_await(callback)
+                if getattr(callback, "__self__", None) is self:
+                    await maybe_await(callback, interaction)
                 else:
-                    await maybe_await(callback, self)
+                    await maybe_await(callback, self, interaction)
 
             except asyncio.TimeoutError:
                 await self.stop()
@@ -311,63 +314,115 @@ class Paginator:
         kwargs = self.mentions_kwargs
         content = await self.get_page()
 
-        if (
-            self.is_paginated
-            and self.ctx.me
-            and not self.ctx.has_channel_perms(hikari.Permissions.ADD_REACTIONS)
-        ):
-            raise RuntimeError("I have no permissions to add reactions.")
-
         if isinstance(content, hikari.Embed):
             kwargs["embed"] = content
+
+            if not content.color:
+                content.color = self.ctx.color
         else:
             kwargs["content"] = content
 
+        if self.is_paginated:
+            kwargs["component"] = self.component
+
+        for button_wrapper in self._buttons.values():
+            await button_wrapper.ensure_button(self)
+
+        kwargs["response_type"] = hikari.ResponseType.MESSAGE_UPDATE
+
         return kwargs
 
-    async def next_page(self) -> None:
+    async def edit(self, interaction: ComponentInteraction) -> None:
+        kwargs = await self.kwargs
+
+        for i in range(2):
+            try:
+                await interaction.create_initial_response(**kwargs)
+            except ValueError:
+                if not i:
+                    embed = kwargs.get("embed", undefined.UNDEFINED)
+                    embeds = kwargs.get("embeds", undefined.UNDEFINED)
+
+                    if not (embed or embeds):
+                        raise
+
+                    if embed:
+                        _handle_local_attachment(embed)
+                    elif embeds:
+                        for embed in embeds:
+                            _handle_local_attachment(embed)
+
+                    continue
+
+                raise
+            else:
+                break
+
+    async def next_page(self, interaction: ComponentInteraction) -> None:
         """The default callback that shows the next page."""
-        if self.index < self.length - 1:
-            self.index += 1
+        self.index += 1
+        await self.edit(interaction)
 
-            await self.message.edit(**(await self.kwargs))  # type: ignore
-
-    async def previous_page(self) -> None:
+    async def previous_page(self, interaction: ComponentInteraction) -> None:
         """The default callback that shows the previous page."""
-        if self.index > 0:
-            self.index -= 1
+        self.index -= 1
+        await self.edit(interaction)
 
-            await self.message.edit(**(await self.kwargs))  # type: ignore
-
-    async def first_page(self) -> None:
+    async def first_page(self, interaction: ComponentInteraction) -> None:
         """The default callback that shows the first page."""
         self.index = 0
+        await self.edit(interaction)
 
-        await self.message.edit(**(await self.kwargs))  # type: ignore
-
-    async def last_page(self) -> None:
+    async def last_page(self, interaction: ComponentInteraction) -> None:
         """The default callback that shows the last page."""
         self.index = self.length - 1
+        await self.edit(interaction)
 
-        await self.message.edit(**(await self.kwargs))  # type: ignore
-
-    async def destroy(self) -> None:
+    async def destroy(self, interaction: ComponentInteraction) -> None:
         """The default callback that shows the next page."""
         with suppress(hikari.HTTPResponseError):
-            await self.message.delete()  # type: ignore
+            await self.message.delete()
 
         if self._task is not None:
             self._task.cancel()
+
         self.clean_up()
 
     @classmethod
     def default(cls, ctx: "Context") -> "Paginator":
         """A classmethod that returns a Paginator object with the default callbacks."""
         self = cls(ctx)
-        self.add_button("\u23ee", self.first_page)
-        self.add_button("\u25c0", self.previous_page)
-        self.add_button("\u25b6", self.next_page)
-        self.add_button("\u23ed", self.last_page)
-        self.add_button("🔴", self.stop)
-        self.add_button("❌", self.destroy)
+        self.add_button(
+            hikari.ButtonStyle.PRIMARY,
+            "first",
+            "\u23ee",
+            self.first_page,
+            lambda p: p.index == 0,
+        )
+        self.add_button(
+            hikari.ButtonStyle.PRIMARY,
+            "back",
+            "\u25c0",
+            self.previous_page,
+            lambda p: p.index == 0,
+        )
+        self.add_button(
+            hikari.ButtonStyle.PRIMARY,
+            "next",
+            "\u25b6",
+            self.next_page,
+            lambda p: p.index == p.length - 1,
+        )
+        self.add_button(
+            hikari.ButtonStyle.PRIMARY,
+            "last",
+            "\u23ed",
+            self.last_page,
+            lambda p: p.index == p.length - 1,
+        )
+
+        # Gonna ditch this as we can only have 5 buttons in an action row.
+        # self.add_button(hikari.ButtonStyle.DANGER, "stop", "🔴", self.stop)
+
+        self.add_button(hikari.ButtonStyle.DANGER, "destroy", "❌", self.destroy)
         return self

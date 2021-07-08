@@ -9,7 +9,6 @@ import os
 import sys
 import traceback
 import typing
-import weakref
 
 import aiohttp
 import asyncpg
@@ -79,9 +78,6 @@ class Nokari(lightbulb.Bot):
         # Responses cache
         self._resp_cache = LRU(1024)
 
-        # Paginator caches
-        self._paginators: weakref.WeakValueDictionary = weakref.WeakValueDictionary()
-
         # Setup logger
         self.setup_logger()
 
@@ -133,11 +129,6 @@ class Nokari(lightbulb.Bot):
     def responses_cache(self) -> LRU:
         """Returns a mapping from message IDs to its response message IDs."""
         return self._resp_cache
-
-    @property
-    def paginators(self) -> weakref.WeakValueDictionary:
-        """Returns a mapping from message IDs to active paginators."""
-        return self._paginators
 
     @property
     def pool(self) -> typing.Optional[asyncpg.Pool]:

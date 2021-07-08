@@ -12,9 +12,6 @@ from hikari import files, guilds, snowflakes, undefined, users
 
 from nokari.utils.perms import has_channel_perms, has_guild_perms
 
-if typing.TYPE_CHECKING:
-    from nokari.utils.paginator import Paginator
-
 __all__: typing.Final[typing.List[str]] = ["Context"]
 
 
@@ -29,7 +26,7 @@ class Context(lightbulb.Context):
         super().__init__(*args, **kwargs)
         self.parsed_arg = None
 
-    async def respond(  # pylint: disable=arguments-differ,too-many-locals
+    async def respond(  # pylint: disable=too-many-locals
         self,
         content: undefined.UndefinedOr[typing.Any] = undefined.UNDEFINED,
         *,
@@ -54,7 +51,6 @@ class Context(lightbulb.Context):
         role_mentions: undefined.UndefinedOr[
             typing.Union[snowflakes.SnowflakeishSequence[guilds.PartialRole], bool]
         ] = undefined.UNDEFINED,
-        paginator: typing.Optional["Paginator"] = None,
     ) -> Message:
         """Overrides respond method for command invoke on message edit support."""
         if isinstance(embed, hikari.Embed) and not embed.color:
@@ -66,13 +62,11 @@ class Context(lightbulb.Context):
             )
             content = f"{(content or '')[:2000-len(time_taken)-2]}\n\n{time_taken}"
 
-        resp = self.bot.cache.get_message(
-            self.bot.responses_cache.get(self.message_id, 0)
-        )
-        if resp is not None and self.edited_timestamp:
-            if current_paginator := self.bot.paginators.get(resp.id):
-                await current_paginator.stop(not current_paginator == paginator)
-
+        if (
+            resp := self.bot.cache.get_message(
+                self.bot.responses_cache.get(self.message_id, 0)
+            )
+        ) is not None and self.edited_timestamp:
             return await resp.edit(
                 content=content or None,
                 embed=embed or None,
