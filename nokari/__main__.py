@@ -34,5 +34,5 @@ while 1:
         nokari.run()
     except TimeoutError:
         continue
-    
+
     break
