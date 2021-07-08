@@ -459,13 +459,21 @@ class SpotifyRest:
 class SpotifyClient:
     """A class that generates Spotify cards as well as interacts with Spotify API."""
 
-    SMALL_FONT = ImageFont.truetype("nokari/assets/fonts/arial-unicode-ms.ttf", size=40)
-    BIG_FONT = ImageFont.truetype("nokari/assets/fonts/arial-unicode-ms.ttf", size=50)
-    C1_BOLD_FONT = ImageFont.truetype(
-        "nokari/assets/fonts/Arial-Unicode-Bold.ttf", size=100
+    SMALL_FONT = typing.cast(
+        ImageFont.FreeTypeFont,
+        ImageFont.truetype("nokari/assets/fonts/arial-unicode-ms.ttf", size=40),
     )
-    C2_BOLD_FONT = ImageFont.truetype(
-        "nokari/assets/fonts/Arial-Unicode-Bold.ttf", size=60
+    BIG_FONT = typing.cast(
+        ImageFont.FreeTypeFont,
+        ImageFont.truetype("nokari/assets/fonts/arial-unicode-ms.ttf", size=50),
+    )
+    C1_BOLD_FONT = typing.cast(
+        ImageFont.FreeTypeFont,
+        ImageFont.truetype("nokari/assets/fonts/Arial-Unicode-Bold.ttf", size=100),
+    )
+    C2_BOLD_FONT = typing.cast(
+        ImageFont.FreeTypeFont,
+        ImageFont.truetype("nokari/assets/fonts/Arial-Unicode-Bold.ttf", size=60),
     )
     SIDE_GAP = 50
     WIDTH = 1_280
@@ -617,29 +625,78 @@ class SpotifyClient:
     album_cache = _get_album.cache  # type: ignore
     color_cache = _get_colors.cache  # type: ignore
 
+    @typing.overload
     @staticmethod
-    def _get_char_size_map(
-        text: str, draw: ImageDraw, font: ImageFont
+    def _get_metrics_map(
+        text: str, font: ImageFont.FreeTypeFont
+    ) -> typing.Dict[str, typing.Tuple[int, int, int, int]]:
+        ...
+
+    @typing.overload
+    @staticmethod
+    def _get_metrics_map(
+        text: str,
+        font: ImageFont.FreeTypeFont,
+        with_vertical_metrics: typing.Literal[True],
+    ) -> typing.Dict[str, typing.Tuple[int, int, int, int]]:
+        ...
+
+    @typing.overload
+    @staticmethod
+    def _get_metrics_map(
+        text: str,
+        font: ImageFont.FreeTypeFont,
+        with_vertical_metrics: typing.Literal[False],
     ) -> typing.Dict[str, typing.Tuple[int, int]]:
-        return {char: draw.textsize(char, font=font) for char in set(text)}
+        ...
+
+    @staticmethod
+    def _get_metrics_map(
+        text: str, font: ImageFont.FreeTypeFont, with_vertical_metrics: bool = True
+    ) -> typing.Union[
+        typing.Dict[str, typing.Tuple[int, int]],
+        typing.Dict[str, typing.Tuple[int, int, int, int]],
+    ]:
+        return {
+            char: (*size, size[1] - height, size[1])
+            if with_vertical_metrics
+            and (height := font.getmask(char).size[1]) is not None
+            else size
+            for char in set(text)
+            if (size := font.getsize(char))
+        }
 
     @staticmethod
     def _get_height_from_text(
         text: str,
-        map_: typing.Dict[str, typing.Tuple[int, int]],
-        threshold: typing.Union[int, float] = float("inf"),
+        ref_text: str,
+        map_: typing.Dict[str, typing.Tuple[int, int, int, int]],
+        ref_map: typing.Dict[str, typing.Tuple[int, int, int, int]],
     ) -> int:
-        w = h = 0
-        for char in text:
-            if w >= threshold:
-                break
+        idx = pos = 0
+        ref_pos, *_, h = ref_map[ref_text[0]]
+        threshold = len(ref_text)
 
+        for char in text:
             char_size = map_[char]
 
-            w += char_size[0]
+            shift = False
+            if pos + char_size[0] > ref_pos:
+                idx += 1
+                shift = True
 
-            if char_size[1] > h:
-                h = char_size[1]
+            if idx == threshold:
+                break
+
+            ref_size = ref_map[ref_text[idx]]
+
+            if shift:
+                ref_pos += ref_size[0]
+
+            pos += char_size[0]
+
+            if (bot := ref_size[3]) > h + char_size[2]:
+                h = bot
 
         return h
 
@@ -693,28 +750,25 @@ class SpotifyClient:
 
             draw = ImageDraw.Draw(canvas)
 
-            title_c_map = self._get_char_size_map(
-                metadata.title, draw, self.C1_BOLD_FONT
+            title_c_map = SpotifyClient._get_metrics_map(
+                metadata.title, self.C1_BOLD_FONT
             )
-            artist_c_map = self._get_char_size_map(artist, draw, self.BIG_FONT)
-            album_c_map = self._get_char_size_map(album, draw, self.BIG_FONT)
+            artist_c_map = SpotifyClient._get_metrics_map(artist, self.BIG_FONT)
+            album_c_map = SpotifyClient._get_metrics_map(album, self.BIG_FONT)
 
-            threshold = min(
-                [
-                    sum([map_[c][0] for c in text])
-                    for map_, text in (
-                        (artist_c_map, artist),
-                        (album_c_map, album),
-                    )
-                ]
-                + [title_width]
+            title_h = self._get_height_from_text(
+                artist, metadata.title, artist_c_map, title_c_map
+            )
+            artist_h = self._get_height_from_text(
+                album, artist, album_c_map, artist_c_map
             )
 
-            title_h = self._get_height_from_text(metadata.title, title_c_map, threshold)
-            artist_h = self._get_height_from_text(artist, artist_c_map, threshold)
-            album_h = self._get_height_from_text(album, album_c_map, threshold)
-
-            outer_gap = (album_cover_size - title_h - artist_h - album_h) // 4
+            outer_gap = (
+                album_cover_size
+                - title_h
+                - artist_h
+                - max(size[1] for size in album_c_map.values())
+            ) // 4
 
             title_y = self.SIDE_GAP + outer_gap
             artist_y = title_y + title_h
@@ -831,8 +885,8 @@ class SpotifyClient:
 
             spotify_text = "Spotify \u2022"
 
-            spotify_album_c_mapping = self._get_char_size_map(
-                spotify_text + metadata.album, draw, font=self.SMALL_FONT
+            spotify_album_c_mapping = SpotifyClient._get_metrics_map(
+                spotify_text + metadata.album, self.SMALL_FONT, False
             )
 
             spotify_width = sum(
