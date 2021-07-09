@@ -8,6 +8,7 @@ from itertools import zip_longest
 
 import asyncpg
 import hikari
+from hikari.interactions.bases import ResponseType
 from hikari.snowflakes import Snowflake
 from lightbulb import Bot, Plugin, listener
 from lightbulb.converters import Greedy, WrappedArg
@@ -326,13 +327,17 @@ class Utils(Plugin):
             await ctx.respond("You haven't set any reminder, mate :flushed:")
             return None
 
-        confirm = await self.bot.prompt(
+        interaction, confirm = await self.bot.prompt(
             ctx,
             f"You're about to delete {plural(len(records)):reminder}",
             author_id=ctx.author.id,
+            delete_after=False,
         )
+
         if not confirm:
-            await ctx.respond("Aborted!")
+            await interaction.create_initial_response(
+                ResponseType.MESSAGE_CREATE, "Aborted!"
+            )
             return None
 
         await self.verify_timer_integrity()

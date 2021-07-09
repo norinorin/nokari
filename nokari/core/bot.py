@@ -251,8 +251,8 @@ class Nokari(lightbulb.Bot):
         *,
         author_id: int,
         timeout: float = 60.0,
-        delete_after: bool = True,
-    ) -> bool:
+        delete_after: bool = False,
+    ) -> typing.Tuple[ComponentInteraction, bool]:
         if isinstance(messageable, Context):
             color = messageable.color
         else:
@@ -295,7 +295,7 @@ class Nokari(lightbulb.Bot):
             return False
 
         try:
-            await self.wait_for(
+            event = await self.wait_for(
                 InteractionCreateEvent, predicate=predicate, timeout=timeout
             )
         except asyncio.TimeoutError:
@@ -304,8 +304,13 @@ class Nokari(lightbulb.Bot):
         try:
             if delete_after:
                 await msg.delete()
+            else:
+                for c in component._components:
+                    c._is_disabled = True  # type: ignore
+
+                await msg.edit(component=component)
         finally:
-            return confirm
+            return event.interaction, confirm
 
 
 @checks.owner_only()
