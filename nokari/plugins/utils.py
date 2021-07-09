@@ -53,7 +53,7 @@ class Utils(Plugin):
         self._task.cancel()
 
     async def get_active_timer(self, *, days: int = 7) -> typing.Optional[timers.Timer]:
-        query = "SELECT * FROM reminders WHERE expires_at < (CURRENT_DATE + $1::interval) ORDER BY expires_at LIMIT 1;"
+        query = "SELECT * FROM reminders WHERE expires_at < (CURRENT_TIMESTAMP + $1::interval) ORDER BY expires_at LIMIT 1;"
         return (
             timers.Timer(record)
             if (record := await self.bot.pool.fetchrow(query, timedelta(days=days)))
@@ -78,11 +78,13 @@ class Utils(Plugin):
     async def call_timer(self, timer: timers.Timer) -> None:
         args = [timer.id]
 
-        if timer.interval is None:
-            query = "DELETE FROM reminders WHERE id=$1;"
-        else:
-            query = "UPDATE reminders SET expires_at = expires_at + $2 * interval '1 sec' WHERE id=$1"
+        self.bot.log.debug("Dispatching timer with interval %s", timer.interval)
+
+        if timer.interval:
+            query = "UPDATE reminders SET expires_at = CURRENT_TIMESTAMP + $2 * interval '1 sec' WHERE id=$1"
             args.append(timer.interval)
+        else:
+            query = "DELETE FROM reminders WHERE id=$1;"
 
         await self.bot.pool.execute(query, *args)
         self.bot.dispatch(timer.event(app=self.bot, timer=timer))
@@ -112,7 +114,7 @@ class Utils(Plugin):
         event, when, *args = args
 
         now = kwargs.pop("created_at", datetime.now(timezone.utc))
-        interval = kwargs.pop("interval", None)
+        interval = kwargs.pop("interval", 0)
 
         timer = timers.Timer.temporary(
             event=event,
@@ -282,9 +284,7 @@ class Utils(Plugin):
 
         embed = (
             hikari.Embed(
-                title="Interval Timer"
-                if event.timer.interval is not None
-                else "Reminder",
+                title="Interval Timer" if event.timer.interval else "Reminder",
                 color=self.bot.default_color,
             )
             .add_field(name="ID:", value=str(event.timer.id))
@@ -294,7 +294,7 @@ class Utils(Plugin):
             )
         )
 
-        if event.timer.interval is not None:
+        if event.timer.interval:
             embed.add_field(
                 name="Interval:",
                 value=human_timedelta(
@@ -397,7 +397,7 @@ class Utils(Plugin):
             .add_field(name="Expires in:", value=human_timedelta(record["expires_at"]))
         )
 
-        if record["interval"] is not None:
+        if record["interval"]:
             embed.add_field(
                 name="Interval:",
                 value=human_timedelta(

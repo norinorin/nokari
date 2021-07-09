@@ -4,6 +4,7 @@ from datetime import datetime
 
 import hikari
 import parsedatetime as pdt
+import pytz
 from dateutil.relativedelta import relativedelta
 from lightbulb import utils
 from lightbulb.converters import WrappedArg
@@ -161,7 +162,9 @@ async def time_converter(arg: WrappedArg) -> typing.Tuple[datetime, str]:
     ) == 0:
         raise exc
 
-    dt, status, begin, end, dt_string = elements[0]
+    dt, status, begin, end, _ = elements[0]
+
+    dt = pytz.UTC.localize(dt)
 
     if not status.hasDateOrTime:
         raise exc
