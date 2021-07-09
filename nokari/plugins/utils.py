@@ -8,7 +8,6 @@ from itertools import zip_longest
 
 import asyncpg
 import hikari
-from hikari.interactions.bases import ResponseType
 from hikari.snowflakes import Snowflake
 from lightbulb import Bot, Plugin, listener
 from lightbulb.converters import Greedy, WrappedArg
@@ -54,11 +53,8 @@ class Utils(Plugin):
 
     async def get_active_timer(self, *, days: int = 7) -> typing.Optional[timers.Timer]:
         query = "SELECT * FROM reminders WHERE expires_at < (CURRENT_TIMESTAMP + $1::interval) ORDER BY expires_at LIMIT 1;"
-        return (
-            timers.Timer(record)
-            if (record := await self.bot.pool.fetchrow(query, timedelta(days=days)))
-            else None
-        )
+        record = await self.bot.pool.fetchrow(query, timedelta(days=days))
+        return record and timers.Timer(record)
 
     async def wait_for_active_timers(self, *, days: int = 7) -> timers.Timer:
         timer = await self.get_active_timer(days=days)
@@ -70,7 +66,7 @@ class Utils(Plugin):
         self._current_timer = None
         try:
             await asyncio.wait_for(self.event.wait(), timeout=86400)
-        except:
+        except TimeoutError:
             return await self.wait_for_active_timers(days=days)
         else:
             return typing.cast(timers.Timer, await self.get_active_timer(days=days))
@@ -327,7 +323,7 @@ class Utils(Plugin):
             await ctx.respond("You haven't set any reminder, mate :flushed:")
             return None
 
-        interaction, confirm = await self.bot.prompt(
+        confirm = await self.bot.prompt(
             ctx,
             f"You're about to delete {plural(len(records)):reminder}",
             author_id=ctx.author.id,
@@ -335,9 +331,7 @@ class Utils(Plugin):
         )
 
         if not confirm:
-            await interaction.create_initial_response(
-                ResponseType.MESSAGE_CREATE, "Aborted!"
-            )
+            await ctx.respond("Aborted!")
             return None
 
         await self.verify_timer_integrity()
@@ -346,6 +340,7 @@ class Utils(Plugin):
         await self.bot.pool.execute(query, author_id)
         await ctx.respond(f"Your {plural(len(records)):reminder} has been deleted")
 
+    # pylint: disable=too-many-locals
     @remind.command(name="info", usage="<ID>")
     async def remind_info(self, ctx: Context, *, id_: str) -> None:
         """
@@ -365,7 +360,7 @@ class Utils(Plugin):
         )
 
         if not parsed.remainder:
-            await ctx.send("Please specify the ID of the reminder.")
+            await ctx.respond("Please specify the ID of the reminder.")
             return
 
         parsed.remainder = int(parsed.remainder)
@@ -384,7 +379,7 @@ class Utils(Plugin):
             query, str(ctx.author.id), parsed.remainder
         )
         if not record:
-            await ctx.send(f"You have no reminder with ID: {parsed.remainder}.")
+            await ctx.respond(f"You have no reminder with ID: {parsed.remainder}.")
 
         extra = record["extra"]
         channel_id, author_id, message = extra["args"]
@@ -449,14 +444,16 @@ class Utils(Plugin):
                 await self.verify_timer_integrity(identifier)
                 deletes.append(identifier)
 
-        plural = "reminders with those IDs" if len(ids) > 1 else "reminder with that ID"
         if not deletes:
-            await ctx.respond(f"Are you sure you have {plural}?")
+            await ctx.respond(
+                f"Are you sure you have "
+                f"{'reminders with those IDs' if len(ids) > 1 else 'reminder with that ID'}?"
+            )
             return
 
-        plural = len(deletes) > 1
-        reminder = "Reminders" if plural else "Reminder"
-        have = "have" if plural else "has"
+        plural_ = len(deletes) > 1
+        reminder = "Reminders" if plural_ else "Reminder"
+        have = "have" if plural_ else "has"
 
         await ctx.respond(
             f"{reminder} with id {', '.join(map(str, deletes))} {have} been deleted"

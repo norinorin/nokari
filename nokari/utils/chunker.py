@@ -1,13 +1,27 @@
 """A module that contains chunking helper functions."""
 
 import string
-from typing import Final, Iterable, Iterator, List, Sequence
+from typing import Final, Iterator, List, Protocol, Sequence, TypeVar, overload
 
 from lightbulb import utils
 
 from nokari.utils.view import StringView
 
 __all__: Final[List[str]] = ["chunk", "simple_chunk", "chunk_from_list"]
+T = TypeVar("T")
+
+
+class Indexable(Protocol[T]):
+    @overload
+    def __getitem__(self, key: int) -> T:
+        ...
+
+    @overload
+    def __getitem__(self, key: slice) -> List[T]:
+        ...
+
+    def __len__(self) -> int:
+        ...
 
 
 def chunk(text: str, length: int) -> Iterator[str]:
@@ -39,7 +53,7 @@ def chunk(text: str, length: int) -> Iterator[str]:
             yield sub
 
 
-def simple_chunk(text: Iterable, length: int) -> List[str]:
+def simple_chunk(text: Indexable[T], length: int) -> List[List[T]]:
     """A lite version of the chunk function."""
     return [text[n : n + length] for n in range(0, len(text), length)]
 

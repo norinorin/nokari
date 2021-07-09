@@ -143,6 +143,7 @@ class Paginator:
         else:
             self._pages.append(pages)
 
+    # pylint: disable=too-many-arguments
     def add_button(
         self,
         style: Union[int, hikari.ButtonStyle],
@@ -154,6 +155,8 @@ class Paginator:
         """Adds an emoji as a button that'll invoke the callback once reacted."""
         custom_id = custom_id or callback.__name__
         self.component.add_button(style, emoji=emoji, custom_id=custom_id)
+
+        # pylint: disable=unsubscriptable-object
         self._buttons[custom_id] = ButtonWrapper(
             cast(_ButtonBuilder, self.component._components[-1]), callback, disable_if
         )

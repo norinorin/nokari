@@ -139,6 +139,7 @@ def ensure_future_time(dt: datetime, now: datetime) -> None:
         raise ValueError("The argument can't be past time.")
 
 
+# pylint: disable=too-many-branches
 async def time_converter(arg: WrappedArg) -> typing.Tuple[datetime, str]:
     now = arg.context.message.created_at
 
@@ -162,9 +163,9 @@ async def time_converter(arg: WrappedArg) -> typing.Tuple[datetime, str]:
     ) == 0:
         raise exc
 
-    dt, status, begin, end, _ = elements[0]
+    n_dt, status, begin, end, _ = elements[0]
 
-    dt = pytz.UTC.localize(dt)
+    dt = pytz.UTC.localize(n_dt)  # pylint: disable=no-value-for-parameter
 
     if not status.hasDateOrTime:
         raise exc

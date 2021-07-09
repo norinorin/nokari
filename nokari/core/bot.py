@@ -16,6 +16,7 @@ import hikari
 import lightbulb
 from hikari.events.interaction_events import InteractionCreateEvent
 from hikari.impl.special_endpoints import ActionRowBuilder
+from hikari.interactions.bases import ResponseType
 from hikari.interactions.component_interactions import ComponentInteraction
 from hikari.messages import ButtonStyle
 from hikari.snowflakes import Snowflake
@@ -244,6 +245,7 @@ class Nokari(lightbulb.Bot):
                     )
                 )
 
+    # pylint: disable=lost-exception
     async def prompt(
         self,
         messageable: Messageable,
@@ -252,7 +254,7 @@ class Nokari(lightbulb.Bot):
         author_id: int,
         timeout: float = 60.0,
         delete_after: bool = False,
-    ) -> typing.Tuple[ComponentInteraction, bool]:
+    ) -> bool:
         if isinstance(messageable, Context):
             color = messageable.color
         else:
@@ -288,7 +290,8 @@ class Nokari(lightbulb.Bot):
             if custom_id == "sure":
                 confirm = True
                 return True
-            elif custom_id == "nvm":
+
+            if custom_id == "nvm":
                 confirm = False
                 return True
 
@@ -308,9 +311,11 @@ class Nokari(lightbulb.Bot):
                 for c in component._components:
                     c._is_disabled = True  # type: ignore
 
-                await msg.edit(component=component)
+                await event.interaction.create_initial_response(
+                    ResponseType.MESSAGE_UPDATE, component=component
+                )
         finally:
-            return event.interaction, confirm
+            return confirm
 
 
 @checks.owner_only()

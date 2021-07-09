@@ -26,7 +26,7 @@ class Context(lightbulb.Context):
         super().__init__(*args, **kwargs)
         self.parsed_arg = None
 
-    async def respond(  # pylint: disable=too-many-locals
+    async def respond(  # pylint: disable=arguments-differ,too-many-locals
         self,
         content: undefined.UndefinedOr[typing.Any] = undefined.UNDEFINED,
         *,
