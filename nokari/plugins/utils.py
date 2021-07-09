@@ -44,8 +44,10 @@ class Utils(Plugin):
         self.event = asyncio.Event()
         self._current_timer: typing.Optional[timers.Timer] = None
         self._task: asyncio.Task[None] = asyncio.create_task(self.dispatch_timers())
-        self._remind_parser = ArgumentParser().interval(
-            "--interval", "-i", argmax=0, default=False
+        self._remind_parser = (
+            ArgumentParser()
+            .interval("--interval", "-i", argmax=0, default=False)
+            .daily("--daily", "-d", argmax=0, default=False)
         )
 
     def plugin_remove(self) -> None:
@@ -162,19 +164,29 @@ class Utils(Plugin):
         Examples: - `n!remind me in a week do something`
         - `n!remind me at 2pm do something`
         - `n!remind do something 3h`
-        - `n!remind me in 4 hours do something`
+        - `n!remind me in 4 hours do something -i`
+        - `n!remind --daily 4am do something.`
 
         Flags:
         -i, --interval: continuously remind you at set interval.
+        -d, --daily: same as interval with 24 hours period.
         """
         parsed = self._remind_parser.parse(None, when)
         dt, rem = await time_converter(WrappedArg(parsed.remainder, ctx))
 
-        if (
-            interval := (dt - ctx.message.created_at).total_seconds()
-        ) < 300 and parsed.interval:
-            await ctx.respond("Interval can't be below 5 minutes.")
-            return
+        if parsed.interval and parsed.daily:
+            raise ValueError("You can't specify both interval and daily flags.")
+
+        interval = None
+
+        if parsed.interval:
+            if (temp := (dt - ctx.message.created_at).total_seconds()) < 300:
+                raise ValueError("Interval can't be below 5 minutes.")
+
+            interval = temp
+
+        elif parsed.daily:
+            interval = 86400
 
         rem = rem or "a."
 
@@ -186,11 +198,21 @@ class Utils(Plugin):
             rem,
             created_at=ctx.message.created_at,
             message_id=ctx.message.id,
-            interval=parsed.interval and interval,
+            interval=interval,
         )
-        reminder_id = f" Reminder ID: {timer.id}" if timer.id else ""
+        reminder_id = f"Reminder ID: {timer.id}" if timer.id else ""
+        fmt = "<t:{timestamp}:F>"
+        pre = "on"
+
+        if parsed.interval:
+            reminder_id += f" with interval {human_timedelta(timedelta(seconds=typing.cast(int, interval)))}"
+        elif parsed.daily:
+            fmt = "<t:{timestamp}:t>"
+            pre = "at"
+            reminder_id = f"Daily {reminder_id}"
+
         await ctx.respond(
-            f"{ctx.author.mention}, {reminder_id} on <t:{int(timer.expires_at.timestamp())}:F>: {rem}"
+            f"{ctx.author.mention}, {reminder_id} {pre} {fmt.format(timestamp=int(timer.expires_at.timestamp()))}: {rem}"
         )
 
     @remind.command(name="list")
@@ -293,9 +315,7 @@ class Utils(Plugin):
         if event.timer.interval:
             embed.add_field(
                 name="Interval:",
-                value=human_timedelta(
-                    datetime.now(timezone.utc) + timedelta(seconds=event.timer.interval)
-                ),
+                value=human_timedelta(timedelta(seconds=event.timer.interval)),
             )
 
         embed.add_field(name="Message:", value=message)
@@ -395,9 +415,7 @@ class Utils(Plugin):
         if record["interval"]:
             embed.add_field(
                 name="Interval:",
-                value=human_timedelta(
-                    datetime.now(timezone.utc) + timedelta(seconds=record["interval"])
-                ),
+                value=human_timedelta(timedelta(seconds=record["interval"])),
             )
 
         channel = (

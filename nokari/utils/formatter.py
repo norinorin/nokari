@@ -55,7 +55,8 @@ def _human_join(
 
 
 def human_timedelta(
-    dt_obj: datetime.datetime,
+    rel: typing.Union[datetime.timedelta, datetime.datetime, int],
+    /,
     *,
     source: typing.Optional[datetime.datetime] = None,
     accuracy: int = 3,
@@ -66,7 +67,17 @@ def human_timedelta(
     now = (source or datetime.datetime.now(datetime.timezone.utc)).replace(
         microsecond=0
     )
-    dt_obj = dt_obj.replace(microsecond=0)
+
+    if isinstance(rel, datetime.timedelta):
+        dt_obj = now + rel
+    elif isinstance(rel, datetime.datetime):
+        dt_obj = rel.replace(microsecond=0)
+    elif isinstance(rel, int):
+        dt_obj = datetime.datetime.utcfromtimestamp(rel).replace(
+            tzinfo=datetime.timezone.utc
+        )
+    else:
+        raise TypeError("rel should be either datetime or timedelta object.")
 
     if dt_obj > now:
         delta = relativedelta.relativedelta(dt_obj, now)
