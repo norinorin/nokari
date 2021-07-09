@@ -11,8 +11,8 @@ from typing import (
     Final,
     List,
     Optional,
-    TypeVar,
     Tuple,
+    TypeVar,
     Union,
     cast,
 )

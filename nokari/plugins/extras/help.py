@@ -186,7 +186,7 @@ class CustomHelp(help_.HelpCommand):
 
     @staticmethod
     async def send_command_help(context: Context, command: commands.Command) -> None:
-        if not command.is_runnable(context):
+        if not await command.is_runnable(context):
             await CustomHelp.object_not_found(context, "")
             return
 

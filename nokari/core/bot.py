@@ -13,11 +13,11 @@ import typing
 import aiohttp
 import asyncpg
 import hikari
+import lightbulb
 from hikari.events.interaction_events import InteractionCreateEvent
 from hikari.impl.special_endpoints import ActionRowBuilder
 from hikari.interactions.component_interactions import ComponentInteraction
 from hikari.messages import ButtonStyle
-import lightbulb
 from hikari.snowflakes import Snowflake
 from lightbulb import checks, commands
 from lightbulb.utils import maybe_await

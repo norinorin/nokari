@@ -1,7 +1,7 @@
 """A module that contains chunking helper functions."""
 
 import string
-from typing import Final, Iterator, List, Sequence, Iterable
+from typing import Final, Iterable, Iterator, List, Sequence
 
 from lightbulb import utils
 
