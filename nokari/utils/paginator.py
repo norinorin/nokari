@@ -12,6 +12,7 @@ from typing import (
     List,
     Optional,
     TypeVar,
+    Tuple,
     Union,
     cast,
 )
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
 __all__: Final[List[str]] = ["EmptyPages", "Paginator"]
 _T = TypeVar("_T")
 _ButtonCallback = Callable[..., Union[Any, Coroutine[Any, Any, None]]]
+_Callback = Callable[..., Union[Tuple[_T, int], Coroutine[Any, Any, Tuple[_T, int]]]]
 _Pages = List[_T]
 _EventT_co = TypeVar("_EventT_co", bound=hikari.Event, covariant=True)
 _PredicateT = Callable[[_EventT_co], bool]
@@ -117,7 +119,7 @@ class Paginator:
         self._pages: _Pages = pages if pages is not None else []
         self._task: Optional[asyncio.Task] = None
         self._buttons: Dict[str, ButtonWrapper] = {}
-        self._callback: Optional[Callable[["Paginator"], _Pages]] = None
+        self._callback: Optional[_Callback] = None
 
         self.mentions_everyone: undefined.UndefinedOr[bool] = undefined.UNDEFINED
         self.user_mentions: undefined.UndefinedOr[

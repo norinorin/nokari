@@ -16,3 +16,5 @@ asyncpg
 spotipy
 sphobjinv
 fuzzywuzzy[speedup]
+parsedatetime
+tabulate

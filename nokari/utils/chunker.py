@@ -1,7 +1,7 @@
 """A module that contains chunking helper functions."""
 
 import string
-from typing import Final, Iterator, List, Sequence
+from typing import Final, Iterator, List, Sequence, Iterable
 
 from lightbulb import utils
 
@@ -39,7 +39,7 @@ def chunk(text: str, length: int) -> Iterator[str]:
             yield sub
 
 
-def simple_chunk(text: str, length: int) -> List[str]:
+def simple_chunk(text: Iterable, length: int) -> List[str]:
     """A lite version of the chunk function."""
     return [text[n : n + length] for n in range(0, len(text), length)]
 

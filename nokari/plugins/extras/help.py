@@ -186,7 +186,7 @@ class CustomHelp(help_.HelpCommand):
 
     @staticmethod
     async def send_command_help(context: Context, command: commands.Command) -> None:
-        if command not in await help_.filter_commands(context, context.bot.commands):
+        if not command.is_runnable(context):
             await CustomHelp.object_not_found(context, "")
             return
 
@@ -210,7 +210,7 @@ class CustomHelp(help_.HelpCommand):
         for subcommand in sorted(subcommands, key=attrgetter("name")):
             embed.add_field(
                 name=CustomHelp.get_command_signature(subcommand),
-                value=CustomHelp.get_command_description(subcommand),
+                value=help_.get_help_text(subcommand),
                 inline=False,
             )
 

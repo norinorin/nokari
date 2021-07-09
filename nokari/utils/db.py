@@ -20,7 +20,12 @@ T = typing.TypeVar("T")
 
 class Column(typing.Generic[T]):
     # more to add as I need it
-    typing_map: typing.Dict[str, str] = {"Snowflake": "BIGINT", "str": "TEXT"}
+    typing_map: typing.Dict[str, str] = {
+        "Snowflake": "BIGINT",
+        "str": "TEXT",
+        "datetime": "TIMESTAMP WITH TIME ZONE",
+        "dict": "JSONB",
+    }
     primary_key: typing.ClassVar[bool] = False
 
     def __init__(self, data_type: typing.Union[T, str]):

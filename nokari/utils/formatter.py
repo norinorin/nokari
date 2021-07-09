@@ -63,7 +63,9 @@ def human_timedelta(
     append_suffix: bool = True,
 ) -> str:
     """Returns the time delta between 2 datetime objects in a human readable format."""
-    now = (source or datetime.datetime.utcnow()).replace(microsecond=0)
+    now = (source or datetime.datetime.now(datetime.timezone.utc)).replace(
+        microsecond=0
+    )
     dt_obj = dt_obj.replace(microsecond=0)
 
     if dt_obj > now:
@@ -123,3 +125,10 @@ def get_timestamp(timedelta: datetime.timedelta) -> str:
     while out.startswith("00:") and len(out) > 5:
         out = out[3:]
     return re.sub(r"^0(\d:)", r"\1", out)
+
+
+def escape_markdown(text: str) -> str:
+    # from telegram-group-easyauth
+    parse = re.sub(r"([_*\[\]()~`>\#\+\-=|\.!])", r"\\\1", text)
+    reparse = re.sub(r"\\\\([_*\[\]()~`>\#\+\-=|\.!])", r"\1", parse)
+    return reparse

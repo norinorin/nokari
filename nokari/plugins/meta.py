@@ -51,7 +51,9 @@ class Meta(plugins.Plugin):
         )
         bots, human = counter[True], counter[False]
         boot_time = human_timedelta(
-            datetime.datetime.utcfromtimestamp(psutil.boot_time()),
+            datetime.datetime.utcfromtimestamp(psutil.boot_time()).replace(
+                tzinfo=datetime.timezone.utc
+            ),
             append_suffix=False,
             brief=True,
         )

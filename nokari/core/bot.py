@@ -13,6 +13,10 @@ import typing
 import aiohttp
 import asyncpg
 import hikari
+from hikari.events.interaction_events import InteractionCreateEvent
+from hikari.impl.special_endpoints import ActionRowBuilder
+from hikari.interactions.component_interactions import ComponentInteraction
+from hikari.messages import ButtonStyle
 import lightbulb
 from hikari.snowflakes import Snowflake
 from lightbulb import checks, commands
@@ -33,6 +37,11 @@ def _get_prefixes(bot: lightbulb.Bot, message: hikari.Message) -> typing.List[st
     return prefixes.get(message.guild_id, bot.default_prefixes) + prefixes.get(
         message.author.id, []
     )
+
+
+class Messageable(typing.Protocol):
+    respond: typing.Callable[..., typing.Coroutine[None, None, hikari.Message]]
+    send: typing.Callable[..., typing.Coroutine[None, None, hikari.Message]]
 
 
 class Nokari(lightbulb.Bot):
@@ -100,10 +109,16 @@ class Nokari(lightbulb.Bot):
         await self.create_pool()
         await self._load_prefixes()
         self.load_extensions()
-        self.launch_time = datetime.datetime.utcnow()
+        self.launch_time = datetime.datetime.now(datetime.timezone.utc)
+
+        if sys.argv[-1] == "init":
+            await db.create_tables(self.pool)
 
     @functools.wraps(lightbulb.Bot.close)
     async def close(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+        if utils := self.get_plugin("Utils"):
+            utils.plugin_remove()
+
         if self.pool:
             await self.pool.close()
             delattr(self, "_pool")
@@ -136,10 +151,7 @@ class Nokari(lightbulb.Bot):
 
     async def create_pool(self) -> None:
         """Creates a connection pool."""
-        self._pool = pool = await db.create_pool()
-
-        if sys.argv[-1] == "init":
-            await db.create_tables(pool)
+        self._pool = await db.create_pool()
 
     async def _load_prefixes(self) -> None:
         self.prefixes = {
@@ -231,6 +243,69 @@ class Nokari(lightbulb.Bot):
                         )
                     )
                 )
+
+    async def prompt(
+        self,
+        messageable: Messageable,
+        message: str,
+        *,
+        author_id: int,
+        timeout: float = 60.0,
+        delete_after: bool = True,
+    ) -> bool:
+        if isinstance(messageable, Context):
+            color = messageable.color
+        else:
+            color = self.default_color
+
+        embed = hikari.Embed(description=message, color=color)
+        component = (
+            ActionRowBuilder()
+            .add_button(ButtonStyle.SUCCESS, label="Sure", custom_id="sure")
+            .add_button(ButtonStyle.DANGER, label="Never mind", custom_id="nvm")
+        )
+
+        messageable = getattr(messageable, "channel", messageable)
+
+        msg = await messageable.send(embed=embed, component=component)
+
+        confirm = False
+
+        def predicate(event: InteractionCreateEvent) -> bool:
+            nonlocal confirm
+
+            if not isinstance(event.interaction, ComponentInteraction):
+                return False
+
+            if (
+                event.interaction.message_id != msg.id
+                or event.interaction.user.id != author_id
+            ):
+                return False
+
+            custom_id = event.interaction.custom_id
+
+            if custom_id == "sure":
+                confirm = True
+                return True
+            elif custom_id == "nvm":
+                confirm = False
+                return True
+
+            return False
+
+        try:
+            await self.wait_for(
+                InteractionCreateEvent, predicate=predicate, timeout=timeout
+            )
+        except asyncio.TimeoutError:
+            pass
+
+        try:
+            if delete_after:
+                await msg.delete()
+        finally:
+            return confirm
 
 
 @checks.owner_only()

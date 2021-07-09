@@ -25,7 +25,7 @@ class Command(commands.Command):
         """The custom command signature if specified."""
 
 
-class Group(commands.Group):
+class Group(Command, commands.Group):
     # pylint: disable=too-many-arguments,arguments-differ
     def command(
         self,
@@ -35,7 +35,7 @@ class Group(commands.Group):
         aliases: typing.Optional[typing.Sequence[str]] = None,
         hidden: bool = False,
         **kwargs: typing.Any,
-    ) -> typing.Callable[[_CommandCallbackT], _CommandCallbackT]:
+    ) -> typing.Callable[[_CommandCallbackT], Command]:
         def decorate(func: _CommandCallbackT) -> Command:
             nonlocal name
             name = name or func.__name__
@@ -69,7 +69,7 @@ class Group(commands.Group):
         insensitive_commands: bool = False,
         inherit_checks: bool = True,
         **kwargs: typing.Any,
-    ) -> typing.Callable[[_CommandCallbackT], _CommandCallbackT]:
+    ) -> typing.Callable[[_CommandCallbackT], Group]:
         def decorate(func: _CommandCallbackT) -> Group:
             nonlocal name
             name = name or func.__name__
@@ -102,7 +102,7 @@ def command(
     aliases: typing.Optional[typing.Sequence[str]] = None,
     hidden: bool = False,
     **kwargs: typing.Any,
-) -> typing.Callable[[_CommandCallbackT], _CommandCallbackT]:
+) -> typing.Callable[[_CommandCallbackT], commands.Command]:
     """
     A custom decorator that takes arbitrary kwargs and passes it
     when instantiating the Command object.
@@ -131,7 +131,7 @@ def group(
     insensitive_commands: bool = False,
     inherit_checks: bool = True,
     **kwargs: typing.Any,
-) -> typing.Callable[[_CommandCallbackT], _CommandCallbackT]:
+) -> typing.Callable[[_CommandCallbackT], Group]:
     """
     A custom decorator that takes arbitrary kwargs and passes it
     when instantiating the Group object.
