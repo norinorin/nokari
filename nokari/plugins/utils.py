@@ -281,16 +281,16 @@ class Utils(Plugin):
 
         embed = (
             hikari.Embed(
-                title="Reminder",
+                title="Interval Timer"
+                if event.timer.interval is not None
+                else "Reminder",
                 color=self.bot.default_color,
             )
-            .add_field(name="ID:", value=str(event.timer.id), inline=False)
+            .add_field(name="ID:", value=str(event.timer.id))
             .add_field(
                 name="Created on:",
                 value=f"<t:{int(event.timer.created_at.timestamp())}:F>",
-                inline=False,
             )
-            .add_field(name="Message:", value=message)
         )
 
         if event.timer.interval is not None:
@@ -300,6 +300,8 @@ class Utils(Plugin):
                     datetime.now(timezone.utc) + timedelta(seconds=event.timer.interval)
                 ),
             )
+
+        embed.add_field(name="Message:", value=message)
 
         await channel.send(content=f"<@{author_id}>", embed=embed)
 
@@ -363,7 +365,7 @@ class Utils(Plugin):
 
         parsed.remainder = int(parsed.remainder)
 
-        query = """SELECT created_at, expires_at, extra
+        query = """SELECT created_at, expires_at, extra, interval
                    FROM reminders
                    WHERE event = 'reminder'
                    AND extra #>> '{args,1}' = $1
@@ -384,19 +386,19 @@ class Utils(Plugin):
         converter = escape_markdown if parsed.raw else lambda s: s
         embed = (
             hikari.Embed(title=f"Reminder no. {parsed.remainder}")
-            .add_field(name="Message:", value=converter(message), inline=False)
-            .add_field(
-                name="Created on:", value=format_dt(record["created_at"]), inline=False
-            )
-            .add_field(
-                name="Expires on:", value=format_dt(record["expires_at"]), inline=False
-            )
-            .add_field(
-                name="Expires in:",
-                value=human_timedelta(record["expires_at"]),
-                inline=False,
-            )
+            .add_field(name="Message:", value=converter(message))
+            .add_field(name="Created on:", value=format_dt(record["created_at"]))
+            .add_field(name="Expires on:", value=format_dt(record["expires_at"]))
+            .add_field(name="Expires in:", value=human_timedelta(record["expires_at"]))
         )
+
+        if record["interval"] is not None:
+            embed.add_field(
+                name="Interval:",
+                value=human_timedelta(
+                    datetime.now(timezone.utc) + timedelta(seconds=record["interval"])
+                ),
+            )
 
         channel = (
             self.bot.cache.get_guild_channel(channel_id)
