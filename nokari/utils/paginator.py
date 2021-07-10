@@ -146,15 +146,23 @@ class Paginator:
     # pylint: disable=too-many-arguments
     def add_button(
         self,
-        style: Union[int, hikari.ButtonStyle],
-        custom_id: Optional[str],
-        emoji: Union[snowflakes.Snowflakeish, hikari.Emojiish],
         callback: _ButtonCallback,
+        /,
+        *,
+        style: Union[int, hikari.ButtonStyle],
+        custom_id: Optional[str] = None,
+        emoji: undefined.UndefinedOr[
+            Union[snowflakes.Snowflakeish, hikari.Emojiish]
+        ] = undefined.UNDEFINED,
+        label: undefined.UndefinedOr[str] = undefined.UNDEFINED,
         disable_if: Optional[_ButtonCallback] = None,
     ) -> None:
         """Adds an emoji as a button that'll invoke the callback once reacted."""
+        if not emoji and not label:
+            raise TypeError("Either emoji or label must be set.")
+
         custom_id = custom_id or callback.__name__
-        self.component.add_button(style, emoji=emoji, custom_id=custom_id)
+        self.component.add_button(style, emoji=emoji, label=label, custom_id=custom_id)
 
         # pylint: disable=unsubscriptable-object
         self._buttons[custom_id] = ButtonWrapper(
@@ -163,15 +171,17 @@ class Paginator:
 
     def button(
         self,
+        *,
         style: Union[int, hikari.ButtonStyle],
         custom_id: Optional[str],
-        emoji: Union[snowflakes.Snowflakeish, hikari.Emojiish],
+        emoji: Optional[Union[snowflakes.Snowflakeish, hikari.Emojiish]] = None,
+        label: Optional[str] = None,
         disable_if: Optional[_ButtonCallback] = None,
     ) -> Callable[[_ButtonCallback], _ButtonCallback]:
         """Returns a decorator that will register the decorated function as the callback."""
 
         def decorator(func: _ButtonCallback) -> _ButtonCallback:
-            self.add_button(style, custom_id, emoji, func, disable_if)
+            self.add_button(func, style, custom_id, emoji, label, disable_if)
 
             return func
 
@@ -402,36 +412,46 @@ class Paginator:
         """A classmethod that returns a Paginator object with the default callbacks."""
         self = cls(ctx)
         self.add_button(
-            hikari.ButtonStyle.PRIMARY,
-            "first",
-            "\u23ee",
             self.first_page,
-            lambda p: p.index == 0,
+            style=hikari.ButtonStyle.PRIMARY,
+            custom_id="first",
+            label="First",
+            # emoji="\u23ee",
+            disable_if=lambda p: p.index == 0,
         )
         self.add_button(
-            hikari.ButtonStyle.PRIMARY,
-            "back",
-            "\u25c0",
             self.previous_page,
-            lambda p: p.index == 0,
+            style=hikari.ButtonStyle.PRIMARY,
+            custom_id="back",
+            label="Back",
+            # emoji="\u25c0",
+            disable_if=lambda p: p.index == 0,
         )
         self.add_button(
-            hikari.ButtonStyle.PRIMARY,
-            "next",
-            "\u25b6",
             self.next_page,
-            lambda p: p.index == p.length - 1,
+            style=hikari.ButtonStyle.PRIMARY,
+            custom_id="next",
+            label="Next",
+            # emoji="\u25b6",
+            disable_if=lambda p: p.index == p.length - 1,
         )
         self.add_button(
-            hikari.ButtonStyle.PRIMARY,
-            "last",
-            "\u23ed",
             self.last_page,
-            lambda p: p.index == p.length - 1,
+            style=hikari.ButtonStyle.PRIMARY,
+            custom_id="last",
+            label="Last",
+            # emoji="\u23ed",
+            disable_if=lambda p: p.index == p.length - 1,
         )
 
         # Gonna ditch this as we can only have 5 buttons in an action row.
         # self.add_button(hikari.ButtonStyle.DANGER, "stop", "🔴", self.stop)
 
-        self.add_button(hikari.ButtonStyle.DANGER, "destroy", "🗑️", self.destroy)
+        self.add_button(
+            self.destroy,
+            style=hikari.ButtonStyle.DANGER,
+            custom_id="destroy",
+            # emoji="🗑️",
+            label="Delete",
+        )
         return self
