@@ -55,7 +55,7 @@ def _human_join(
         if size == 1
         else f"{seq[0]} {final} {seq[1]}"
         if size == 2
-        else delim.join(seq[:-1]) + f" {final} {seq[-1]}"
+        else f"{delim.join(seq[:-1])}, {final} {seq[-1]}"
     )
 
 
