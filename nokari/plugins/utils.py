@@ -211,7 +211,7 @@ class Utils(Plugin):
         elif parsed.daily:
             fmt = "t"
             pre = "at "
-            reminder_id = f"Daily{reminder_id}"
+            reminder_id = f" Daily{reminder_id}"
 
         await ctx.respond(
             f"{ctx.author.mention},{reminder_id} {pre}"
