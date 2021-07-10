@@ -59,6 +59,7 @@ def _human_join(
     )
 
 
+# pylint: disable=too-many-branches
 def human_timedelta(
     rel: typing.Union[datetime.timedelta, datetime.datetime, int, float],
     /,
@@ -158,7 +159,7 @@ def discord_timestamp(
     fmt: str = "f",
 ) -> str:
     VALID_FMTS = ("t", "T", "d", "D", "f", "F", "R")
-    if not fmt in VALID_FMTS:
+    if fmt not in VALID_FMTS:
         raise ValueError(
             f"{fmt!r} isn't valid format, please use one of {_human_join(VALID_FMTS, final='or')}"
         )

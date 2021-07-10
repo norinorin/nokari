@@ -10,7 +10,6 @@ from hikari.events.interaction_events import InteractionCreateEvent
 from hikari.impl.special_endpoints import ActionRowBuilder
 from hikari.interactions.bases import ResponseType
 from hikari.interactions.component_interactions import ComponentInteraction
-from hikari.undefined import UNDEFINED
 from lightbulb import Bot, errors, plugins
 
 

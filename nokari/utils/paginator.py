@@ -181,7 +181,14 @@ class Paginator:
         """Returns a decorator that will register the decorated function as the callback."""
 
         def decorator(func: _ButtonCallback) -> _ButtonCallback:
-            self.add_button(func, style, custom_id, emoji, label, disable_if)
+            self.add_button(
+                func,
+                style=style,
+                custom_id=custom_id,
+                emoji=emoji,
+                label=label,
+                disable_if=disable_if,
+            )
 
             return func
 
