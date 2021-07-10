@@ -10,3 +10,8 @@ pylint
 
 # Testing
 pytest
+
+# Types
+types-pytz
+types-python-dateutil
+types-tabulate
