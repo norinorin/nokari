@@ -9,7 +9,12 @@ import typing
 
 from dateutil import relativedelta
 
-__all__: typing.Final[typing.List[str]] = ["plural", "human_timedelta", "get_timestamp"]
+__all__: typing.Final[typing.List[str]] = [
+    "plural",
+    "human_timedelta",
+    "get_timestamp",
+    "discord_timestamp",
+]
 
 
 class plural:
