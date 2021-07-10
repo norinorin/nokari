@@ -122,7 +122,9 @@ class Events(plugins.Plugin):
 
                 components[idx].add_button(**kwargs)
 
-        await message.edit(components=components)
+        await interaction.create_initial_response(
+            ResponseType.MESSAGE_UPDATE, components=components
+        )
 
         self.bot.log.debug("Disabled the buttons for message %d.", message.id)
 
