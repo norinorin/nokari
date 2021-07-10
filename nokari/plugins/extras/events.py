@@ -1,5 +1,5 @@
-from contextlib import suppress
 import typing
+from contextlib import suppress
 
 from hikari import (
     GuildMessageCreateEvent,
