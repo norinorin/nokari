@@ -258,6 +258,11 @@ class Paginator:
 
         This method will return a message if return_message was set to True.
         """
+
+        # Interactions' lifetime is 15 minutes.
+        if timeout > 900:
+            raise RuntimeError("timeout can't be greater than 15 minutes.")
+
         message_check = message_check or (
             lambda x: x.author_id == self.ctx.author.id
             and x.channel_id == self.ctx.channel_id
