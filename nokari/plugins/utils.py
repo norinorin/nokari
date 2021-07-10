@@ -322,8 +322,11 @@ class Utils(Plugin):
 
         await channel.send(content=f"<@{author_id}>", embed=embed)
 
-    @command(name="reminders", hidden=True)
+    @command(name="reminders")
     async def reminders(self, ctx: Context) -> None:
+        """
+        A convenient shortcut for the `remind list` command.
+        """
         await self.remind_list.invoke(ctx)
 
     @remind.command(name="clear", allow_extra_arguments=False)
