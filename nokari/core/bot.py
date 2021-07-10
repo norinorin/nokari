@@ -104,6 +104,9 @@ class Nokari(lightbulb.Bot):
         # Default prefixes
         self.default_prefixes = ["nokari", "n!"]
 
+        # List of active paginator IDs
+        self.paginator_ids = []
+
     @functools.wraps(lightbulb.Bot.start)
     async def start(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         await super().start(*args, **kwargs)
