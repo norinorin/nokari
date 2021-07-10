@@ -18,7 +18,7 @@ from nokari.core.context import Context
 from nokari.utils import db, plural, timers
 from nokari.utils.chunker import chunk, simple_chunk
 from nokari.utils.converters import time_converter
-from nokari.utils.formatter import escape_markdown, human_timedelta, discord_timestamp
+from nokari.utils.formatter import discord_timestamp, escape_markdown, human_timedelta
 from nokari.utils.paginator import Paginator
 from nokari.utils.parser import ArgumentParser
 
