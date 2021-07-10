@@ -1,4 +1,5 @@
 from contextlib import suppress
+import typing
 
 from hikari import (
     GuildMessageCreateEvent,
@@ -80,13 +81,12 @@ class Events(plugins.Plugin):
         """
         This listener handles dead paginators by disabling all the buttons attached to the message.
         """
-        if (interaction := event.interaction) and not isinstance(
-            interaction, ComponentInteraction
-        ):
+        if not isinstance(event.interaction, ComponentInteraction):
             return None
 
         if (
-            f"{interaction.channel_id}-{interaction.message_id}"
+            (interaction := event.interaction)
+            and f"{interaction.channel_id}-{interaction.message_id}"
             in self.bot.paginator_ids
         ):
             return None
@@ -102,7 +102,7 @@ class Events(plugins.Plugin):
 
         for idx, component in enumerate(message.components):
             components.append(ActionRowBuilder())
-            for button in component.components:
+            for button in component.components:  # type: ignore
                 kwargs = dict(
                     style=button.style,
                     custom_id=button.custom_id,

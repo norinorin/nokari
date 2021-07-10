@@ -174,8 +174,10 @@ class Paginator:
         *,
         style: Union[int, hikari.ButtonStyle],
         custom_id: Optional[str],
-        emoji: Optional[Union[snowflakes.Snowflakeish, hikari.Emojiish]] = None,
-        label: Optional[str] = None,
+        emoji: undefined.UndefinedOr[
+            Union[snowflakes.Snowflakeish, hikari.Emojiish]
+        ] = undefined.UNDEFINED,
+        label: undefined.UndefinedOr[str] = undefined.UNDEFINED,
         disable_if: Optional[_ButtonCallback] = None,
     ) -> Callable[[_ButtonCallback], _ButtonCallback]:
         """Returns a decorator that will register the decorated function as the callback."""
