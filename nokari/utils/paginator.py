@@ -227,7 +227,7 @@ class Paginator:
         self.message = await self.ctx.message.respond(**options)
 
         ref_id = f"{self.message.channel_id}-{self.message.id}"
-        self.bot.paginator_ids.append(ref_id)
+        self.ctx.bot.paginator_ids.append(ref_id)
 
         if not self.is_paginated:
             self.clean_up()
@@ -241,7 +241,7 @@ class Paginator:
 
             return None
         finally:
-            self.bot.paginator_ids.remove(ref_id)
+            self.ctx.bot.paginator_ids.remove(ref_id)
 
     async def _run_paginator(
         self,
