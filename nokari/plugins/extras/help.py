@@ -210,7 +210,7 @@ class CustomHelp(help_.HelpCommand):
         for subcommand in sorted(subcommands, key=attrgetter("name")):
             embed.add_field(
                 name=CustomHelp.get_command_signature(subcommand),
-                value=help_.get_help_text(subcommand),
+                value=help_.get_help_text(subcommand) or "No help text provided...",
                 inline=False,
             )
 
