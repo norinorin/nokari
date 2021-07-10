@@ -171,6 +171,6 @@ def discord_timestamp(
         )
 
     if isinstance(obj, datetime.datetime):
-        obj = datetime.datetime.timestamp()
+        obj = obj.timestamp()
 
     return f"<t:{int(obj)}:{fmt}>"
