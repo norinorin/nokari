@@ -143,5 +143,29 @@ def get_timestamp(timedelta: datetime.timedelta) -> str:
 def escape_markdown(text: str) -> str:
     # from telegram-group-easyauth
     parse = re.sub(r"([_*\[\]()~`>\#\+\-=|\.!])", r"\\\1", text)
-    reparse = re.sub(r"\\\\([_*\[\]()~`>\#\+\-=|\.!])", r"\1", parse)
-    return reparse
+    return re.sub(r"\\\\([_*\[\]()~`>\#\+\-=|\.!])", r"\1", parse)
+
+
+def discord_timestamp(
+    obj: typing.Union[datetime.timedelta, datetime.datetime, int, float],
+    /,
+    *,
+    fmt: str = "f",
+) -> str:
+    VALID_FMTS = ("t", "T", "d", "D", "f", "F", "R")
+    if not fmt in VALID_FMTS:
+        raise ValueError(
+            f"{fmt!r} isn't valid format, please use one of {_human_join(VALID_FMTS, final='or')}"
+        )
+
+    if isinstance(obj, datetime.timedelta):
+        obj = datetime.datetime.now(datetime.timezone.utc) + obj
+    elif not isinstance(obj, (float, int, datetime.datetime)):
+        raise TypeError(
+            "obj should be either datetime.datetime, datetime.timedelta, int, or float."
+        )
+
+    if isinstance(obj, datetime.datetime):
+        obj = datetime.datetime.timestamp()
+
+    return f"<t:{int(obj)}:{fmt}>"
