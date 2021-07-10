@@ -216,7 +216,8 @@ class Utils(Plugin):
         await ctx.respond(
             f"{ctx.author.mention},{reminder_id} {pre}"
             f"{discord_timestamp(timer.expires_at, fmt=fmt)}: {rem}"
-            f"{'.'*(not rem.endswith('.'))}"
+            f"{'.'*(not rem.endswith('.'))}",
+            user_mentions=[ctx.author],
         )
 
     @remind.command(name="list")
@@ -324,7 +325,9 @@ class Utils(Plugin):
 
         embed.add_field(name="Message:", value=message)
 
-        await channel.send(content=f"<@{author_id}>", embed=embed)
+        await channel.send(
+            content=f"<@{author_id}>", embed=embed, user_mentions=[author_id]
+        )
 
     @command(name="reminders")
     async def reminders(self, ctx: Context) -> None:
