@@ -69,7 +69,7 @@ def human_timedelta(
     brief: bool = False,
     append_suffix: bool = True,
 ) -> str:
-    """Returns the time delta between 2 datetime objects in a human readable format."""
+    """Returns the time delta in a human readable format."""
     now = (source or datetime.datetime.now(datetime.timezone.utc)).replace(
         microsecond=0
     )
@@ -77,7 +77,7 @@ def human_timedelta(
     if isinstance(rel, datetime.timedelta):
         dt_obj = now + rel
     elif isinstance(rel, datetime.datetime):
-        dt_obj = rel.replace(microsecond=0)
+        dt_obj = rel
     elif isinstance(rel, (int, float)):
         dt_obj = datetime.datetime.utcfromtimestamp(rel).replace(
             tzinfo=datetime.timezone.utc
