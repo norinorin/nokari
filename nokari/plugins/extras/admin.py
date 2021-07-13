@@ -9,7 +9,6 @@ from contextlib import redirect_stdout
 from inspect import getsource
 from io import StringIO
 
-import hikari
 from lightbulb import Bot, checks, plugins
 
 from nokari import core, utils
@@ -74,7 +73,7 @@ class Admin(plugins.Plugin):
 
         return parsed, status, fn_name
 
-    # pylint: disable=too-many-locals,exec-used,too-many-statements
+    # pylint: disable=too-many-locals,exec-used,too-many-statements,lost-exception,broad-except
     @checks.owner_only()
     @core.commands.command(name="eval")
     async def _eval(self, ctx: Context, *, cmd: str) -> None:
@@ -85,33 +84,42 @@ class Admin(plugins.Plugin):
             "bot": ctx.bot,
             "reload": importlib.reload,
             "lightbulb": __import__("lightbulb"),
+            "hikari": __import__("hikari"),
             "s_dir": lambda x, y: [i for i in dir(x) if y.lower() in i],
             **globals(),
         }
 
-        parsed, status, fn_name = self.clean_code(cmd)
-        exec(compile(parsed, filename="<ast>", mode="exec"), env)
-        func = env[fn_name]
         stdout = StringIO()
+        result = "None"
+        raw_error = ""
+
+        # In case there are syntax errors.
+        t0 = time.monotonic()
+        status = False
 
         try:
+            parsed, status, fn_name = self.clean_code(cmd)
+            exec(compile(parsed, filename="<ast>", mode="exec"), env)
             with redirect_stdout(stdout):
                 t0 = time.monotonic()
-                result = str(await func())
-                timedelta = time.monotonic() - t0
-
-            n = 1_900
-            measured_time = f"⏲️ {timedelta * 1_000}ms"
-            stdout_val = stdout.getvalue()
-
-            output = (
-                f"Standard Output: ```py\n{stdout_val.replace('`', ZWS_ACUTE)}```\n"
-                if stdout_val
-                else ""
+                result = str(await env[fn_name]()).replace("`", ZWS_ACUTE)
+        except Exception:
+            raw_error = (
+                traceback.format_exc()
+                .replace("`", ZWS_ACUTE)
+                .replace(__file__, "/dev/eval.py")
             )
+        finally:
+            n = 1_900
+            measured_time = f"⏲️ {(time.monotonic() - t0) * 1_000}ms"
+            stdout_val = stdout.getvalue().replace("`", ZWS_ACUTE)
 
-            if not status:
-                output = f"{output}Return Value: ```py\n{result.replace('`', ZWS_ACUTE)}```\n"
+            output = f"Standard Output: ```py\n{stdout_val}```\n" if stdout_val else ""
+            error = f"Standard Error: ```py\n{raw_error}```\n" if raw_error else ""
+            output += error
+
+            if not (status or error):
+                output += f"Return Value: ```py\n{result}```\n"
 
             if not output:
                 return
@@ -124,55 +132,41 @@ class Admin(plugins.Plugin):
             chunked_output = (
                 list(utils.chunk(stdout_val.strip(), n)) if stdout_val else []
             )
+            chunked_error = list(utils.chunk(raw_error.strip(), n) if raw_error else [])
             chunked_return_value = list(utils.chunk(str(result), n))
 
-            stdout_indexes = len(chunked_output) - 1
+            stdout_end = len(chunked_output) - 1
+            stderr_end = stdout_end + len(chunked_error) - 1
 
-            texts = chunked_output if status else chunked_output + chunked_return_value
-            pages = []
+            texts = chunked_output + chunked_error
+
+            if status:
+                texts += chunked_return_value
+
+            paginator = utils.Paginator.default(ctx)
 
             for idx, page in enumerate(texts):
-                if chunked_output and idx <= stdout_indexes:
-                    page = (
-                        f"Standard Output: ```py\n{page.replace('`', ZWS_ACUTE)}```\n"
-                    )
+                if chunked_output and idx <= stdout_end:
+                    fmt = "Standard Output: {page}"
+                elif chunked_error and idx <= stderr_end:
+                    fmt = "Standard Error: {page}"
                 else:
-                    page = f"Return Value: ```py\n{page.replace('`', ZWS_ACUTE)}```\n"
+                    fmt = "Return Value: {page}"
 
+                page = fmt.format(page=f"```py\n{page}```\n")
                 page = f"{page}{measured_time} | {idx + 1}/{len(texts)}"
-                pages.append(page)
+                paginator.add_page(page)
 
             # IDK if this is a good idea, w/e
             del texts
             del stdout
             del result
             del chunked_output
+            del chunked_error
             del chunked_return_value
-
-            paginator = utils.Paginator.default(ctx)
-            paginator.add_page(pages)
+            del raw_error
 
             await paginator.start()
-
-        # pylint: disable=broad-except
-        except Exception:
-            timedelta = time.monotonic() - t0
-            measured_time = f"⏲️ {timedelta * 1_000}ms"
-            try:
-                traceback_info = traceback.format_exc().replace(
-                    __file__, "/dev/eval.py"
-                )
-                await ctx.respond(
-                    f"""
-Error: ```py
-{traceback_info.replace('`', ZWS_ACUTE)}
-```
-{measured_time}
-"""
-                )
-            except hikari.HTTPResponseError:
-                await ctx.message.add_reaction("❌")
-                self.bot.log.error(traceback_info)
 
     async def run_command_in_shell(self, command: str) -> typing.List[str]:
         process = await asyncio.create_subprocess_shell(
