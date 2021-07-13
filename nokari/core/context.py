@@ -9,6 +9,7 @@ import lightbulb
 from hikari import Message, PartialMessage
 from hikari import embeds as embeds_
 from hikari import files, guilds, snowflakes, undefined, users
+from hikari.api import special_endpoints
 
 from nokari.utils.perms import has_channel_perms, has_guild_perms
 
@@ -30,18 +31,24 @@ class Context(lightbulb.Context):
         self,
         content: undefined.UndefinedOr[typing.Any] = undefined.UNDEFINED,
         *,
-        embed: undefined.UndefinedOr[embeds_.Embed] = undefined.UNDEFINED,
-        embeds: undefined.UndefinedOr[
-            typing.Sequence[embeds_.Embed]
-        ] = undefined.UNDEFINED,
         attachment: undefined.UndefinedOr[files.Resourceish] = undefined.UNDEFINED,
         attachments: undefined.UndefinedOr[
             typing.Sequence[files.Resourceish]
         ] = undefined.UNDEFINED,
+        component: undefined.UndefinedOr[
+            special_endpoints.ComponentBuilder
+        ] = undefined.UNDEFINED,
+        components: undefined.UndefinedOr[
+            typing.Sequence[special_endpoints.ComponentBuilder]
+        ] = undefined.UNDEFINED,
+        embed: undefined.UndefinedOr[embeds_.Embed] = undefined.UNDEFINED,
+        embeds: undefined.UndefinedOr[
+            typing.Sequence[embeds_.Embed]
+        ] = undefined.UNDEFINED,
         nonce: undefined.UndefinedOr[str] = undefined.UNDEFINED,
         tts: undefined.UndefinedOr[bool] = undefined.UNDEFINED,
-        reply: undefined.UndefinedOr[
-            snowflakes.SnowflakeishOr[PartialMessage]
+        reply: typing.Union[
+            undefined.UndefinedType, snowflakes.SnowflakeishOr[PartialMessage], bool
         ] = undefined.UNDEFINED,
         mentions_everyone: undefined.UndefinedOr[bool] = undefined.UNDEFINED,
         mentions_reply: undefined.UndefinedOr[bool] = undefined.UNDEFINED,
@@ -72,6 +79,8 @@ class Context(lightbulb.Context):
                 embed=embed or None,
                 attachment=attachment,
                 attachments=attachments,
+                component=component,
+                components=components,
                 replace_attachments=True,
                 mentions_reply=mentions_reply,
                 mentions_everyone=mentions_everyone,
@@ -86,6 +95,8 @@ class Context(lightbulb.Context):
             content=content,
             embed=embed,
             embeds=embeds,
+            component=component,
+            components=components,
             attachment=attachment,
             attachments=attachments,
             nonce=nonce,

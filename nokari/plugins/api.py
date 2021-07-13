@@ -1,5 +1,4 @@
 import datetime
-from nokari.utils.formatter import discord_timestamp
 import types
 import typing
 from contextlib import suppress
@@ -17,6 +16,7 @@ from sphobjinv import Inventory
 
 from nokari import core, utils
 from nokari.utils import Paginator, chunk_from_list, converters, get_timestamp, plural
+from nokari.utils.formatter import discord_timestamp
 from nokari.utils.parser import ArgumentParser
 from nokari.utils.spotify import (
     Album,

@@ -233,7 +233,7 @@ class Paginator:
         """Starts paginating the contents."""
         options = await self.kwargs
         options.pop("response_type", None)
-        self.message = await self.ctx.message.respond(**options)
+        self.message = await self.ctx.respond(**options)
 
         ref_id = f"{self.message.channel_id}-{self.message.id}"
         self.ctx.bot.paginator_ids.add(ref_id)
