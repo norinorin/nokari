@@ -1,4 +1,3 @@
-import typing
 from contextlib import suppress
 
 from hikari import (
@@ -7,10 +6,6 @@ from hikari import (
     GuildMessageUpdateEvent,
     Message,
 )
-from hikari.events.interaction_events import InteractionCreateEvent
-from hikari.impl.special_endpoints import ActionRowBuilder
-from hikari.interactions.bases import ResponseType
-from hikari.interactions.component_interactions import ComponentInteraction
 from lightbulb import Bot, errors, plugins
 
 
@@ -75,56 +70,6 @@ class Events(plugins.Plugin):
             return
 
         await resp.delete()
-
-    @plugins.listener()
-    async def on_interaction_create(self, event: InteractionCreateEvent) -> None:
-        """
-        Handles dead paginators by disabling all the buttons attached to the message.
-        """
-        if not isinstance((interaction := event.interaction), ComponentInteraction):
-            return None
-
-        if (
-            f"{interaction.channel_id}-{interaction.message_id}"
-            in self.bot.paginator_ids
-        ):
-            return None
-
-        if (message := interaction.message) is None:
-            return None
-
-        self.bot.log.debug(
-            "Handling unhandled interaction create for message %d.", message.id
-        )
-
-        components = []
-
-        for idx, component in enumerate(message.components):
-            components.append(ActionRowBuilder())
-            for button in component.components:  # type: ignore
-                kwargs = dict(
-                    style=button.style,
-                    custom_id=button.custom_id,
-                    disabled=True,
-                )
-
-                if button.label:
-                    kwargs["label"] = button.label
-
-                if button.emoji:
-                    kwargs["emoji"] = button.emoji
-
-                if button.url:
-                    kwargs["url"] = button.url
-                    del kwargs["custom_id"]
-
-                components[idx].add_button(**kwargs)
-
-        await interaction.create_initial_response(
-            ResponseType.MESSAGE_UPDATE, components=components
-        )
-
-        self.bot.log.debug("Disabled the buttons for message %d.", message.id)
 
 
 def load(bot: Bot) -> None:

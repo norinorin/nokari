@@ -235,22 +235,16 @@ class Paginator:
         options.pop("response_type", None)
         self.message = await self.ctx.respond(**options)
 
-        ref_id = f"{self.message.channel_id}-{self.message.id}"
-        self.ctx.bot.paginator_ids.add(ref_id)
-
         if not self.is_paginated:
             self.clean_up()
             return None
 
         self._task = asyncio.create_task(self._run_paginator(**kwargs))
 
-        try:
-            with suppress(asyncio.CancelledError):
-                return await self._task
+        with suppress(asyncio.CancelledError):
+            return await self._task
 
-            return None
-        finally:
-            self.ctx.bot.paginator_ids.remove(ref_id)
+        return None
 
     async def _run_paginator(
         self,

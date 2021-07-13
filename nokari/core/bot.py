@@ -104,9 +104,6 @@ class Nokari(lightbulb.Bot):
         # Default prefixes
         self.default_prefixes = ["nokari", "n!"]
 
-        # List of active paginator IDs
-        self.paginator_ids: typing.Set[str] = set()
-
     @functools.wraps(lightbulb.Bot.start)
     async def start(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         await super().start(*args, **kwargs)
@@ -271,12 +268,7 @@ class Nokari(lightbulb.Bot):
         )
 
         messageable = getattr(messageable, "channel", messageable)
-
         msg = await messageable.send(embed=embed, component=component)
-
-        ref_id = f"{msg.channel_id}-{msg.id}"
-
-        self.paginator_ids.add(ref_id)
 
         confirm = False
 
@@ -322,7 +314,6 @@ class Nokari(lightbulb.Bot):
                     ResponseType.MESSAGE_UPDATE, component=component
                 )
         finally:
-            self.paginator_ids.remove(ref_id)
             return confirm
 
 
