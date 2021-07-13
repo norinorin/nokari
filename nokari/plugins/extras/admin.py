@@ -84,9 +84,10 @@ class Admin(plugins.Plugin):
             "ctx": ctx,
             "bot": ctx.bot,
             "reload": importlib.reload,
+            "lightbulb": __import__("lightbulb"),
             "s_dir": lambda x, y: [i for i in dir(x) if y.lower() in i],
+            **globals(),
         }
-        env.update(globals())
 
         parsed, status, fn_name = self.clean_code(cmd)
         exec(compile(parsed, filename="<ast>", mode="exec"), env)
