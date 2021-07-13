@@ -23,6 +23,10 @@ from nokari.utils.paginator import Paginator
 from nokari.utils.parser import ArgumentParser
 
 
+MAX_DAYS: typing.Final[int] = 40
+RETRY_IN: typing.Final[int] = 86400
+
+
 class SERIAL:
     ...
 
@@ -53,13 +57,13 @@ class Utils(Plugin):
     def plugin_remove(self) -> None:
         self._task.cancel()
 
-    async def get_active_timer(self, *, days: int = 7) -> typing.Optional[timers.Timer]:
+    async def get_active_timer(self) -> typing.Optional[timers.Timer]:
         query = "SELECT * FROM reminders WHERE expires_at < (CURRENT_TIMESTAMP + $1::interval) ORDER BY expires_at LIMIT 1;"
-        record = await self.bot.pool.fetchrow(query, timedelta(days=days))
+        record = await self.bot.pool.fetchrow(query, timedelta(days=MAX_DAYS))
         return record and timers.Timer(record)
 
-    async def wait_for_active_timers(self, *, days: int = 7) -> timers.Timer:
-        timer = await self.get_active_timer(days=days)
+    async def wait_for_active_timers(self) -> timers.Timer:
+        timer = await self.get_active_timer()
         if timer is not None:
             self.event.set()
             return timer
@@ -67,11 +71,11 @@ class Utils(Plugin):
         self.event.clear()
         self._current_timer = None
         try:
-            await asyncio.wait_for(self.event.wait(), timeout=86400)
+            await asyncio.wait_for(self.event.wait(), timeout=RETRY_IN)
         except TimeoutError:
-            return await self.wait_for_active_timers(days=days)
+            return await self.wait_for_active_timers()
         else:
-            return typing.cast(timers.Timer, await self.get_active_timer(days=days))
+            return typing.cast(timers.Timer, await self.get_active_timer())
 
     async def call_timer(self, timer: timers.Timer) -> None:
         args = [timer.id]
@@ -90,7 +94,7 @@ class Utils(Plugin):
     async def dispatch_timers(self) -> None:
         try:
             while self.bot.is_alive:
-                timer = self._current_timer = await self.wait_for_active_timers(days=40)
+                timer = self._current_timer = await self.wait_for_active_timers()
 
                 if timer.expires_at >= (now := datetime.now(timezone.utc)):
                     await asyncio.sleep((timer.expires_at - now).total_seconds())
@@ -98,7 +102,7 @@ class Utils(Plugin):
                 await self.call_timer(timer)
         except (OSError, asyncpg.PostgresConnectionError):
             self._task.cancel()
-            self._task = self.bot.loop.create_task(self.dispatch_timers())
+            self._task = asyncio.create_task(self.dispatch_timers())
 
     async def short_timer_optimisation(
         self, seconds: float, timer: timers.Timer
@@ -139,12 +143,12 @@ class Utils(Plugin):
         )
         timer.id = row[0]
 
-        if delta <= (86400 * 40):
+        if delta <= (86400 * MAX_DAYS):
             self.event.set()
 
         if self._current_timer and when < self._current_timer.expires_at:
             self._task.cancel()
-            self._task = self.bot.loop.create_task(self.dispatch_timers())
+            self._task = asyncio.create_task(self.dispatch_timers())
 
         return timer
 
@@ -153,7 +157,7 @@ class Utils(Plugin):
             return
 
         self._task.cancel()
-        self._task = self.bot.loop.create_task(self.dispatch_timers())
+        self._task = asyncio.create_task(self.dispatch_timers())
 
     @group(
         usage="<when[, message]>",

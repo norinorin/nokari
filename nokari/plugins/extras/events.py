@@ -79,14 +79,13 @@ class Events(plugins.Plugin):
     @plugins.listener()
     async def on_interaction_create(self, event: InteractionCreateEvent) -> None:
         """
-        This listener handles dead paginators by disabling all the buttons attached to the message.
+        Handles dead paginators by disabling all the buttons attached to the message.
         """
-        if not isinstance(event.interaction, ComponentInteraction):
+        if not isinstance((interaction := event.interaction), ComponentInteraction):
             return None
 
         if (
-            (interaction := event.interaction)
-            and f"{interaction.channel_id}-{interaction.message_id}"
+            f"{interaction.channel_id}-{interaction.message_id}"
             in self.bot.paginator_ids
         ):
             return None

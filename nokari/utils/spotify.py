@@ -431,11 +431,10 @@ class SpotifyRest:
     def __init__(
         self,
         *,
-        loop: typing.Optional[asyncio.AbstractEventLoop] = None,
         executor: typing.Any = None,
     ) -> None:
         self.spotipy = spotipy.Spotify(auth_manager=spotipy.SpotifyClientCredentials())
-        self._loop = loop or asyncio.get_running_loop()
+        self._loop = asyncio.get_running_loop()
         self._executor = executor
 
     def __getattr__(self, attr: str) -> partial[typing.Awaitable[typing.Any]]:
@@ -480,9 +479,8 @@ class SpotifyClient:
 
     def __init__(self, bot: Bot) -> None:
         self.bot = bot
-        self.loop = bot.loop
         self.cache = SpotifyCache()
-        self.rest = SpotifyRest(loop=bot.loop)
+        self.rest = SpotifyRest()
 
     @staticmethod
     def _get_timestamp(spotify: Spotify) -> typing.Tuple[str, str, float]:
@@ -555,7 +553,7 @@ class SpotifyClient:
         self, album_url: str, height: int, mode: str
     ) -> typing.Tuple[typing.Tuple[_RGB, _RGBs], Image.Image]:
         album = BytesIO(await self._get_album(album_url))
-        colors = await self.loop.run_in_executor(
+        colors = await self.bot.loop.run_in_executor(
             self.bot.executor, self._get_colors, album, mode, album_url
         )
         return colors, Image.open(album).convert("RGBA").resize((height,) * 2)
@@ -807,7 +805,7 @@ class SpotifyClient:
                 timestamp=metadata.timestamp,
             )
 
-        return await self.loop.run_in_executor(
+        return await self.bot.loop.run_in_executor(
             self.bot.executor, wrapper, metadata, rgbs, im
         )
 
@@ -971,7 +969,7 @@ class SpotifyClient:
                 timestamp=metadata.timestamp,
             )
 
-        return await self.loop.run_in_executor(self.bot.executor, wrapper, metadata)
+        return await self.bot.loop.run_in_executor(self.bot.executor, wrapper, metadata)
 
     @caches.cache(100)
     @staticmethod
@@ -1109,13 +1107,13 @@ class SpotifyClient:
 
                 return canvas
 
-            canvas = await self.loop.run_in_executor(self.bot.executor, wrapper)
+            canvas = await self.bot.loop.run_in_executor(self.bot.executor, wrapper)
 
         def save() -> None:
             canvas.save(buffer, "PNG")
             buffer.seek(0)
 
-        await self.loop.run_in_executor(self.bot.executor, save)
+        await self.bot.loop.run_in_executor(self.bot.executor, save)
 
     __call__ = generate_spotify_card
 
