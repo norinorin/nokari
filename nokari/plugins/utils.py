@@ -22,7 +22,6 @@ from nokari.utils.formatter import discord_timestamp, escape_markdown, human_tim
 from nokari.utils.paginator import Paginator
 from nokari.utils.parser import ArgumentParser
 
-
 MAX_DAYS: typing.Final[int] = 40
 RETRY_IN: typing.Final[int] = 86400
 
