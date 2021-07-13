@@ -428,9 +428,9 @@ class Paginator:
         self.clean_up()
 
     @classmethod
-    def default(cls, ctx: "Context") -> "Paginator":
+    def default(cls, ctx: "Context", pages: Optional[_Pages] = None) -> "Paginator":
         """A classmethod that returns a Paginator object with the default callbacks."""
-        self = cls(ctx)
+        self = cls(ctx, pages)
         self.add_button(
             self.first_page,
             style=hikari.ButtonStyle.PRIMARY,

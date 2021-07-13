@@ -187,11 +187,13 @@ Error: ```py
         if stderr:
             output += f"Stderr:\n{stderr}"
 
-        paginator = utils.Paginator.default(ctx)
-        paginator._pages = [
-            f"```{i.replace('`', ZWS_ACUTE)}```" for i in utils.chunk(output, 1900)
-        ]
-        await paginator.start()
+        await utils.Paginator.default(
+            ctx,
+            pages=[
+                f"```{i.replace('`', ZWS_ACUTE)}```" for i in utils.chunk(output, 1900)
+            ]
+            or ["No output..."],
+        ).start()
 
 
 def load(bot: Bot) -> None:

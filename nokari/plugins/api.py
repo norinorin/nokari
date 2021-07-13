@@ -366,9 +366,7 @@ class API(plugins.Plugin):
 
         if chunks:
             length = len(chunks) + 1
-            typing.cast(
-                hikari.EmbedFooter, initial_embed.footer
-            ).text = f"Page 1/{length}"
+            initial_embed.set_footer(text=f"Page 1/{length}")
 
         paginator.add_page(initial_embed)
 
