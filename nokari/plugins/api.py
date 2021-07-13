@@ -1,4 +1,5 @@
 import datetime
+from nokari.utils.formatter import discord_timestamp
 import types
 import typing
 from contextlib import suppress
@@ -161,12 +162,11 @@ class API(plugins.Plugin):
                 title=f"{invoked_with.capitalize()} Info",
                 description=f"**[#{data.track_number}]({data.album.url}) {data.formatted_url} by "
                 f"{', '.join(artist.formatted_url for artist in data.artists)} "
-                f"on {data.formatted_url}**\n",
-                timestamp=data.album.release_date,
+                f"on {data.formatted_url}**\n"
+                f"**Release date**: {discord_timestamp(data.album.release_date, fmt='d')}",
             )
             .set_thumbnail(album)
             .set_image(spotify_code)
-            .set_footer(text="Released on")
         )
 
         round_ = lambda n: int(round(n))
@@ -332,14 +332,16 @@ class API(plugins.Plugin):
         paginator = Paginator.default(ctx)
 
         initial_embed = (
-            hikari.Embed(
-                title=f"{album.album_type.title()} Info", timestamp=album.release_date
-            )
+            hikari.Embed(title=f"{album.album_type.title()} Info")
             .set_thumbnail(cover)
             .set_image(spotify_code)
             .add_field(
                 name="Name",
                 value=f"{album.formatted_url} | {plural(album.total_tracks):track,}",
+            )
+            .add_field(
+                name="Release Date",
+                value=discord_timestamp(album.release_date, fmt="d"),
             )
             .add_field(name="Popularity", value=f"\N{fire} {album.popularity}")
             .add_field(name="Label", value=album.label)
@@ -357,18 +359,16 @@ class API(plugins.Plugin):
                 value=", ".join(album.genres),
             )
 
-        (
-            initial_embed.add_field(
-                name="Tracks",
-                value=chunks.pop(0),
-            ).set_footer(text="Released on")
+        initial_embed.add_field(
+            name="Tracks",
+            value=chunks.pop(0),
         )
 
         if chunks:
             length = len(chunks) + 1
             typing.cast(
                 hikari.EmbedFooter, initial_embed.footer
-            ).text = f"Page 1/{length} | Released on"
+            ).text = f"Page 1/{length}"
 
         paginator.add_page(initial_embed)
 
