@@ -128,7 +128,6 @@ class Admin(plugins.Plugin):
 
         chunked_output = list(utils.chunk(output.strip(), max_char)) if output else []
         chunked_error = list(utils.chunk(error.strip(), max_char)) if error else []
-        chunked_return_value = list(utils.chunk(retval, max_char))
 
         stdout_end = len(chunked_output) - 1
         stderr_end = stdout_end + len(chunked_error)
@@ -136,7 +135,7 @@ class Admin(plugins.Plugin):
         texts = chunked_output + chunked_error
 
         if append_retval:
-            texts += chunked_return_value
+            texts += list(utils.chunk(retval, max_char))
 
         pages = []
 
