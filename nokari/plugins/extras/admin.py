@@ -71,7 +71,10 @@ class Admin(plugins.Plugin):
 
         parsed = ast.parse(raw)
         body = parsed.body[0].body  # type: ignore
-        Admin.insert_returns(body)
+
+        # Don't insert returns if we don't care about the retval
+        if not status:
+            Admin.insert_returns(body)
 
         return raw.splitlines(), parsed, status, fn_name
 
@@ -88,11 +91,9 @@ class Admin(plugins.Plugin):
         """
         This is rather a hacky way to insert the line source.
         """
-        stack = [
-            frame
-            for frame in traceback.format_exception(*exc_info)
-            if f'File "{__file__}"' not in frame
-        ]
+        stack = traceback.format_exception(*exc_info)
+        assert len(stack) >= 3
+        stack.pop(1)  # the eval function call
         for idx, frame in enumerate(stack):
             if frame.lstrip().startswith(f'File "{filename}", line '):
                 # Don't wanna use re here :^)
