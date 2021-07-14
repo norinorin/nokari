@@ -85,21 +85,21 @@ class Admin(plugins.Plugin):
         raw_lines: typing.List[str],
         filename: str,
     ) -> str:
-        stack = traceback.extract_tb(exc_info[-1])
-        formatted = []
-        for frame in stack[1:]:
-            line = (
-                raw_lines[frame.lineno - 1].lstrip()
-                if (frame.filename == filename and not frame.line)
-                else frame.line
-            )
-            formatted.append(
-                f'  File "{frame.filename}", line {frame.lineno}, in {frame.name}\n    {line}'
-            )
+        """
+        This is rather a hacky way to insert the line source.
+        """
+        stack = [
+            frame
+            for frame in traceback.format_exception(*exc_info)
+            if f'File "{__file__}"' not in frame
+        ]
+        for idx, frame in enumerate(stack):
+            if frame.lstrip().startswith(f'File "{filename}", line '):
+                # Don't wanna use re here :^)
+                lineno = int(frame.split(", ")[1].lstrip(" line"))
+                stack[idx] += f"    {raw_lines[lineno-1].lstrip()}\n"
 
-        formatted.append(traceback.format_exception(*exc_info)[-1])
-
-        return "Traceback (most recent call last):\n" + "\n".join(formatted)
+        return "".join(stack)
 
     # pylint: disable=too-many-locals,too-many-arguments
     @staticmethod
