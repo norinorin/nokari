@@ -2,8 +2,10 @@ import ast
 import asyncio
 import importlib
 import subprocess
+import sys
 import time
 import traceback
+from types import TracebackType
 import typing
 from contextlib import redirect_stdout
 from inspect import getsource
@@ -48,7 +50,7 @@ class Admin(plugins.Plugin):
             Admin.insert_returns(body[-1].body)
 
     @staticmethod
-    def clean_code(code: str) -> typing.Tuple[ast.AST, bool, str]:
+    def clean_code(code: str) -> typing.Tuple[typing.List[str], ast.AST, bool, str]:
         """Cleans the codeblock and removes the no-return flag."""
         code = code.lstrip("`")
         if code.startswith("py\n"):
@@ -63,17 +65,99 @@ class Admin(plugins.Plugin):
             code = code[:-11]
             status = True
 
-        fn_name = "_eval_expr"
+        fn_name = "run_code"
         cmd = "\n".join(f"    {i}" for i in code.splitlines())
-        body = f"async def {fn_name}():\n{cmd}"
+        raw = f"async def {fn_name}():\n{cmd}"
 
-        parsed = ast.parse(body)
+        parsed = ast.parse(raw)
         body = parsed.body[0].body  # type: ignore
         Admin.insert_returns(body)
 
-        return parsed, status, fn_name
+        return raw.splitlines(), parsed, status, fn_name
 
-    # pylint: disable=too-many-locals,exec-used,too-many-statements,lost-exception,broad-except
+    @staticmethod
+    def format_exc(
+        exc_info: typing.Tuple[
+            typing.Optional[typing.Type[BaseException]],
+            typing.Optional[BaseException],
+            typing.Optional[TracebackType],
+        ],
+        raw_lines: typing.List[str],
+        filename: str,
+        fn_name: str,
+    ) -> str:
+        stack = traceback.extract_tb(exc_info[-1])
+        formatted = []
+        for frame in stack[1:]:
+            line = (
+                raw_lines[frame.lineno - 1].lstrip()
+                if (
+                    frame.filename == filename
+                    and frame.name == fn_name
+                    and not frame.line
+                )
+                else frame.line
+            )
+            formatted.append(
+                f'  File "{frame.filename}", line {frame.lineno}, in {frame.name}\n    {line}'
+            )
+
+        formatted.append(traceback.format_exception(*exc_info)[-1])
+
+        return "Traceback (most recent call last):\n" + "\n".join(formatted)
+
+    # pylint: disable=too-many-locals,too-many-arguments
+    @staticmethod
+    def get_eval_pages(
+        output: str,
+        error: str,
+        retval: str,
+        hide_retval: bool,
+        measured_time: str,
+        max_char: int,
+    ) -> typing.Optional[typing.List[str]]:
+        fmt_output = f"Standard Output: ```py\n{output}```\n" if output else ""
+        fmt_err = f"Standard Error: ```py\n{error}```\n" if error else ""
+        fmt_output += fmt_err
+
+        if not (hide_retval or error):
+            fmt_output += f"Return Value: ```py\n{retval}```\n"
+
+        if not fmt_output:
+            return None
+
+        if len(fmt_output) < max_char:
+            return [f"{fmt_output}{measured_time}"]
+
+        chunked_output = list(utils.chunk(output.strip(), max_char)) if output else []
+        chunked_error = list(utils.chunk(error.strip(), max_char)) if error else []
+        chunked_return_value = list(utils.chunk(retval, max_char))
+
+        stdout_end = len(chunked_output) - 1
+        stderr_end = stdout_end + len(chunked_error) - 1
+
+        texts = chunked_output + chunked_error
+
+        if not hide_retval:
+            texts += chunked_return_value
+
+        pages = []
+
+        for idx, page in enumerate(texts):
+            if chunked_output and idx <= stdout_end:
+                fmt = "Standard Output: {page}"
+            elif chunked_error and idx <= stderr_end:
+                fmt = "Standard Error: {page}"
+            else:
+                fmt = "Return Value: {page}"
+
+            page = fmt.format(page=f"```py\n{page}```\n")
+            page = f"{page}{measured_time} | {idx + 1}/{len(texts)}"
+            pages.append(page)
+
+        return pages
+
+    # pylint: disable=exec-used,lost-exception,broad-except
     @checks.owner_only()
     @core.commands.command(name="eval")
     async def _eval(self, ctx: Context, *, cmd: str) -> None:
@@ -89,6 +173,8 @@ class Admin(plugins.Plugin):
             **globals(),
         }
 
+        filename = "<ast>"
+
         stdout = StringIO()
         result = "None"
         raw_error = ""
@@ -96,16 +182,22 @@ class Admin(plugins.Plugin):
         # In case there are syntax errors.
         t0 = time.monotonic()
         status = False
+        raw_lines = None
 
         try:
-            parsed, status, fn_name = self.clean_code(cmd)
-            exec(compile(parsed, filename="<ast>", mode="exec"), env)
+            raw_lines, parsed, status, fn_name = self.clean_code(cmd)
+            exec(compile(parsed, filename=filename, mode="exec"), env)
             with redirect_stdout(stdout):
                 t0 = time.monotonic()
                 result = str(await env[fn_name]()).replace("`", ZWS_ACUTE)
         except Exception:
+
             raw_error = (
-                traceback.format_exc()
+                (
+                    self.format_exc(sys.exc_info(), raw_lines, filename, fn_name)
+                    if raw_lines
+                    else traceback.format_exc()  # Failed to compile.
+                )
                 .replace("`", ZWS_ACUTE)
                 .replace(__file__, "/dev/eval.py")
             )
@@ -113,60 +205,14 @@ class Admin(plugins.Plugin):
             n = 1_900
             measured_time = f"⏲️ {(time.monotonic() - t0) * 1_000}ms"
             stdout_val = stdout.getvalue().replace("`", ZWS_ACUTE)
-
-            output = f"Standard Output: ```py\n{stdout_val}```\n" if stdout_val else ""
-            error = f"Standard Error: ```py\n{raw_error}```\n" if raw_error else ""
-            output += error
-
-            if not (status or error):
-                output += f"Return Value: ```py\n{result}```\n"
-
-            if not output:
-                return
-
-            if len(output) < n:
-                output = f"{output}{measured_time}"
-                await ctx.respond(output)
-                return
-
-            chunked_output = (
-                list(utils.chunk(stdout_val.strip(), n)) if stdout_val else []
+            pages = self.get_eval_pages(
+                stdout_val, raw_error, result, status, measured_time, n
             )
-            chunked_error = list(utils.chunk(raw_error.strip(), n) if raw_error else [])
-            chunked_return_value = list(utils.chunk(str(result), n))
 
-            stdout_end = len(chunked_output) - 1
-            stderr_end = stdout_end + len(chunked_error) - 1
+            if not pages:
+                return
 
-            texts = chunked_output + chunked_error
-
-            if status:
-                texts += chunked_return_value
-
-            paginator = utils.Paginator.default(ctx)
-
-            for idx, page in enumerate(texts):
-                if chunked_output and idx <= stdout_end:
-                    fmt = "Standard Output: {page}"
-                elif chunked_error and idx <= stderr_end:
-                    fmt = "Standard Error: {page}"
-                else:
-                    fmt = "Return Value: {page}"
-
-                page = fmt.format(page=f"```py\n{page}```\n")
-                page = f"{page}{measured_time} | {idx + 1}/{len(texts)}"
-                paginator.add_page(page)
-
-            # IDK if this is a good idea, w/e
-            del texts
-            del stdout
-            del result
-            del chunked_output
-            del chunked_error
-            del chunked_return_value
-            del raw_error
-
-            await paginator.start()
+            await utils.Paginator.default(ctx, pages=pages).start()
 
     async def run_command_in_shell(self, command: str) -> typing.List[str]:
         process = await asyncio.create_subprocess_shell(
