@@ -132,8 +132,6 @@ class Admin(plugins.Plugin):
         stdout_end = len(chunked_output) - 1
         stderr_end = stdout_end + len(chunked_error)
 
-        print(stdout_end, stderr_end)
-
         texts = chunked_output + chunked_error
 
         if append_retval:
