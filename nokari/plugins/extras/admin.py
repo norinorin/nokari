@@ -1,6 +1,7 @@
 import ast
 import asyncio
 import importlib
+import re
 import subprocess
 import sys
 import time
@@ -95,9 +96,8 @@ class Admin(plugins.Plugin):
         assert len(stack) >= 3
         stack.pop(1)  # the eval function call
         for idx, frame in enumerate(stack):
-            if frame.lstrip().startswith(f'File "{filename}", line '):
-                # Don't wanna use re here :^)
-                lineno = int(frame.split(", ")[1].lstrip(" line"))
+            if match := re.match(fr'\s+File "{filename}", line (?P<lineno>\d+)', frame):
+                lineno = int(match.group("lineno"))
                 stack[idx] += f"    {raw_lines[lineno-1].lstrip()}\n"
 
         return "".join(stack)
