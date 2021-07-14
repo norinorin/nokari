@@ -112,10 +112,11 @@ class Admin(plugins.Plugin):
         max_char: int,
     ) -> typing.Optional[typing.List[str]]:
         fmt_output = f"Standard Output: ```py\n{output}```\n" if output else ""
-        fmt_err = f"Standard Error: ```py\n{error}```\n" if error else ""
-        fmt_output += fmt_err
+        fmt_output += f"Standard Error: ```py\n{error}```\n" if error else ""
 
-        if not (hide_retval or error):
+        append_retval = not (hide_retval or error)
+
+        if append_retval:
             fmt_output += f"Return Value: ```py\n{retval}```\n"
 
         if not fmt_output:
@@ -129,11 +130,13 @@ class Admin(plugins.Plugin):
         chunked_return_value = list(utils.chunk(retval, max_char))
 
         stdout_end = len(chunked_output) - 1
-        stderr_end = stdout_end + len(chunked_error) - 1
+        stderr_end = stdout_end + len(chunked_error)
+
+        print(stdout_end, stderr_end)
 
         texts = chunked_output + chunked_error
 
-        if not hide_retval:
+        if append_retval:
             texts += chunked_return_value
 
         pages = []
