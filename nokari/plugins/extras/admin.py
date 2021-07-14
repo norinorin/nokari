@@ -5,11 +5,11 @@ import subprocess
 import sys
 import time
 import traceback
-from types import TracebackType
 import typing
 from contextlib import redirect_stdout
 from inspect import getsource
 from io import StringIO
+from types import TracebackType
 
 from lightbulb import Bot, checks, plugins
 
@@ -191,7 +191,6 @@ class Admin(plugins.Plugin):
                 t0 = time.monotonic()
                 result = str(await env[fn_name]()).replace("`", ZWS_ACUTE)
         except Exception:
-
             raw_error = (
                 (
                     self.format_exc(sys.exc_info(), raw_lines, filename, fn_name)
