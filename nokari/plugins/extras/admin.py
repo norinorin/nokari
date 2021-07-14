@@ -84,18 +84,13 @@ class Admin(plugins.Plugin):
         ],
         raw_lines: typing.List[str],
         filename: str,
-        fn_name: str,
     ) -> str:
         stack = traceback.extract_tb(exc_info[-1])
         formatted = []
         for frame in stack[1:]:
             line = (
                 raw_lines[frame.lineno - 1].lstrip()
-                if (
-                    frame.filename == filename
-                    and frame.name == fn_name
-                    and not frame.line
-                )
+                if (frame.filename == filename and not frame.line)
                 else frame.line
             )
             formatted.append(
@@ -173,7 +168,7 @@ class Admin(plugins.Plugin):
             **globals(),
         }
 
-        filename = "<ast>"
+        filename = "<eval>"
 
         stdout = StringIO()
         result = "None"
@@ -193,7 +188,7 @@ class Admin(plugins.Plugin):
         except Exception:
             raw_error = (
                 (
-                    self.format_exc(sys.exc_info(), raw_lines, filename, fn_name)
+                    self.format_exc(sys.exc_info(), raw_lines, filename)
                     if raw_lines
                     else traceback.format_exc()  # Failed to compile.
                 )
