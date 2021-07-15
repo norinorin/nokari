@@ -1,4 +1,5 @@
 import datetime
+import inspect
 import typing
 from operator import attrgetter
 
@@ -45,7 +46,7 @@ class CustomHelp(help_.HelpCommand):
         """
         Returns the first line of the docstring of the command.
         """
-        return help_.get_help_text(command).split("\n")[0] or "No description..."
+        return help_.get_help_text(command).splitlines()[0] or "No description..."
 
     @staticmethod
     def get_base_embed(context: Context) -> hikari.Embed:
@@ -180,7 +181,7 @@ class CustomHelp(help_.HelpCommand):
         context: Context, embed: hikari.Embed, command: commands.Command
     ) -> None:
         embed.title = CustomHelp.get_command_signature(command)
-        embed.description = help_.get_help_text(command) or "No help found..."
+        embed.description = inspect.getdoc(command.callback) or "No help found..."
         if command.__class__ is commands.Command:
             embed.footer.text = "Got confused? Be sure to join the support server!"  # type: ignore
 
@@ -210,7 +211,7 @@ class CustomHelp(help_.HelpCommand):
         for subcommand in sorted(subcommands, key=attrgetter("name")):
             embed.add_field(
                 name=CustomHelp.get_command_signature(subcommand),
-                value=help_.get_help_text(subcommand) or "No help text provided...",
+                value=inspect.getdoc(subcommand.callback) or "No help text provided...",
                 inline=False,
             )
 

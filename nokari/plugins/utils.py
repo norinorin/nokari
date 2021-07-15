@@ -166,6 +166,7 @@ class Utils(Plugin):
         """
         You can pass a human readable time. The argument order doesn't really matter here,
         but you can't pass the time in between the reminder message. The time should be in UTC.
+
         Examples: - `n!remind me in a week do something`;
         - `n!remind me at 2pm do something`;
         - `n!remind do something 3h`;
@@ -381,6 +382,7 @@ class Utils(Plugin):
 
         The raw flag will escape the markdown, this is useful if you want to
         edit the message.
+
         Example: `n!remind info 378 --raw`
 
         Flags:
