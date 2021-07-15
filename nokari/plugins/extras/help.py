@@ -182,7 +182,7 @@ class CustomHelp(help_.HelpCommand):
     ) -> None:
         embed.title = CustomHelp.get_command_signature(command)
         embed.description = inspect.getdoc(command.callback) or "No help found..."
-        if command.__class__ is commands.Command:
+        if not isinstance(command, commands.Group):
             embed.footer.text = "Got confused? Be sure to join the support server!"  # type: ignore
 
     @staticmethod

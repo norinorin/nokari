@@ -112,8 +112,8 @@ class Admin(plugins.Plugin):
         measured_time: str,
         max_char: int,
     ) -> typing.Optional[typing.List[str]]:
-        fmt_output = f"Standard Output: ```py\n{output}```\n" if output else ""
-        fmt_output += f"Standard Error: ```py\n{error}```\n" if error else ""
+        fmt_output = f"Standard Output: ```py\n{output} ```\n" if output else ""
+        fmt_output += f"Standard Error: ```py\n{error} ```\n" if error else ""
 
         append_retval = not (hide_retval or error)
 
@@ -201,7 +201,7 @@ class Admin(plugins.Plugin):
             measured_time = f"⏲️ {(time.monotonic() - t0) * 1_000}ms"
             stdout_val = stdout.getvalue().replace("`", ZWS_ACUTE)
             pages = self.get_eval_pages(
-                stdout_val, raw_error, result, status, measured_time, n
+                stdout_val, raw_error, result or "\u200b", status, measured_time, n
             )
 
             if not pages:
