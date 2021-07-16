@@ -139,7 +139,7 @@ class Nokari(lightbulb.Bot):
     @property
     def session(self) -> typing.Optional[aiohttp.ClientSession]:
         """Returns a ClientSession."""
-        return self._rest._client_session
+        return self.rest._get_live_attributes().client_session
 
     @property
     def responses_cache(self) -> LRU:
