@@ -144,8 +144,6 @@ class Meta(plugins.Plugin):
 
         obj = obj.lower()
 
-        print(obj)
-
         maybe_command = obj_map.get(aliases.get(obj, obj), self.bot.get_command(obj))
         if maybe_command is None:
             await ctx.respond("Couldn't find anything...")
