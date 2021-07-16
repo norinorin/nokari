@@ -603,7 +603,7 @@ class SpotifyClient:
                 data.album.name,
             )
 
-        return SongMetadata(timestamp, album_cover_url, artists, title, album)
+        return SongMetadata(album, album_cover_url, artists, timestamp, title)
 
     async def generate_spotify_card(
         self,
