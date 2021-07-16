@@ -18,19 +18,19 @@ T = typing.TypeVar("T", bound="BaseSpotify")
 
 
 class _SpotifyCardMetadata(typing.TypedDict):
-    font_color: _RGB
     alt_color: _RGB
+    font_color: _RGB
     height: int
     timestamp: typing.Tuple[str, str, float]
 
 
 @dataclass()
 class SongMetadata:
-    timestamp: typing.Optional[typing.Tuple[str, str, float]]
+    album: str
     album_cover_url: str
     artists: str
+    timestamp: typing.Optional[typing.Tuple[str, str, float]]
     title: str
-    album: str
 
 
 class SpotifyCodeable:
@@ -55,8 +55,8 @@ class Camelot(metaclass=_CamelotType):
 class BaseSpotify:
     client: SpotifyClient
     id: str
-    uri: str
     type: typing.ClassVar[str] = "base"
+    uri: str
 
     @classmethod
     def from_dict(
@@ -106,7 +106,7 @@ class BaseSpotify:
 
 
 class ArtistAware:
-    artists: typing.Sequence[PartialArtist]
+    artists: typing.Sequence[SimplifiedArtist]
 
     @property
     def artists_str(self) -> str:
@@ -116,6 +116,13 @@ class ArtistAware:
 # pylint: disable=too-many-instance-attributes
 @dataclass()
 class AudioFeatures(BaseSpotify):
+    acousticness: float
+    analysis_url: str
+    danceability: float
+    duration_ms: int
+    energy: float
+    instrumentalness: float
+    key: int
     keys: typing.ClassVar[typing.List[str]] = [
         "C",
         "D♭",
@@ -130,22 +137,15 @@ class AudioFeatures(BaseSpotify):
         "B♭",
         "B",
     ]
-    modes: typing.ClassVar[typing.List[str]] = ["Minor", "Major"]
-    danceability: float
-    energy: float
-    key: int
+    liveness: float
     loudness: float
     mode: int
+    modes: typing.ClassVar[typing.List[str]] = ["Minor", "Major"]
     speechiness: float
-    acousticness: float
-    instrumentalness: float
-    liveness: float
-    valence: float
     tempo: float
-    analysis_url: str
-    duration_ms: int
     time_signature: int
     type: typing.ClassVar[typing.Literal["audio_features"]] = "audio_features"
+    valence: float
 
     def get_key(self) -> str:
         return f"{self.keys[self.key]} {self.modes[self.mode]}"
@@ -155,13 +155,14 @@ class AudioFeatures(BaseSpotify):
 
 
 @dataclass()
-class PartialTrack(BaseSpotify, ArtistAware, SpotifyCodeable):
-    name: str
-    artists: typing.List[PartialArtist]
-    url: str
+class SimplifiedTrack(BaseSpotify, ArtistAware, SpotifyCodeable):
+    artists: typing.List[SimplifiedArtist]
     disc_number: int
+    duration_ms: int
+    name: str
     track_number: int
     type: typing.ClassVar[typing.Literal["track"]] = "track"
+    url: str
 
     @property
     def title(self) -> str:
@@ -180,10 +181,9 @@ class PartialTrack(BaseSpotify, ArtistAware, SpotifyCodeable):
 
 
 @dataclass()
-class Track(PartialTrack):
-    album: PartialAlbum
+class Track(SimplifiedTrack):
+    album: SimplifiedAlbum
     popularity: int
-    duration_ms: int
 
     @property
     def album_cover_url(self) -> str:
@@ -191,7 +191,7 @@ class Track(PartialTrack):
 
 
 @dataclass()
-class PartialArtist(BaseSpotify, SpotifyCodeable):
+class SimplifiedArtist(BaseSpotify, SpotifyCodeable):
     name: str
     url: str
     type: typing.ClassVar[typing.Literal["artist"]] = "artist"
@@ -203,32 +203,32 @@ class PartialArtist(BaseSpotify, SpotifyCodeable):
 
 
 @dataclass()
-class Artist(PartialArtist):
-    popularity: int
-    genres: typing.List[str]
+class Artist(SimplifiedArtist):
     follower_count: int
+    genres: typing.List[str]
+    popularity: int
     cover_url: str = ""
 
 
 @dataclass()
-class PartialAlbum(BaseSpotify, ArtistAware, SpotifyCodeable):
+class SimplifiedAlbum(BaseSpotify, ArtistAware, SpotifyCodeable):
     album_type: typing.Literal["album", "single"]
-    artists: typing.List[PartialArtist]
-    name: str
+    artists: typing.List[SimplifiedArtist]
     cover_url: str
-    url: str
+    name: str
     release_date: datetime.datetime
+    url: str
     type: typing.ClassVar[typing.Literal["album"]] = "album"
 
 
 @dataclass()
-class Album(PartialAlbum):
-    popularity: int
-    total_tracks: int
-    label: str
+class Album(SimplifiedAlbum):
     copyrights: Copyrights
     genres: typing.List[str]
-    tracks: typing.List[PartialTrack]
+    label: str
+    popularity: int
+    total_tracks: int
+    tracks: typing.List[SimplifiedTrack]
 
     @property
     def copyright(self) -> typing.Optional[str]:
@@ -281,11 +281,11 @@ def convert_data(
     for k, v in d.items():
         if k == "artists":
             d["artists"] = [
-                PartialArtist.from_dict(client, artist) for artist in d["artists"]
+                SimplifiedArtist.from_dict(client, artist) for artist in d["artists"]
             ]
 
         elif k == "album":
-            d["album"] = PartialAlbum.from_dict(client, d["album"])
+            d["album"] = SimplifiedAlbum.from_dict(client, d["album"])
 
         elif k == "release_date":
             # we couldn't really rely on "release_date_precision"
@@ -316,7 +316,8 @@ def convert_data(
 
         elif k == "tracks":
             d[k] = [
-                PartialTrack.from_dict(client, track) for track in d["tracks"]["items"]
+                SimplifiedTrack.from_dict(client, track)
+                for track in d["tracks"]["items"]
             ]
 
         elif isinstance(v, dict):
