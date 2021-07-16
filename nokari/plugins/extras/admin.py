@@ -100,7 +100,7 @@ class Admin(plugins.Plugin):
                 lineno = int(match.group("lineno"))
                 stack[idx] += f"    {raw_lines[lineno-1].lstrip()}\n"
 
-        return "".join(stack)
+        return "".join(stack).strip()
 
     # pylint: disable=too-many-locals,too-many-arguments
     @staticmethod
