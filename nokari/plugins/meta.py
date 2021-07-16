@@ -1,4 +1,6 @@
 import inspect
+import os
+import sys
 import typing
 from collections import Counter
 
@@ -142,6 +144,8 @@ class Meta(plugins.Plugin):
 
         obj = obj.lower()
 
+        print(obj)
+
         maybe_command = obj_map.get(aliases.get(obj, obj), self.bot.get_command(obj))
         if maybe_command is None:
             await ctx.respond("Couldn't find anything...")
@@ -151,7 +155,7 @@ class Meta(plugins.Plugin):
 
         lines, lineno = inspect.getsourcelines(actual_obj)
         hash_jump = f"#L{lineno}-L{lineno+len(lines)-1}"
-        blob = f"{actual_obj.__module__.replace('.', '/')}.py"
+        blob = os.path.relpath(sys.modules[actual_obj.__module__].__file__)
 
         admin = self.bot.get_plugin("Admin")
         stdout, stderr = await admin.run_command_in_shell("git rev-parse HEAD")
