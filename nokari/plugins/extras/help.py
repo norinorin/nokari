@@ -42,13 +42,6 @@ class CustomHelp(help_.HelpCommand):
         return f"{prefix} "
 
     @staticmethod
-    def get_command_description(command: Command) -> str:
-        """
-        Returns the first line of the docstring of the command.
-        """
-        return help_.get_help_text(command).splitlines()[0] or "No description..."
-
-    @staticmethod
     def get_base_embed(context: Context) -> hikari.Embed:
         """Returns the base help Embed."""
         embed = hikari.Embed(
@@ -229,7 +222,7 @@ class CustomHelp(help_.HelpCommand):
         )
 
         def fmt(c: commands.Command) -> str:
-            return f'{c}{"".join(c.aliases)}{CustomHelp.get_command_description(c)}'
+            return f'{c}{"".join(c.aliases)}{inspect.getdoc(c.callback) or ""}'
 
         matched_plugins = [
             a
