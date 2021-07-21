@@ -1,13 +1,14 @@
 import ast
 import asyncio
 import importlib
+import os
 import re
 import subprocess
 import sys
 import time
 import traceback
 import typing
-from contextlib import redirect_stdout
+from contextlib import redirect_stdout, suppress
 from inspect import getsource
 from io import StringIO
 from types import TracebackType
@@ -230,6 +231,19 @@ class Admin(plugins.Plugin):
             ]
             or ["No output..."],
         ).start()
+
+    @checks.owner_only()
+    @core.command(allow_extra_arguments=False)  # empty prefix is a nightmare
+    async def restart(self, ctx: Context) -> None:
+        msg = await ctx.respond("Restarting...")
+
+        with suppress(FileExistsError):
+            os.mkdir("tmp")
+
+        with open("tmp/restarting", "w") as fp:
+            fp.write(f"{msg.channel_id}-{msg.id}")
+
+        os.execv(sys.executable, [sys.executable, *sys.argv])
 
 
 def load(bot: Bot) -> None:

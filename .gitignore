@@ -16,3 +16,6 @@ nokari.log
 
 # zipped app
 nokari.pyz
+
+# tmp
+tmp/

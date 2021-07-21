@@ -6,9 +6,11 @@ import functools
 import importlib
 import logging
 import os
+import shutil
 import sys
 import traceback
 import typing
+from contextlib import suppress
 
 import aiohttp
 import asyncpg
@@ -114,6 +116,16 @@ class Nokari(lightbulb.Bot):
 
         if sys.argv[-1] == "init":
             await db.create_tables(self.pool)
+
+        with suppress(FileNotFoundError):
+            with open("tmp/restarting", "r") as fp:
+                raw = fp.read()
+
+            shutil.rmtree("tmp", ignore_errors=True)
+            if not raw:
+                return
+
+            await self.rest.edit_message(*raw.split("-"), "Successfully restarted!")
 
     @functools.wraps(lightbulb.Bot.close)
     async def close(self, *args: typing.Any, **kwargs: typing.Any) -> None:
