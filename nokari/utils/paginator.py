@@ -110,6 +110,8 @@ class Paginator:
         self,
         ctx: "Context",
         pages: Optional[_Pages] = None,
+        *,
+        callback: Optional[_Callback] = None,
     ):
         self.ctx: "Context" = ctx
 
@@ -119,7 +121,7 @@ class Paginator:
         self._pages: _Pages = pages if pages is not None else []
         self._task: Optional[asyncio.Task] = None
         self._buttons: Dict[str, ButtonWrapper] = {}
-        self._callback: Optional[_Callback] = None
+        self._callback = callback
 
         self.mentions_everyone: undefined.UndefinedOr[bool] = undefined.UNDEFINED
         self.user_mentions: undefined.UndefinedOr[
@@ -422,9 +424,15 @@ class Paginator:
         self.clean_up()
 
     @classmethod
-    def default(cls, ctx: "Context", pages: Optional[_Pages] = None) -> "Paginator":
+    def default(
+        cls,
+        ctx: "Context",
+        pages: Optional[_Pages] = None,
+        *,
+        callback: Optional[_Callback] = None,
+    ) -> "Paginator":
         """A classmethod that returns a Paginator object with the default callbacks."""
-        self = cls(ctx, pages)
+        self = cls(ctx, pages, callback=callback)
         self.add_button(
             self.first_page,
             style=hikari.ButtonStyle.PRIMARY,

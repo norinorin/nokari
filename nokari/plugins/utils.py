@@ -291,9 +291,7 @@ class Utils(Plugin):
 
             return embed, max_
 
-        paginator = Paginator.default(ctx)
-        paginator._callback = get_page
-        await paginator.start()
+        await Paginator.default(ctx, callback=get_page).start()
 
     @listener()
     async def on_reminder(self, event: timers.ReminderTimerEvent) -> None:
