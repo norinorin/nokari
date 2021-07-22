@@ -107,15 +107,15 @@ class API(plugins.Plugin):
         """
         args = self._spotify_argument_parser.parse(ctx, arguments)
 
-        if args.member or not args.remainder:
-            data: typing.Union[hikari.Member, Track] = ctx.member
-            with suppress(ConverterFailure):
-                data = await converters.member_converter(
-                    converters.WrappedArg(args.remainder, ctx)
-                )
+        if not args.remainder:
+            data = ctx.author
+        elif args.member and args.remainder:
+            data = await converters.user_converter(
+                converters.WrappedArg(args.remainder, ctx)
+            )
 
-                if data.is_bot:
-                    return await ctx.respond("I won't make a card for bots >:(")
+            if data.is_bot:
+                return await ctx.respond("I won't make a card for bots >:(")
         else:
             args.hidden = True
             maybe_track = await self.spotify_client.get_item(ctx, args.remainder, Track)
@@ -130,13 +130,13 @@ class API(plugins.Plugin):
                 await self.send_spotify_card(ctx, args, data=data)
                 return
 
-            if isinstance(data, hikari.Member):
-                sync_id = self.spotify_client.get_sync_id_from_member(data)
+            if isinstance(data, hikari.User):
+                sync_id = self.spotify_client.get_sync_id(data)
                 data = await self.spotify_client.get_item_from_id(sync_id, Track)
 
         except NoSpotifyPresenceError as e:
             raise e.__class__(
-                f"{'You' if data == ctx.author else 'They'} have no Spotify activity"
+                f"{'You' if data == ctx.author else f'They ({data})'} have no Spotify activity."
             )
 
         if args.album:
