@@ -8,10 +8,10 @@ from contextlib import suppress
 from io import BytesIO
 
 import hikari
-from hikari.snowflakes import Snowflake
 import numpy
 from colorthief import ColorThief
 from fuzzywuzzy import fuzz
+from hikari.snowflakes import Snowflake
 from lightbulb import Bot, utils
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
