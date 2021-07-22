@@ -8,7 +8,6 @@ from contextlib import suppress
 from io import BytesIO
 
 import hikari
-from hikari.snowflakes import Snowflake
 import numpy
 from colorthief import ColorThief
 from fuzzywuzzy import fuzz
@@ -31,7 +30,7 @@ from .rest import SpotifyRest
 from .typings import (
     _RGB,
     Album,
-    Artist,
+    Artist,  # re-export
     AudioFeatures,
     SongMetadata,
     Spotify,

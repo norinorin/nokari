@@ -1,7 +1,6 @@
 import datetime
 import types
 import typing
-from contextlib import suppress
 from functools import partial
 from io import BytesIO
 
@@ -11,7 +10,6 @@ from fuzzywuzzy import fuzz
 from hikari.embeds import EmbedImage
 from hikari.files import AsyncReader
 from lightbulb import Bot, Context, plugins
-from lightbulb.errors import ConverterFailure
 from sphobjinv import Inventory
 
 from nokari import core, utils

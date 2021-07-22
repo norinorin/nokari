@@ -10,7 +10,7 @@ import hikari
 
 
 # from https://medium.com/@chipiga86/python-monkey-patching-like-a-boss-87d7ddb8098e
-def source(obj: typing.Any) -> str:
+def get_source(obj: typing.Any) -> str:
     """Gets the source and cleans the indentation."""
     _s = inspect.getsource(obj).split("\n")
     indent = len(_s[0]) - len(_s[0].lstrip())
@@ -47,7 +47,7 @@ hikari.internal.cache.MemberPresenceData = MemberPresenceData  # type: ignore
 
 
 def set_browser(browser: str, /) -> None:
-    SOURCE = source(hikari.impl.shard.GatewayShardImpl._identify)
+    SOURCE = get_source(hikari.impl.shard.GatewayShardImpl._identify)
     patched = re.sub(
         r'([\'"]\$browser[\'"]:\s*f?[\'"]).+([\'"])',  # hh this regex
         fr"\1{browser}\2",

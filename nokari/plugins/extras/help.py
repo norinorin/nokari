@@ -11,7 +11,7 @@ from lightbulb import help as help_
 from lightbulb import plugins
 
 from nokari import core
-from nokari.core import Command, Context
+from nokari.core import Context
 from nokari.utils import plural
 
 

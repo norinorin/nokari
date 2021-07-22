@@ -48,15 +48,15 @@ class Cache(CacheImpl):
 
         presence.activities = [spotify]
 
-        ret = super().set_presence(presence)
+        super().set_presence(presence)
 
-        if presences := self._guild_entries[presence.guild_id].presences:
+        if presences_ := self._guild_entries[presence.guild_id].presences:
             self.add_ref(
                 presence.user_id,
-                presences[presence.user_id],
+                presences_[presence.user_id],
             )
 
-        return ret
+        return None
 
     def delete_presence(
         self,
