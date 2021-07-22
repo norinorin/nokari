@@ -8,6 +8,7 @@ from contextlib import suppress
 from io import BytesIO
 
 import hikari
+from hikari.snowflakes import Snowflake
 import numpy
 from colorthief import ColorThief
 from fuzzywuzzy import fuzz
@@ -584,10 +585,10 @@ class SpotifyClient:
 
     text_cache = _shorten_text.cache  # type: ignore
 
-    def _get_data(self, data: typing.Union[hikari.Member, Track]) -> SongMetadata:
+    def _get_data(self, data: typing.Union[hikari.User, Track]) -> SongMetadata:
         timestamp = None
 
-        if isinstance(data, hikari.Member):
+        if isinstance(data, hikari.User):
             spotify = self._get_spotify_act(data)
             artists, title, album = spotify.artists, spotify.title, spotify.album
             timestamp = self._get_timestamp(spotify)
@@ -608,7 +609,7 @@ class SpotifyClient:
     async def generate_spotify_card(
         self,
         buffer: BytesIO,
-        data: typing.Union[hikari.Member, Track],
+        data: typing.Union[hikari.User, Track],
         hidden: bool,
         color_mode: str,
         style: str = "2",
@@ -714,23 +715,40 @@ class SpotifyClient:
 
     __call__ = generate_spotify_card
 
-    @staticmethod
-    def _get_spotify_act(member: hikari.Member) -> Spotify:
+    @typing.overload
+    def _get_spotify_act(
+        self, user: hikari.User, raise_if_none: typing.Literal[True] = True
+    ) -> Spotify:
+        ...
+
+    @typing.overload
+    def _get_spotify_act(
+        self, user: hikari.User, raise_if_none: typing.Literal[False]
+    ) -> typing.Optional[Spotify]:
+        ...
+
+    def _get_spotify_act(
+        self, user: typing.Any, raise_if_none: typing.Any = True
+    ) -> typing.Any:
         exc = NoSpotifyPresenceError("The member has no Spotify presences")
-        if not member.presence or not member.presence.activities:
+
+        if not (seq := self.bot.cache._presences_garbage.get(user.id)):
             raise exc
 
-        act = utils.find(
-            member.presence.activities,
-            lambda x: x.name
-            and x.name == "Spotify"
-            and x.type is hikari.ActivityType.LISTENING,
-        )
-
-        if act is None:
+        if not (presence := next(iter(seq)).build_entity(self.bot)).activities:
             raise exc
 
-        return Spotify(act)
+        if (
+            act := utils.find(
+                presence.activities,
+                lambda x: x.name
+                and x.name == "Spotify"
+                and x.type is hikari.ActivityType.LISTENING,
+            )
+        ) is None and raise_if_none:
+            raise exc
+
+        return act and Spotify(act)
 
     @staticmethod
     def _get_font_color(
@@ -745,18 +763,15 @@ class SpotifyClient:
 
         return (255, 255, 255) if base_y < 128 else (0, 0, 0)
 
-    def get_sync_id_from_member(self, member: hikari.Member) -> str:
-        sync_id = self.bot._sync_ids.get(member.id)
+    def get_sync_id(self, user: hikari.User) -> str:
+        sync_id = self.bot._sync_ids.get(user.id)
 
-        if not sync_id and (
-            member.presence
-            and member.presence.activities
-            and utils.get(
-                member.presence.activities,
-                type=hikari.ActivityType.LISTENING,
-                name="Spotify",
-            )
-        ):
+        try:
+            spotify: typing.Optional[Spotify] = self._get_spotify_act(user)
+        except NoSpotifyPresenceError:
+            spotify = None
+
+        if not sync_id and spotify:
             raise LocalFilesDetected("Local files aren't supported...")
 
         if not sync_id:
