@@ -102,7 +102,9 @@ class BaseSpotify:
         if not hasattr(self, "url") or not hasattr(self, "name"):
             raise NotImplementedError
 
-        return f"[{self}]({getattr(self, 'url')} '{self} on Spotify')"
+        # prevent it from ending the hover text
+        str_self = str(self).replace("(", "[").replace(")", "]")
+        return f"[{self}]({getattr(self, 'url')} '{str_self} on Spotify')"
 
 
 class ArtistAware:
