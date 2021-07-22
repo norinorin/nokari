@@ -27,10 +27,10 @@ from nokari.utils.images import (
 from .cache import SpotifyCache
 from .errors import LocalFilesDetected, NoSpotifyPresenceError
 from .rest import SpotifyRest
+from .typings import Artist  # re-export
 from .typings import (
     _RGB,
     Album,
-    Artist,  # re-export
     AudioFeatures,
     SongMetadata,
     Spotify,
