@@ -27,8 +27,8 @@ async def caret_converter(arg: WrappedArg) -> typing.Optional[hikari.Message]:
     if not arg.data:
         return arg.context.message
 
-    if set(arg) == {"^"}:
-        n = len(arg)
+    if set((stripped := arg.data.strip())) == {"^"}:
+        n = len(stripped)
         try:
             ret = (
                 await arg.context.bot.cache.get_messages_view()
@@ -43,7 +43,7 @@ async def caret_converter(arg: WrappedArg) -> typing.Optional[hikari.Message]:
             )[n]
         except IndexError:
             ret = await (
-                arg.context.channel.history(before=arg.context.message_id)
+                arg.context.channel.fetch_history(before=arg.context.message_id)
                 .limit(n)
                 .last()
             )
@@ -52,8 +52,7 @@ async def caret_converter(arg: WrappedArg) -> typing.Optional[hikari.Message]:
 
 
 async def user_converter(arg: WrappedArg) -> hikari.User:
-    msg = await caret_converter(arg)
-    if msg is not None:
+    if (msg := await caret_converter(arg)) is not None:
         return msg.author
 
     return await user_converter_(arg)  # pylint: disable=abstract-class-instantiated
@@ -95,8 +94,7 @@ async def search_member(
 
 
 async def member_converter(arg: WrappedArg) -> hikari.Member:
-    msg = await caret_converter(arg)
-    if msg is not None:
+    if (msg := await caret_converter(arg)) is not None:
         if msg.member is not None:
             return msg.member
 
