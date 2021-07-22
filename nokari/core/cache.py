@@ -67,7 +67,7 @@ class Cache(CacheImpl):
         try:
             return super().delete_presence(guild, user)
         finally:
-            self._gc(snowflakes.Snowflake(int(user)))
+            self._gc(snowflakes.Snowflake(user))
 
     def update_member(
         self, member: guilds.Member, /
