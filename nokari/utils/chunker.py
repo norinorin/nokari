@@ -1,5 +1,4 @@
 """A module that contains chunking helper functions."""
-
 import string
 from typing import Final, Iterator, List, Protocol, Sequence, TypeVar, overload
 
@@ -17,7 +16,7 @@ class Indexable(Protocol[T]):
         ...
 
     @overload
-    def __getitem__(self, key: slice) -> List[T]:
+    def __getitem__(self, key: slice) -> "Indexable[T]":
         ...
 
     def __len__(self) -> int:
@@ -53,7 +52,7 @@ def chunk(text: str, length: int) -> Iterator[str]:
             yield sub
 
 
-def simple_chunk(text: Indexable[T], length: int) -> List[List[T]]:
+def simple_chunk(text: Indexable[T], length: int) -> List[Indexable[T]]:
     """A lite version of the chunk function."""
     return [text[n : n + length] for n in range(0, len(text), length)]
 
