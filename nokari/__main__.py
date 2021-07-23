@@ -20,6 +20,7 @@ if missing := [
         "SPOTIPY_CLIENT_ID",
         "SPOTIPY_CLIENT_SECRET",
     )
+    if var not in os.environ
 ]:
     raise RuntimeError(f"missing {', '.join(missing)} env variable{'s'*bool(missing)}")
 
