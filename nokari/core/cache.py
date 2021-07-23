@@ -20,8 +20,10 @@ class Cache(CacheImpl):
     _app: Nokari
 
     # Just a way to get users' Spotify presences
-    _presences_garbage: typing.MutableMapping[
-        snowflakes.Snowflake, weakref.WeakSet[cache.MemberPresenceData]
+    _presences_garbage: typing.ClassVar[
+        typing.MutableMapping[
+            snowflakes.Snowflake, weakref.WeakSet[cache.MemberPresenceData]
+        ]
     ] = {}
 
     def add_ref(
