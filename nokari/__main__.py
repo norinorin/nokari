@@ -2,6 +2,7 @@
 import os
 
 from dotenv import load_dotenv
+
 from nokari.core import Nokari
 
 if os.name != "nt":
