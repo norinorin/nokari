@@ -211,7 +211,7 @@ class Utils(Plugin):
         pre = ""
 
         if parsed.interval:
-            reminder_id += f" with interval {human_timedelta(timedelta(seconds=typing.cast(int, interval)))}"
+            reminder_id += f" with interval {human_timedelta(timedelta(seconds=typing.cast(float, interval)))}"
         elif parsed.daily:
             fmt = "t"
             pre = "at "

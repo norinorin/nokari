@@ -214,12 +214,11 @@ class API(plugins.Plugin):
         if not artist:
             return
 
+        cover: typing.Optional[bytes]
         if artist.cover_url:
-            cover: typing.Optional[bytes] = await self.spotify_client._get_album(
-                artist.cover_url
-            )
+            cover = await self.spotify_client._get_album(artist.cover_url)
             colors = self.spotify_client._get_colors(
-                BytesIO(typing.cast(bytes, cover)), "top-bottom blur", artist.cover_url
+                BytesIO(cover), "top-bottom blur", artist.cover_url
             )[0]
         else:
             cover = None
@@ -296,11 +295,9 @@ class API(plugins.Plugin):
         if not album:
             return
 
-        cover: typing.Optional[bytes] = await self.spotify_client._get_album(
-            album.cover_url
-        )
+        cover = await self.spotify_client._get_album(album.cover_url)
         colors = self.spotify_client._get_colors(
-            BytesIO(typing.cast(bytes, cover)), "top-bottom blur", album.cover_url
+            BytesIO(cover), "top-bottom blur", album.cover_url
         )[0]
 
         spotify_code_url = album.get_code_url(hikari.Color.from_rgb(*colors))
@@ -368,14 +365,11 @@ class API(plugins.Plugin):
 
         paginator.add_page(initial_embed)
 
-        image = typing.cast(EmbedImage[AsyncReader], initial_embed.image)
-        thumbnail = typing.cast(EmbedImage[AsyncReader], initial_embed.thumbnail)
-
         for idx, chunk in enumerate(chunks, start=2):
             embed = (
                 hikari.Embed(title="Tracks cont.", description=chunk)
-                .set_image(image)
-                .set_thumbnail(thumbnail)
+                .set_image(initial_embed.image)
+                .set_thumbnail(initial_embed.thumbnail)
                 .set_footer(text=f"Pages {idx}/{length}")
             )
             paginator.add_page(embed)

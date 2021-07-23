@@ -55,21 +55,13 @@ SPOTIFY_URL = re.compile(
 class SpotifyClient:
     """A class that generates Spotify cards as well as interacts with Spotify API."""
 
-    SMALL_FONT = typing.cast(
-        ImageFont.FreeTypeFont,
-        ImageFont.truetype("nokari/assets/fonts/arial-unicode-ms.ttf", size=40),
+    SMALL_FONT = ImageFont.truetype("nokari/assets/fonts/arial-unicode-ms.ttf", size=40)
+    BIG_FONT = ImageFont.truetype("nokari/assets/fonts/arial-unicode-ms.ttf", size=50)
+    C1_BOLD_FONT = ImageFont.truetype(
+        "nokari/assets/fonts/Arial-Unicode-Bold.ttf", size=100
     )
-    BIG_FONT = typing.cast(
-        ImageFont.FreeTypeFont,
-        ImageFont.truetype("nokari/assets/fonts/arial-unicode-ms.ttf", size=50),
-    )
-    C1_BOLD_FONT = typing.cast(
-        ImageFont.FreeTypeFont,
-        ImageFont.truetype("nokari/assets/fonts/Arial-Unicode-Bold.ttf", size=100),
-    )
-    C2_BOLD_FONT = typing.cast(
-        ImageFont.FreeTypeFont,
-        ImageFont.truetype("nokari/assets/fonts/Arial-Unicode-Bold.ttf", size=60),
+    C2_BOLD_FONT = ImageFont.truetype(
+        "nokari/assets/fonts/Arial-Unicode-Bold.ttf", size=60
     )
     SIDE_GAP = 50
     WIDTH = 1_280
