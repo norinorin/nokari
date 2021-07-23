@@ -17,6 +17,7 @@ from lightbulb import Bot, checks, plugins
 
 from nokari import core, utils
 from nokari.core import Context
+from nokari.plugins.extras._eval_globals import *  # pylint: disable=wildcard-import,unused-wildcard-import
 
 ZWS_ACUTE = "\u200b`"
 
@@ -164,8 +165,6 @@ class Admin(plugins.Plugin):
             "ctx": ctx,
             "bot": ctx.bot,
             "reload": importlib.reload,
-            "lightbulb": __import__("lightbulb"),
-            "hikari": __import__("hikari"),
             "s_dir": lambda x, y: [i for i in dir(x) if y.lower() in i],
             **globals(),
         }

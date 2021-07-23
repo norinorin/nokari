@@ -224,7 +224,7 @@ class Nokari(lightbulb.Bot):
             for file in files
             if file.endswith(".py")
             and "__pycache__" not in path
-            and "__init__" not in file
+            and not file.startswith("_")
         )
 
     @property
