@@ -1,6 +1,17 @@
 """A module that contains chunking helper functions."""
 import string
-from typing import Final, Iterator, List, Protocol, Sequence, TypeVar, overload
+from typing import (
+    Any,
+    Final,
+    Iterable,
+    Iterator,
+    List,
+    Literal,
+    Protocol,
+    Sequence,
+    TypeVar,
+    overload,
+)
 
 from lightbulb import utils
 
@@ -10,7 +21,7 @@ __all__: Final[List[str]] = ["chunk", "simple_chunk", "chunk_from_list"]
 T = TypeVar("T")
 
 
-class Indexable(Protocol[T]):
+class Indexable(Iterable[T], Protocol[T]):
     @overload
     def __getitem__(self, key: int) -> T:
         ...
@@ -52,9 +63,33 @@ def chunk(text: str, length: int) -> Iterator[str]:
             yield sub
 
 
+@overload
 def simple_chunk(text: Indexable[T], length: int) -> List[Indexable[T]]:
+    ...
+
+
+@overload
+def simple_chunk(
+    text: Indexable[T], length: int, lazy: Literal[False]
+) -> List[Indexable[T]]:
+    ...
+
+
+@overload
+def simple_chunk(
+    text: Indexable[T], length: int, lazy: Literal[True]
+) -> Iterator[Indexable[T]]:
+    ...
+
+
+def simple_chunk(text: Any, length: Any, lazy: bool = False) -> Any:
     """A lite version of the chunk function."""
-    return [text[n : n + length] for n in range(0, len(text), length)]
+    range_ = range(0, len(text), length)
+
+    if lazy:
+        return (text[n : n + length] for n in range_)
+
+    return [text[n : n + length] for n in range_]
 
 
 def chunk_from_list(seq: Sequence[str], length: int) -> List[str]:
