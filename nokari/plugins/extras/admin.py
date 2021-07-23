@@ -235,6 +235,8 @@ class Admin(plugins.Plugin):
     @checks.owner_only()
     @core.command(allow_extra_arguments=False)  # empty prefix is a nightmare
     async def restart(self, ctx: Context) -> None:
+        """Just to check whether or not the -OO flag was present."""
+
         msg = await ctx.respond("Restarting...")
 
         with suppress(FileExistsError):
@@ -243,7 +245,15 @@ class Admin(plugins.Plugin):
         with open("tmp/restarting", "w") as fp:
             fp.write(f"{msg.channel_id}-{msg.id}")
 
-        os.execv(sys.executable, [sys.executable, *sys.argv])
+        doc = self.restart.callback.__doc__
+        os.execv(
+            sys.executable,
+            [
+                sys.executable,
+                *(() if __debug__ else ("-OO",) if not doc else ("-O",)),
+                *sys.argv,
+            ],
+        )
 
 
 def load(bot: Bot) -> None:
