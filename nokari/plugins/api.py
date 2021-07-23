@@ -7,8 +7,6 @@ from io import BytesIO
 import hikari
 import lightbulb
 from fuzzywuzzy import fuzz
-from hikari.embeds import EmbedImage
-from hikari.files import AsyncReader
 from lightbulb import Bot, Context, plugins
 from sphobjinv import Inventory
 
