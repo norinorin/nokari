@@ -1,17 +1,13 @@
 """The main entry of the program."""
 import os
-
-from dotenv import load_dotenv
-
 from nokari.core import Nokari
+from dotenv import load_dotenv
 
 if os.name != "nt":
     import uvloop  # pylint: disable=import-error
 
     uvloop.install()
-
 load_dotenv()
-
 for var in (
     "DISCORD_BOT_TOKEN",
     "POSTGRESQL_DSN",
