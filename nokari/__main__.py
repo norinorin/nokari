@@ -9,7 +9,9 @@ if os.name != "nt":
     import uvloop  # pylint: disable=import-error
 
     uvloop.install()
+
 load_dotenv()
+
 for var in (
     "DISCORD_BOT_TOKEN",
     "POSTGRESQL_DSN",
