@@ -1,7 +1,9 @@
 """The main entry of the program."""
 import os
-from nokari.core import Nokari
+
 from dotenv import load_dotenv
+
+from nokari.core import Nokari
 
 if os.name != "nt":
     import uvloop  # pylint: disable=import-error
