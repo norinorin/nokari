@@ -27,10 +27,10 @@ DISCORD_BROWSER=
 After having all the requirements, just run the module as a script/executable.
 ```
 # Unix
-python3 -m nokari -OO
+python3 -OOm nokari
 
 # Windows
-py -3 -m nokari -OO
+py -3 -OOm nokari
 ```
 
 ## License
