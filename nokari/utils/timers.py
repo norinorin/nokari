@@ -29,6 +29,7 @@ class Timer(typing.Generic[TimerEventT]):
         self.args: typing.Tuple[typing.Any, ...] = extra.get("args", [])
         self.kwargs: typing.Dict[str, typing.Any] = extra.get("kwargs", {})
 
+        # O(n) but who cares
         event_cls_name = f"{record['event']}TimerEvent"
         if (
             event := utils.find(

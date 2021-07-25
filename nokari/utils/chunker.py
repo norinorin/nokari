@@ -30,6 +30,9 @@ class Indexable(Iterable[T], Protocol[T]):
     def __getitem__(self, key: slice) -> "Indexable[T]":
         ...
 
+    def __iter__(self) -> Iterator[T]:
+        ...
+
 
 def chunk(text: str, length: int) -> Iterator[str]:
     """
