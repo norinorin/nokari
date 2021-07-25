@@ -8,7 +8,6 @@ from hikari.internal import attr_extensions
 from hikari.traits import RESTAware
 from lightbulb import utils
 
-
 TimerEventT = typing.TypeVar("TimerEventT", bound="BaseTimerEvent")
 
 
