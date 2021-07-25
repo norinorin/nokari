@@ -3,13 +3,16 @@ from datetime import datetime
 
 import asyncpg
 import attr
-from hikari.api.event_manager import EventT
 from hikari.events.base_events import Event
 from hikari.internal import attr_extensions
 from hikari.traits import RESTAware
+from lightbulb import utils
 
 
-class Timer(typing.Generic[EventT]):
+TimerEventT = typing.TypeVar("TimerEventT", bound="BaseTimerEvent")
+
+
+class Timer(typing.Generic[TimerEventT]):
     __slots__ = (
         "args",
         "kwargs",
@@ -26,7 +29,17 @@ class Timer(typing.Generic[EventT]):
         extra = record["extra"]
         self.args: typing.Tuple[typing.Any, ...] = extra.get("args", [])
         self.kwargs: typing.Dict[str, typing.Any] = extra.get("kwargs", {})
-        self.event: EventT = globals()[f"{record['event'].capitalize()}TimerEvent"]
+
+        event_cls_name = f"{record['event']}TimerEvent"
+        if (
+            event := utils.find(
+                BaseTimerEvent.__subclasses__(),
+                lambda cls: cls.__name__ == event_cls_name,
+            )
+        ) is None:
+            raise RuntimeError(f"class {event_cls_name} doesn't exist.")
+
+        self.event: TimerEventT = event
         self.created_at: datetime = record["created_at"]
         self.expires_at: datetime = record["expires_at"]
         self.interval: typing.Optional[int] = record["interval"]
@@ -72,7 +85,7 @@ class Timer(typing.Generic[EventT]):
 
 @attr_extensions.with_copy
 @attr.define(kw_only=True, weakref_slot=False)
-class ReminderTimerEvent(Event):
+class BaseTimerEvent(Event):
     app: RESTAware = attr.field(metadata={attr_extensions.SKIP_DEEP_COPY: True})
 
     timer: Timer = attr.field()

@@ -30,6 +30,10 @@ class SERIAL:
     ...
 
 
+class ReminderTimerEvent(timers.BaseTimerEvent):
+    ...
+
+
 class Reminders(db.Table):
     id: db.PrimaryKeyColumn[SERIAL]
     expires_at: db.Column[datetime]
@@ -197,7 +201,7 @@ class Utils(Plugin):
         rem = rem or "a."
 
         timer = await self.create_timer(
-            "reminder",
+            "Reminder",
             dt,
             ctx.channel.id,
             ctx.author.id,
@@ -251,7 +255,7 @@ class Utils(Plugin):
         async def get_page(pag: Paginator) -> typing.Tuple[hikari.Embed, int]:
             query = """SELECT id, expires_at, extra #>> '{args,2}'
                     FROM reminders
-                    WHERE event = 'reminder'
+                    WHERE event = 'Reminder'
                     AND extra #>> '{args,1}' = $1
                     ORDER BY expires_at
                     """
@@ -294,7 +298,7 @@ class Utils(Plugin):
         await Paginator.default(ctx, callback=get_page).start()
 
     @listener()
-    async def on_reminder(self, event: timers.ReminderTimerEvent) -> None:
+    async def on_reminder(self, event: ReminderTimerEvent) -> None:
         channel_id, author_id, message = event.timer.args
 
         channel = (
@@ -345,7 +349,7 @@ class Utils(Plugin):
         """
         query = """SELECT id
                    FROM reminders
-                   WHERE event = 'reminder'
+                   WHERE event = 'Reminder'
                    AND extra #>> '{args,1}' = $1
                 """
 
@@ -368,7 +372,7 @@ class Utils(Plugin):
 
         await self.verify_timer_integrity()
 
-        query = "DELETE FROM reminders WHERE event = 'reminder' AND extra #>> '{args,1}' = $1"
+        query = "DELETE FROM reminders WHERE event = 'Reminder' AND extra #>> '{args,1}' = $1"
         await self.bot.pool.execute(query, author_id)
         await ctx.respond(f"Your {plural(len(records)):reminder} has been deleted.")
 
@@ -400,7 +404,7 @@ class Utils(Plugin):
 
         query = """SELECT created_at, expires_at, extra, interval
                    FROM reminders
-                   WHERE event = 'reminder'
+                   WHERE event = 'Reminder'
                    AND extra #>> '{args,1}' = $1
                    AND id = $2
                 """
@@ -475,7 +479,7 @@ class Utils(Plugin):
         deletes = []
         for identifier in ids:
             query = """DELETE FROM reminders
-                       WHERE event = 'reminder'
+                       WHERE event = 'Reminder'
                        AND id = $1
                        AND extra #>> '{args,1}' = $2;
                     """
