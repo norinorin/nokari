@@ -6,8 +6,7 @@ from operator import attrgetter
 import hikari
 from lightbulb import Bot, commands
 from lightbulb import context as context_
-from lightbulb import converters
-from lightbulb import errors
+from lightbulb import converters, errors
 from lightbulb import help as help_
 from lightbulb import plugins
 

@@ -4,7 +4,6 @@ import typing
 
 from lightbulb import Command
 
-
 __all__: typing.Final[typing.List[str]] = ["require_env"]
 CommandT = typing.TypeVar("CommandT", bound=Command)
 
