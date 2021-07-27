@@ -13,14 +13,7 @@ if os.name != "nt":
 load_dotenv()
 
 if missing := [
-    var
-    for var in (
-        "DISCORD_BOT_TOKEN",
-        "POSTGRESQL_DSN",
-        "SPOTIPY_CLIENT_ID",
-        "SPOTIPY_CLIENT_SECRET",
-    )
-    if var not in os.environ
+    var for var in ("DISCORD_BOT_TOKEN", "POSTGRESQL_DSN") if var not in os.environ
 ]:
     raise RuntimeError(f"missing {', '.join(missing)} env variable{'s'*bool(missing)}")
 

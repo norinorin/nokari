@@ -1,4 +1,5 @@
 import datetime
+import os
 import types
 import typing
 from functools import partial
@@ -36,12 +37,18 @@ class API(plugins.Plugin):
         .member("--member", "-m", argmax=0)
         .album("--album", "-a", argmax=0)
     )
+    _spotify_vars: typing.ClassVar[typing.Tuple[str, str]] = (
+        "SPOTIPY_CLIENT_ID",
+        "SPOTIPY_CLIENT_SECRET",
+    )
 
     def __init__(self, bot: Bot) -> None:
         super().__init__()
         self.bot = bot
 
-        if not hasattr(bot, "spotify_client"):
+        if not hasattr(bot, "spotify_client") and all(
+            var in os.environ for var in self._spotify_vars
+        ):
             # prevent reloading from flushing the cache
             self.bot.spotify_client = SpotifyClient(bot)
 
@@ -84,6 +91,7 @@ class API(plugins.Plugin):
 
                 await ctx.respond(**kwargs)
 
+    @utils.checks.require_env(*_spotify_vars)
     @core.commands.group()
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify(self, ctx: Context) -> None:
@@ -91,6 +99,7 @@ class API(plugins.Plugin):
         await ctx.send_help(ctx.command)
 
     # pylint: disable=too-many-locals
+    @utils.checks.require_env(*_spotify_vars)
     @spotify.command(name="track", aliases=["song"], usage="[artist URI|URL|name]")
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify_track(self, ctx: Context, *, arguments: str = "") -> None:
@@ -199,6 +208,7 @@ class API(plugins.Plugin):
         kwargs: typing.Dict[str, typing.Any] = dict(embed=embed)
         await ctx.respond(**kwargs)
 
+    @utils.checks.require_env(*_spotify_vars)
     @spotify.command(name="artist", usage="<artist URI|URL|name>")
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify_artist(self, ctx: Context, *, arguments: str) -> None:
@@ -275,6 +285,7 @@ class API(plugins.Plugin):
 
         await paginator.start()
 
+    @utils.checks.require_env(*_spotify_vars)
     @spotify.command(name="album", usage="[album URI|URL|name]")
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify_album(self, ctx: Context, *, arguments: str = "") -> None:
@@ -374,16 +385,19 @@ class API(plugins.Plugin):
 
         await paginator.start()
 
+    @utils.checks.require_env(*_spotify_vars)
     @spotify.command(name="playlist")
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify_playlist(self, ctx: Context) -> None:
         """Not implemented yet."""
 
+    @utils.checks.require_env(*_spotify_vars)
     @spotify.command(name="user")
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify_user(self, ctx: Context) -> None:
         """Not implemented yet."""
 
+    @utils.checks.require_env(*_spotify_vars)
     @spotify.command(name="cache")
     @core.cooldown(1, 4, lightbulb.cooldowns.UserBucket)
     async def spotify_cache(self, ctx: Context) -> None:

@@ -109,6 +109,19 @@ class Nokari(lightbulb.Bot):
         # Default prefixes
         self.default_prefixes = ["nokari", "n!"]
 
+    @functools.wraps(lightbulb.Bot._invoke_command)
+    async def _invoke_command(
+        self,
+        command: commands.Command,
+        context: Context,
+        args: typing.Sequence[typing.Any],
+        kwargs: typing.Mapping[str, typing.Any],
+    ) -> None:
+        if getattr(command, "disabled", False):
+            return
+
+        return await super()._invoke_command(command, context, args, kwargs)
+
     @functools.wraps(lightbulb.Bot.start)
     async def start(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         await super().start(*args, **kwargs)

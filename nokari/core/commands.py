@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import typing
 
-from lightbulb import commands
+from lightbulb import commands, context, errors
 
 __all__: typing.Final[typing.List[str]] = ["Command", "command", "group"]
 _CommandCallbackT = typing.TypeVar(
@@ -14,6 +14,8 @@ _CommandCallbackT = typing.TypeVar(
 class Command(commands.Command):
     """Custom class command with extra attributes."""
 
+    disabled: bool
+
     def __init__(
         self,
         *args: typing.Any,
@@ -23,6 +25,12 @@ class Command(commands.Command):
         super().__init__(*args, **kwargs)
         self.usage = usage
         """The custom command signature if specified."""
+
+    async def is_runnable(self, context: context.Context) -> bool:
+        if getattr(self, "disabled", False):
+            raise errors.CheckFailure("Command is disabled.")
+
+        return await super().is_runnable(context)
 
 
 class Group(Command, commands.Group):

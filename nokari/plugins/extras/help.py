@@ -7,6 +7,7 @@ import hikari
 from lightbulb import Bot, commands
 from lightbulb import context as context_
 from lightbulb import converters
+from lightbulb import errors
 from lightbulb import help as help_
 from lightbulb import plugins
 
@@ -180,7 +181,9 @@ class CustomHelp(help_.HelpCommand):
 
     @staticmethod
     async def send_command_help(context: Context, command: commands.Command) -> None:
-        if not await command.is_runnable(context):
+        try:
+            await command.is_runnable(context)
+        except errors.CheckFailure:
             await CustomHelp.object_not_found(context, "")
             return
 
@@ -190,12 +193,13 @@ class CustomHelp(help_.HelpCommand):
 
     @staticmethod
     async def send_group_help(context: Context, group: commands.Group) -> None:
-        if group not in await help_.filter_commands(context, context.bot.commands):
+        try:
+            await group.is_runnable(context)
+        except errors.CheckFailure:
             await CustomHelp.object_not_found(context, "")
             return
 
-        subcommands = await help_.filter_commands(context, group.subcommands)
-        if len(subcommands) == 0:
+        if not (subcommands := await help_.filter_commands(context, group.subcommands)):
             return await CustomHelp.send_command_help(context, group)
 
         embed = CustomHelp.get_base_embed(context)

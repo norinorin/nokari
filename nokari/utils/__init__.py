@@ -2,6 +2,7 @@
 
 from .algorithm import *
 from .caches import *
+from .checks import *
 from .chunker import *
 from .converters import *
 from .db import *
