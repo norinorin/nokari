@@ -51,7 +51,7 @@ def round_corners(im: Image.Image, rad: int) -> None:
     im.putalpha(_get_alpha_mask(im.size, rad))
 
 
-def get_dominant_color(im: Image.Image) -> typing.Tuple[int]:
+def get_dominant_color(im: Image.Image) -> typing.Tuple[int, ...]:
     """Gets the color with the most occurences."""
     arr = numpy.array(im)
     a2D = arr.reshape(-1, arr.shape[-1])
