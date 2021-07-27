@@ -36,6 +36,9 @@ __all__: typing.Final[typing.List[str]] = ["Nokari"]
 
 
 def _get_prefixes(bot: lightbulb.Bot, message: hikari.Message) -> typing.List[str]:
+    if not hasattr(bot, "prefixes"):
+        return bot.default_prefixes
+
     prefixes = bot.prefixes
     return prefixes.get(message.guild_id, bot.default_prefixes) + prefixes.get(
         message.author.id, []
@@ -110,12 +113,13 @@ class Nokari(lightbulb.Bot):
     async def start(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         await super().start(*args, **kwargs)
         await self.create_pool()
-        await self._load_prefixes()
         self.load_extensions()
         self.launch_time = datetime.datetime.now(datetime.timezone.utc)
 
         if sys.argv[-1] == "init":
             await db.create_tables(self.pool)
+
+        await self._load_prefixes()
 
         with suppress(FileNotFoundError):
             with open("tmp/restarting", "r") as fp:
