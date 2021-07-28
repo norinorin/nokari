@@ -3,7 +3,6 @@
 import ast
 import inspect
 import re
-import sys
 import typing
 
 import hikari
@@ -17,9 +16,7 @@ def get_source(obj: typing.Any) -> str:
     return "\n".join(i[indent:] for i in _s)
 
 
-def patch(
-    source: str, globals_: typing.Dict[str, typing.Any], module: str, obj: str
-) -> None:
+def patch(source: str, globals_: typing.Dict[str, typing.Any], obj: str) -> typing.Any:
     m = ast.parse(source)
     loc: typing.Dict[str, typing.Any] = {}
     exec(  # pylint: disable=exec-used
@@ -27,7 +24,7 @@ def patch(
         globals_,
         loc,
     )
-    sys.modules[module] = loc[obj]
+    return loc[obj]
 
 
 # enable weakref and add the hash method for MemberPresenceData
@@ -53,9 +50,8 @@ def set_browser(browser: str, /) -> None:
         fr"\1{browser}\2",
         SOURCE,
     )
-    patch(
+    hikari.impl.shard.GatewayShardImpl._identify = patch(  # type: ignore
         patched,
         hikari.impl.shard.__dict__,
-        "hikari.impl.shard.GatewayShardImpl._identify",
         "_identify",
     )

@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 
 from nokari.core import Nokari
+from nokari.utils import monkey_patch
 
 if os.name != "nt":
     import uvloop  # pylint: disable=import-error
@@ -18,9 +19,6 @@ if missing := [
     raise RuntimeError(f"missing {', '.join(missing)} env variable{'s'*bool(missing)}")
 
 if browser := os.getenv("DISCORD_BROWSER"):
-    from nokari.utils.monkey_patch import set_browser
-
-    set_browser(browser)
-
+    monkey_patch.set_browser(browser)
 
 Nokari().run()
