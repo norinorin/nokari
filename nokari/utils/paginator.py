@@ -414,7 +414,7 @@ class Paginator:
         await self.edit(interaction)
 
     async def destroy(self, interaction: ComponentInteraction) -> None:
-        """The default callback that shows the next page."""
+        """The default callback that destroys the paginator."""
         with suppress(hikari.HTTPResponseError):
             await self.message.delete()
 
