@@ -284,6 +284,7 @@ class Utils(Plugin):
             headers = ["ID", "Message", "When"]
             chunked_table = simple_chunk(table, 20)
             max_ = len(chunked_table)
+            pag.index = min(max_ - 1, pag.index)
 
             embed = get_embed(
                 tabulate(chunked_table[pag.index], headers),
