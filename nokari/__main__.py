@@ -1,5 +1,10 @@
 """The main entry of the program."""
 import os
+import sys
+from pathlib import Path
+
+if (nokari_path := str(Path(__file__).parent / "..")) not in sys.path:
+    sys.path.insert(0, nokari_path)
 
 from dotenv import load_dotenv
 
