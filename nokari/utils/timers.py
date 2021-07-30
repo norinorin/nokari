@@ -6,12 +6,24 @@ import attr
 from hikari.events.base_events import Event
 from hikari.internal import attr_extensions
 from hikari.traits import RESTAware
-from lightbulb import utils
 
-TimerEventT = typing.TypeVar("TimerEventT", bound="BaseTimerEvent")
+BaseTimerT = typing.TypeVar("BaseTimerT", bound="BaseTimerEvent")
+__subclasses__: typing.Dict[str, typing.Type["BaseTimerEvent"]] = {}
 
 
-class Timer(typing.Generic[TimerEventT]):
+def register(cls: typing.Type[BaseTimerT]) -> typing.Type[BaseTimerT]:
+    __subclasses__[cls.__name__] = cls
+    return cls
+
+
+def deref(cls: typing.Union[typing.Type["BaseTimerEvent"], str]) -> None:
+    if not (isinstance(cls, str) or issubclass(cls, BaseTimerEvent)):
+        raise TypeError("`cls` must be either str or a subclass of BaseTimerEvent")
+
+    __subclasses__.pop(cls if isinstance(cls, str) else cls.__name__)
+
+
+class Timer:
     __slots__ = (
         "args",
         "kwargs",
@@ -29,17 +41,14 @@ class Timer(typing.Generic[TimerEventT]):
         self.args: typing.Tuple[typing.Any, ...] = extra.get("args", [])
         self.kwargs: typing.Dict[str, typing.Any] = extra.get("kwargs", {})
 
-        # O(n) but who cares
-        event_cls_name = f"{record['event']}TimerEvent"
-        if (
-            event := utils.find(
-                BaseTimerEvent.__subclasses__(),
-                lambda cls: cls.__name__ == event_cls_name,
+        if not (
+            event := __subclasses__.get(
+                event_cls_name := f"{record['event']}TimerEvent"
             )
-        ) is None:
+        ):
             raise RuntimeError(f"class {event_cls_name} doesn't exist.")
 
-        self.event: TimerEventT = event
+        self.event = event
         self.created_at: datetime = record["created_at"]
         self.expires_at: datetime = record["expires_at"]
         self.interval: typing.Optional[int] = record["interval"]
