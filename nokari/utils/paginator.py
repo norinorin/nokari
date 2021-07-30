@@ -220,8 +220,7 @@ class Paginator:
         This is useful for lazy pages loading.
         """
         if self._callback:
-            page, length = await maybe_await(self._callback, self)
-            self.length = length
+            page, self.length = await maybe_await(self._callback, self)
         else:
             page = self._pages[self.index]
             self.length = len(self._pages)
