@@ -1,5 +1,6 @@
 import typing
 from datetime import datetime
+from weakref import WeakValueDictionary
 
 import asyncpg
 import attr
@@ -7,20 +8,7 @@ from hikari.events.base_events import Event
 from hikari.internal import attr_extensions
 from hikari.traits import RESTAware
 
-BaseTimerT = typing.TypeVar("BaseTimerT", bound="BaseTimerEvent")
-__subclasses__: typing.Dict[str, typing.Type["BaseTimerEvent"]] = {}
-
-
-def register(cls: typing.Type[BaseTimerT]) -> typing.Type[BaseTimerT]:
-    __subclasses__[cls.__name__] = cls
-    return cls
-
-
-def deref(cls: typing.Union[typing.Type["BaseTimerEvent"], str]) -> None:
-    if not (isinstance(cls, str) or issubclass(cls, BaseTimerEvent)):
-        raise TypeError("`cls` must be either str or a subclass of BaseTimerEvent")
-
-    __subclasses__.pop(cls if isinstance(cls, str) else cls.__name__)
+TimerEventT = typing.TypeVar("TimerEventT", bound="BaseTimerEvent")
 
 
 class Timer:
@@ -42,7 +30,7 @@ class Timer:
         self.kwargs: typing.Dict[str, typing.Any] = extra.get("kwargs", {})
 
         if not (
-            event := __subclasses__.get(
+            event := BaseTimerEvent.get_subclass(
                 event_cls_name := f"{record['event']}TimerEvent"
             )
         ):
@@ -95,6 +83,28 @@ class Timer:
 @attr_extensions.with_copy
 @attr.define(kw_only=True, weakref_slot=False)
 class BaseTimerEvent(Event):
+    __subclasses: typing.ClassVar[
+        typing.MutableMapping[str, typing.Type["BaseTimerEvent"]]
+    ] = WeakValueDictionary()
     app: RESTAware = attr.field(metadata={attr_extensions.SKIP_DEEP_COPY: True})
-
     timer: Timer = attr.field()
+
+    def __init_subclass__(cls: typing.Type["BaseTimerEvent"]) -> None:
+        BaseTimerEvent.__subclasses[cls.__name__] = cls
+        return super().__init_subclass__()
+
+    @typing.overload
+    @classmethod
+    def get_subclass(cls, name: str) -> typing.Optional[typing.Type["BaseTimerEvent"]]:
+        ...
+
+    @typing.overload
+    @classmethod
+    def get_subclass(
+        cls, name: str, default: typing.Type[TimerEventT]
+    ) -> typing.Union[typing.Type["BaseTimerEvent"], typing.Type[TimerEventT]]:
+        ...
+
+    @classmethod
+    def get_subclass(cls, name: typing.Any, default: typing.Any = None) -> typing.Any:
+        return cls.__subclasses.get(name, default)

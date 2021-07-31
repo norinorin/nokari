@@ -30,7 +30,6 @@ class SERIAL:
     ...
 
 
-@timers.register
 class ReminderTimerEvent(timers.BaseTimerEvent):
     ...
 
@@ -60,7 +59,6 @@ class Utils(Plugin):
 
     def plugin_remove(self) -> None:
         self._task.cancel()
-        timers.deref(ReminderTimerEvent)
 
     async def get_active_timer(self) -> typing.Optional[timers.Timer]:
         query = "SELECT * FROM reminders WHERE expires_at < (CURRENT_TIMESTAMP + $1::interval) ORDER BY expires_at LIMIT 1;"
