@@ -55,11 +55,7 @@ def cache(size: int) -> typing.Callable[[_FuncT], _FuncT]:
                 res = _cache[key] = temp
             else:
                 if _is_coro:
-
-                    async def wrapper() -> typing.Coroutine:
-                        return res
-
-                    return wrapper()
+                    return asyncio.sleep(0, res)
 
             return res
 
