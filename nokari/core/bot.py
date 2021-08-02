@@ -313,17 +313,8 @@ class Nokari(lightbulb.Bot):
             ):
                 return False
 
-            custom_id = event.interaction.custom_id
-
-            if custom_id == "sure":
-                confirm = True
-                return True
-
-            if custom_id == "nvm":
-                confirm = False
-                return True
-
-            return False
+            confirm = event.interaction.custom_id == "sure"
+            return True
 
         try:
             event = await self.wait_for(
