@@ -84,12 +84,11 @@ def simple_chunk(
 
 def simple_chunk(text: Any, length: Any, lazy: bool = False) -> Any:
     """A lite version of the chunk function."""
-    range_ = range(0, len(text), length)
-
-    if lazy:
-        return (text[n : n + length] for n in range_)
-
-    return [text[n : n + length] for n in range_]
+    return (
+        ret
+        if (ret := (text[n : n + length] for n in range(0, len(text), length))) and lazy
+        else list(ret)
+    )
 
 
 def chunk_from_list(seq: Sequence[str], length: int) -> List[str]:
