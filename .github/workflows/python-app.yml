@@ -20,9 +20,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install tox
         tox -e py39
-    - name: Format and run tests
+    - name: Format and run tests (temporary disabled)
       run: |
-        tox -e isort,black,test
+        tox -e isort,black
     - name: Check for modified files
       id: git-check
       run: echo ::set-output name=modified::$(if git diff-index --quiet HEAD --; then echo "false"; else echo "true"; fi)
