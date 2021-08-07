@@ -243,9 +243,8 @@ class CustomHelp(help_.HelpCommand):
             return await CustomHelp.send_plugin_help(context, matched_plugins[0])
 
         # todo: fuzzy string matching
-        matches = [
-            y
-            for z in [
+        matches = sum(
+            [
                 x
                 for x in [
                     [
@@ -261,9 +260,9 @@ class CustomHelp(help_.HelpCommand):
                     for c in await help_.filter_commands(context, iterable)
                 ]
                 if x
-            ]
-            for y in z
-        ]
+            ],
+            [],
+        )
 
         if len(matches) == 1:  # Just send the object if there's only 1 result
             return await context.send_help(matches[0])

@@ -263,24 +263,27 @@ class Utils(Plugin):
             if not records:
                 return get_embed("There is nothing here yet ._.", 0, 1, 1, "prolog"), 1
 
-            table = [
-                a
-                for i in [
-                    zip_longest(
-                        *[
-                            chunk(str(x), 16)
-                            for x in (
-                                _id,
-                                textwrap.shorten(message, width=65, placeholder="..."),
-                                human_timedelta(expires),
-                            )
-                        ],
-                        fillvalue=None,
+            table = sum(
+                [
+                    list(
+                        zip_longest(
+                            *[
+                                chunk(str(x), 16)
+                                for x in (
+                                    _id,
+                                    textwrap.shorten(
+                                        message, width=65, placeholder="..."
+                                    ),
+                                    human_timedelta(expires),
+                                )
+                            ],
+                            fillvalue=None,
+                        )
                     )
                     for _id, expires, message in records
-                ]
-                for a in i
-            ]
+                ],
+                [],
+            )
             headers = ["ID", "Message", "When"]
             chunked_table = simple_chunk(table, 20)
             max_ = len(chunked_table)
