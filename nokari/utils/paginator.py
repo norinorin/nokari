@@ -85,7 +85,7 @@ class ButtonWrapper:
 
 
 class Paginator:
-    """A helper class for interactive menus with reactions."""
+    """A helper class for interactive menus with interactions."""
 
     # pylint: disable=too-many-instance-attributes
 
