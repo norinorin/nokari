@@ -154,7 +154,7 @@ class Paginator:
         style: Union[int, hikari.ButtonStyle],
         custom_id: Optional[str] = None,
         emoji: undefined.UndefinedOr[
-            Union[snowflakes.Snowflakeish, hikari.Emojiish]
+            Union[snowflakes.Snowflakeish, hikari.Emoji]
         ] = undefined.UNDEFINED,
         label: undefined.UndefinedOr[str] = undefined.UNDEFINED,
         disable_if: Optional[_ButtonCallback] = None,
@@ -177,7 +177,7 @@ class Paginator:
         style: Union[int, hikari.ButtonStyle],
         custom_id: Optional[str],
         emoji: undefined.UndefinedOr[
-            Union[snowflakes.Snowflakeish, hikari.Emojiish]
+            Union[snowflakes.Snowflakeish, hikari.Emoji]
         ] = undefined.UNDEFINED,
         label: undefined.UndefinedOr[str] = undefined.UNDEFINED,
         disable_if: Optional[_ButtonCallback] = None,

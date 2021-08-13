@@ -22,7 +22,11 @@ class Events(plugins.Plugin):
         self.bot = bot
 
     async def handle_ping(self, message: Message) -> None:
-        if message.content not in (f"<@{self.bot.me.id}>", f"<@!{self.bot.me.id}>"):
+
+        if not (me := self.bot.get_me()) or message.content not in (
+            f"<@{me.id}>",
+            f"<@!{me.id}>",
+        ):
             return
 
         ctx = self.bot.get_context(

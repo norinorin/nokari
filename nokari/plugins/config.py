@@ -17,8 +17,7 @@ class Prefixes(db.Table):
 
 
 def convert_prefix(arg: WrappedArg) -> str:
-    bot = arg.context.bot
-    if arg.data in (f"<@{bot.me.id}>", f"<@!{bot.me.id}>"):
+    if (me := arg.context.bot.get_me()) and arg.data in (f"<@{me.id}>", f"<@!{me.id}>"):
         raise errors.ConverterFailure(f"{arg.data} is an existing prefix...")
 
     return arg.data.strip().lower()

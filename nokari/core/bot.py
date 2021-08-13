@@ -336,6 +336,11 @@ class Nokari(lightbulb.Bot):
         finally:
             return confirm
 
+    @property
+    def me(self) -> typing.Optional[hikari.OwnUser]:
+        """Temp fix until lightbub updates."""
+        return self.get_me()
+
 
 @checks.owner_only()
 @group(name="reload")

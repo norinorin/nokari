@@ -96,7 +96,7 @@ class Cache(CacheImpl):
         self, member: guilds.Member, /, *, is_reference: bool = True
     ) -> cache.RefCell[cache.MemberData]:
         # not sure if returning None would break something, but w/e
-        if (me := self._app.me) is None or me.id != member.id:
+        if (me := self._app.get_me()) is None or me.id != member.id:
             return None  # type: ignore
 
         return super()._set_member(member, is_reference=is_reference)

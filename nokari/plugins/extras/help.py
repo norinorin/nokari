@@ -37,7 +37,7 @@ class CustomHelp(help_.HelpCommand):
         """
         prefix = context.clean_prefix.strip()
         if len(prefix) > 10:
-            prefix = f"@{context.bot.me.username}"
+            prefix = f"@{context.bot.get_me().username}"  # type: ignore
 
         return f"{prefix} "
 
@@ -49,7 +49,7 @@ class CustomHelp(help_.HelpCommand):
             color=context.color,
         ).set_footer(
             text="For more information, do help <command>",
-            icon=context.bot.me.avatar_url,
+            icon=context.bot.get_me().avatar_url,  # type: ignore
         )
         return embed
 

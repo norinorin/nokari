@@ -117,8 +117,8 @@ class Context(lightbulb.Context):
         """Returns the Member object of the bot iself if applicable."""
         return (
             self.guild_id
-            and self.bot.me
-            and self.bot.cache.get_member(self.guild_id, self.bot.me.id)
+            and (me := self.bot.get_me())
+            and self.bot.cache.get_member(self.guild_id, me.id)
         )
 
     def execute_plugins(
@@ -165,8 +165,8 @@ class Context(lightbulb.Context):
         return (
             color
             if self.me
-            and self.me.top_role
-            and (color := self.me.top_role.color) != hikari.Colour.from_rgb(0, 0, 0)
+            and (top_role := self.me.get_top_role())
+            and (color := top_role.color) != hikari.Colour.from_rgb(0, 0, 0)
             else self.bot.default_color
         )
 
@@ -174,10 +174,9 @@ class Context(lightbulb.Context):
         self, perms: hikari.Permissions, member: typing.Optional[hikari.Member] = None
     ) -> bool:
         """Returns whether or not a member has certain guild permissions."""
-        if member is None:
-            if self.me is None:
-                raise RuntimeError("Couldn't resolve the Member object of the bot")
-            member = self.me
+
+        if (member := member or self.me) is None:
+            raise RuntimeError("Couldn't resolve the Member object of the bot")
 
         return has_guild_perms(self.bot, member, perms)
 
@@ -188,9 +187,7 @@ class Context(lightbulb.Context):
         Returns whether or not a member has certain permissions,
         taking channel overwrites into account.
         """
-        if member is None:
-            if self.me is None:
-                raise RuntimeError("Couldn't resolve the Member object of the bot")
-            member = self.me
+        if (member := member or self.me) is None:
+            raise RuntimeError("Couldn't resolve the Member object of the bot")
 
         return has_channel_perms(self.bot, member, self.channel, perms)
