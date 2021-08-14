@@ -418,6 +418,7 @@ class Utils(Plugin):
         )
         if not record:
             await ctx.respond(f"You have no reminder with ID: {parsed.remainder}.")
+            return
 
         interval = record["interval"]
         extra = record["extra"]
