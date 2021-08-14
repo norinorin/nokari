@@ -58,7 +58,7 @@ class Events(plugins.Plugin):
 
         message_create_event = (
             GuildMessageCreateEvent(  # pylint: disable=abstract-class-instantiated
-                app=event.app, message=message, shard=event.shard
+                message=message, shard=event.shard
             )
         )
         await self.bot.process_commands_for_event(message_create_event)
