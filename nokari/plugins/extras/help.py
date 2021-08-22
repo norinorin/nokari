@@ -220,9 +220,7 @@ class CustomHelp(help_.HelpCommand):
 
         cmd = context.bot.get_command(query)
 
-        iterable = (
-            cmd.subcommands if hasattr(cmd, "subcommands") else context.bot.commands
-        )
+        iterable = getattr(cmd, "subcommands", context.bot.commands)
 
         def fmt(c: commands.Command) -> str:
             return f'{c}{"".join(c.aliases)}{inspect.getdoc(c.callback) or ""}'

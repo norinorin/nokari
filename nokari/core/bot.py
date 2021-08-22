@@ -177,7 +177,7 @@ class Nokari(lightbulb.Bot):
 
     @property
     def pool(self) -> typing.Optional[asyncpg.Pool]:
-        return self._pool if hasattr(self, "_pool") else None
+        return getattr(self, "_pool", None)
 
     async def create_pool(self) -> None:
         """Creates a connection pool."""
