@@ -870,10 +870,6 @@ class SpotifyClient:
     ) -> typing.Optional[T]:
         ret = None
 
-        if not seq:
-            await ctx.respond("Couldn't find anything...")
-            return ret
-
         if len(seq) == 1:
             return seq[0]
 
@@ -885,7 +881,7 @@ class SpotifyClient:
             return entries[0]
 
         embed = hikari.Embed(
-            title=title[0] if seq else title[1],
+            title=title[not seq],
             description="\n".join(
                 f"{idx}. {format.format(item=item)}"
                 for idx, item in enumerate(seq, start=1)
@@ -894,22 +890,23 @@ class SpotifyClient:
 
         respond = await ctx.respond(embed=embed)
 
-        with suppress(asyncio.TimeoutError):
-            msg = await self.bot.wait_for(
-                hikari.GuildMessageCreateEvent,
-                predicate=lambda m: m.author.id == ctx.author.id
-                and m.channel_id == ctx.channel_id,
-                timeout=60,
-            )
+        if seq:
+            with suppress(asyncio.TimeoutError):
+                msg = await self.bot.wait_for(
+                    hikari.GuildMessageCreateEvent,
+                    predicate=lambda m: m.author.id == ctx.author.id
+                    and m.channel_id == ctx.channel_id,
+                    timeout=60,
+                )
 
-            if msg.content.isdigit():
-                index = int(msg.content) - 1
-                if index >= len(seq):
-                    await ctx.respond(f"Number should be from 1 to {len(seq)}")
-                else:
-                    ret = seq[index]
+                if msg.content.isdigit():
+                    index = int(msg.content) - 1
+                    if index >= len(seq):
+                        await ctx.respond(f"Number should be from 1 to {len(seq)}")
+                    else:
+                        ret = seq[index]
 
-        await respond.delete()
+            await respond.delete()
 
         return ret
 
