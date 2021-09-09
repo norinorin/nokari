@@ -1,6 +1,4 @@
-# upstream: git+https://github.com/hikari-py/hikari@master#egg=hikari
-# components merged:
-git+https://github.com/norinorin/hikari@master#egg=hikari
+git+https://github.com/hikari-py/hikari@master#egg=hikari
 git+https://github.com/tandemdude/hikari-lightbulb@development#egg=hikari-lightbulb
 python-dotenv
 python-dateutil

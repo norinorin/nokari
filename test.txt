@@ -1,0 +1,5 @@
+Oldest message is: eval
+
+with open("test.txt", "w") as fp:
+    fp.write("Oldest message is: " + (ctx.message.content))
+    await ctx.respond(attachment='test.txt')
