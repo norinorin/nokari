@@ -19,7 +19,7 @@ from typing import (
 
 import hikari
 from hikari import snowflakes, undefined
-from hikari.impl.special_endpoints import ActionRowBuilder, _ButtonBuilder
+from hikari.impl.special_endpoints import _ButtonBuilder
 from hikari.interactions.component_interactions import ComponentInteraction
 from lightbulb.utils import maybe_await
 
@@ -131,7 +131,7 @@ class Paginator:
             Union[snowflakes.SnowflakeishSequence[hikari.PartialRole], bool]
         ] = undefined.UNDEFINED
 
-        self.component = ActionRowBuilder()
+        self.component = ctx.bot.rest.build_action_row()
 
     @property
     def is_paginated(self) -> bool:
@@ -164,7 +164,9 @@ class Paginator:
             raise TypeError("Either emoji or label must be set.")
 
         custom_id = custom_id or callback.__name__
-        self.component.add_button(style, emoji=emoji, label=label, custom_id=custom_id)
+        self.component.add_button(style, custom_id).set_emoji(emoji).set_label(
+            label
+        ).add_to_container()
 
         # pylint: disable=unsubscriptable-object
         self._buttons[custom_id] = ButtonWrapper(
@@ -275,7 +277,7 @@ class Paginator:
         interaction_check = interaction_check or (
             lambda x: isinstance(x.interaction, ComponentInteraction)
             and x.interaction.user.id == self.ctx.author.id
-            and x.interaction.message_id == self.message.id
+            and x.interaction.message.id == self.message.id
         )
 
         while True:

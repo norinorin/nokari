@@ -17,8 +17,7 @@ import asyncpg
 import hikari
 import lightbulb
 from hikari.events.interaction_events import InteractionCreateEvent
-from hikari.impl.special_endpoints import ActionRowBuilder
-from hikari.interactions.bases import ResponseType
+from hikari.interactions.base_interactions import ResponseType
 from hikari.interactions.component_interactions import ComponentInteraction
 from hikari.messages import ButtonStyle
 from hikari.snowflakes import Snowflake
@@ -291,9 +290,13 @@ class Nokari(lightbulb.Bot):
 
         embed = hikari.Embed(description=message, color=color)
         component = (
-            ActionRowBuilder()
-            .add_button(ButtonStyle.SUCCESS, label="Sure", custom_id="sure")
-            .add_button(ButtonStyle.DANGER, label="Never mind", custom_id="nvm")
+            self.rest.build_action_row()
+            .add_button(ButtonStyle.SUCCESS, "sure")
+            .set_label("Sure")
+            .add_to_container()
+            .add_button(ButtonStyle.DANGER, "nvm")
+            .set_label("Never mind")
+            .add_to_container()
         )
 
         messageable = getattr(messageable, "channel", messageable)
@@ -308,7 +311,7 @@ class Nokari(lightbulb.Bot):
                 return False
 
             if (
-                event.interaction.message_id != msg.id
+                event.interaction.message.id != msg.id
                 or event.interaction.user.id != author_id
             ):
                 return False
