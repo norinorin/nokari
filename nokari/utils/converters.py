@@ -68,7 +68,7 @@ def _update_cache(members: typing.Iterable[hikari.Member]) -> None:
 
 
 async def search_member(
-    app: hikari.BotApp, guild_id: int, name: str
+    app: hikari.GatewayBotAware, guild_id: int, name: str
 ) -> typing.Optional[hikari.Member]:
     members = _member_cache.values()
     username, _, discriminator = name.rpartition("#")

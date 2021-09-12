@@ -103,7 +103,7 @@ def get_channel_perms(
 
 @_auto_resolve_guild
 def has_guild_perms(
-    bot: hikari.BotApp,
+    bot: hikari.CacheAware,
     member: hikari.Member,
     perms: hikari.Permissions,
     guild: typing.Optional[hikari.Guild] = None,
@@ -118,7 +118,7 @@ def has_guild_perms(
 
 @_auto_resolve_guild
 def has_any_guild_perms(
-    bot: hikari.BotApp,
+    bot: hikari.Gatewa,
     member: hikari.Member,
     perms: hikari.Permissions,
     guild: typing.Optional[hikari.Guild] = None,
@@ -133,7 +133,7 @@ def has_any_guild_perms(
 
 @_auto_resolve_guild
 def has_channel_perms(
-    bot: hikari.BotApp,
+    bot: hikari.CacheAware,
     member: hikari.Member,
     channel: hikari.GuildChannel,
     perms: hikari.Permissions,
@@ -149,7 +149,7 @@ def has_channel_perms(
 
 @_auto_resolve_guild
 def has_any_channel_perms(
-    bot: hikari.BotApp,
+    bot: hikari.CacheAware,
     member: hikari.Member,
     channel: hikari.GuildChannel,
     perms: hikari.Permissions,
