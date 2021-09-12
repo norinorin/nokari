@@ -35,3 +35,6 @@ py -3 -OO nokari
 
 ## License
 This project is licensed under the MPL-2.0 license.
+
+## Acknowledgements
+- Thanks [@caseyCantCode](https://github.com/caseyCantCode) for donating a VPS for Nokari to run on

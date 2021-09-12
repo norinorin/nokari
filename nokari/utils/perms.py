@@ -118,7 +118,7 @@ def has_guild_perms(
 
 @_auto_resolve_guild
 def has_any_guild_perms(
-    bot: hikari.Gatewa,
+    bot: hikari.CacheAware,
     member: hikari.Member,
     perms: hikari.Permissions,
     guild: typing.Optional[hikari.Guild] = None,
