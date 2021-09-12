@@ -82,7 +82,7 @@ class Meta(plugins.Plugin):
                 inline=True,
             )
             .add_field(
-                name="Cpu:",
+                name="CPU:",
                 value=f"{round(self.process.cpu_percent()/psutil.cpu_count(), 2)}%",
                 inline=True,
             )

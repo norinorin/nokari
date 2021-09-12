@@ -203,7 +203,7 @@ class Utils(Plugin):
         timer = await self.create_timer(
             "Reminder",
             dt,
-            ctx.channel.id,
+            ctx.get_channel().id,
             ctx.author.id,
             rem,
             created_at=ctx.message.created_at,

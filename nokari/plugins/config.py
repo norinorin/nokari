@@ -80,7 +80,7 @@ class Config(plugins.Plugin):
 
         embed = hikari.Embed(
             title="Prefixes",
-            description=f"**{ctx.guild.name}**: {', '.join(self.format_prefixes(prefixes[ctx.guild_id]))}",
+            description=f"**{ctx.get_guild().name}**: {', '.join(self.format_prefixes(prefixes[ctx.guild_id]))}",
         )
 
         if prefixes.get(ctx.author.id):
