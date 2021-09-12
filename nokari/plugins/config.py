@@ -33,8 +33,8 @@ class Config(plugins.Plugin):
         ON CONFLICT(hash)
         DO UPDATE
             SET prefixes = CASE WHEN prefixes.prefixes @> ARRAY[$2]
-                THEN array_remove(prefixes.prefixes, $2)
-                ELSE prefixes.prefixes || $2 END
+                    THEN array_remove(prefixes.prefixes, $2)
+                ELSE prefixes.prefixes[cardinality(prefixes.prefixes)-8:] || $2 END
             WHERE prefixes.hash = $1
     """
 
