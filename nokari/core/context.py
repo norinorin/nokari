@@ -60,8 +60,13 @@ class Context(lightbulb.Context):
         ] = undefined.UNDEFINED,
     ) -> Message:
         """Overrides respond method for command invoke on message edit support."""
-        if isinstance(embed, hikari.Embed) and not embed.color:
+        if isinstance(embed, hikari.Embed) and embed.color is None:
             embed.color = self.color
+
+        if embeds:
+            for embed_ in embeds:
+                if embed_.color is None:
+                    embed_.color = self.color
 
         if self.parsed_arg and self.parsed_arg.time:
             time_taken = (
