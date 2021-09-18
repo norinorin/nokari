@@ -76,7 +76,7 @@ class Meta(plugins.Plugin):
                 value=(
                     f"{human:,}h & {bots:,}b out of {total_members:,}\n"
                     f"{plural(presences):presence,} "
-                    f"({len(self.bot.cache._presences_garbage)} unique)\n"
+                    f"({len(self.bot.cache._presences_garbage):,} unique)\n"
                     f"{plural(len(converters._member_cache)):converted member,}"
                 ),
                 inline=True,
