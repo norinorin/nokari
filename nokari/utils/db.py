@@ -28,7 +28,7 @@ class Column(typing.Generic[T]):
     }
     primary_key: typing.ClassVar[bool] = False
 
-    def __init__(self, data_type: typing.Union[T, str]):
+    def __init__(self, data_type: T | str):
         is_list = getattr(data_type, "__origin__", None) is list
         if is_list:
             data_type = getattr(data_type, "__args__")[0]
@@ -37,7 +37,7 @@ class Column(typing.Generic[T]):
         self.type = f"{self.typing_map.get(stringified, stringified)}{'[]'*is_list}"
 
     @staticmethod
-    def _get_data_type(data_type: typing.Union[T, str], /) -> str:
+    def _get_data_type(data_type: T | str, /) -> str:
         return (
             str(data_type).replace("<class '", "").replace("'>", "").rsplit(".", 1)[-1]
         )
@@ -58,7 +58,7 @@ class Table:
     columns: typing.ClassVar[typing.Dict[str, Column]]
     primary_keys: typing.ClassVar[typing.Sequence[str]]
 
-    def __init_subclass__(cls, name: typing.Optional[str] = None) -> None:
+    def __init_subclass__(cls, name: str | None = None) -> None:
         cls.name = name or cls.__name__.lower()
         cls.columns = columns = {
             k: v for k, v in cls.__annotations__.items() if isinstance(v, Column)
@@ -95,7 +95,7 @@ class Table:
 
 
 def create_tables(
-    con: typing.Union[asyncpg.Connection, asyncpg.Pool], if_not_exists: bool = True
+    con: asyncpg.Connection | asyncpg.Pool, if_not_exists: bool = True
 ) -> typing.Coroutine[typing.Any, typing.Any, str]:
     statements = []
 

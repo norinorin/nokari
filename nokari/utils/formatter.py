@@ -2,6 +2,7 @@
 A module that contains formatting helper functions.
 Some things were based on RoboDanny's.
 """
+from __future__ import annotations
 
 import datetime
 import re
@@ -61,10 +62,10 @@ def _human_join(
 
 # pylint: disable=too-many-branches
 def human_timedelta(
-    rel: typing.Union[datetime.timedelta, datetime.datetime, int, float],
+    rel: datetime.timedelta | datetime.datetime | int | float,
     /,
     *,
-    source: typing.Optional[datetime.datetime] = None,
+    source: datetime.datetime | None = None,
     accuracy: int = 3,
     brief: bool = False,
     append_suffix: bool = True,
@@ -153,7 +154,7 @@ def escape_markdown(text: str) -> str:
 
 
 def discord_timestamp(
-    obj: typing.Union[datetime.timedelta, datetime.datetime, int, float],
+    obj: datetime.timedelta | datetime.datetime | int | float,
     /,
     *,
     fmt: str = "f",

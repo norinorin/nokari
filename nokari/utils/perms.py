@@ -70,7 +70,9 @@ def get_guild_perms(guild: hikari.Guild, member: hikari.Member) -> hikari.Permis
 
     return _ensure_perms(
         reduce(
-            lambda acc, val: acc | val.permissions, member.roles, hikari.Permissions()
+            lambda acc, val: acc | val.permissions,
+            member.get_roles(),
+            hikari.Permissions(),
         )
     )
 

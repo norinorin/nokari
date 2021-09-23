@@ -331,7 +331,7 @@ class Nokari(lightbulb.Bot):
                 await msg.delete()
             else:
                 for c in component._components:
-                    c._is_disabled = True  # type: ignore
+                    c._is_disabled = True
 
                 await event.interaction.create_initial_response(
                     ResponseType.MESSAGE_UPDATE, component=component

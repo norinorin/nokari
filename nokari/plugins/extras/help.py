@@ -37,7 +37,7 @@ class CustomHelp(help_.HelpCommand):
         """
         prefix = context.clean_prefix.strip()
         if len(prefix) > 10:
-            prefix = f"@{context.bot.get_me().username}"  # type: ignore
+            prefix = f"@{context.bot.get_me().username}"
 
         return f"{prefix} "
 
@@ -49,7 +49,7 @@ class CustomHelp(help_.HelpCommand):
             color=context.color,
         ).set_footer(
             text="For more information, do help <command>",
-            icon=context.bot.get_me().avatar_url,  # type: ignore
+            icon=context.bot.get_me().avatar_url,
         )
         return embed
 
@@ -241,7 +241,7 @@ class CustomHelp(help_.HelpCommand):
             return await CustomHelp.send_plugin_help(context, matched_plugins[0])
 
         # todo: fuzzy string matching
-        matches = sum(
+        matches: typing.List[commands.Command] = sum(
             [
                 x
                 for x in [
@@ -265,7 +265,7 @@ class CustomHelp(help_.HelpCommand):
         if len(matches) == 1:  # Just send the object if there's only 1 result
             return await context.send_help(matches[0])
 
-        matches = [c.qualified_name for c in matches]
+        matches: typing.List[str] = [c.qualified_name for c in matches]
         matches.extend([i.__class__.__name__ for i in matched_plugins])
         matches.sort(key=lambda x: (x, len(x)))
         matches = {f"`{i}`" for i in matches}
