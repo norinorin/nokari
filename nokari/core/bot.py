@@ -345,21 +345,21 @@ class Nokari(lightbulb.Bot):
         return self.get_me()
 
 
-@checks.owner_only()
+@lightbulb.check(checks.owner_only)
 @group(name="reload")
 async def reload_plugin(ctx: Context, *, plugins: str = "*") -> None:
     """Reloads certain or all the plugins."""
     await ctx.execute_plugins(ctx.bot.reload_extension, plugins)
 
 
-@checks.owner_only()
+@lightbulb.check(checks.owner_only)
 @command(name="unload")
 async def unload_plugin(ctx: Context, *, plugins: str = "*") -> None:
     """Unloads certain or all the plugins."""
     await ctx.execute_plugins(ctx.bot.unload_extension, plugins)
 
 
-@checks.owner_only()
+@lightbulb.check(checks.owner_only)
 @command(name="load")
 async def load_plugin(ctx: Context, *, plugins: str = "*") -> None:
     """Loads certain or all the plugins."""

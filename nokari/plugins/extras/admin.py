@@ -156,7 +156,7 @@ class Admin(plugins.Plugin):
         return pages
 
     # pylint: disable=exec-used,lost-exception,broad-except
-    @checks.owner_only()
+    @lightbulb.check(checks.owner_only)
     @core.commands.command(name="eval")
     async def _eval(self, ctx: Context, *, cmd: str) -> None:
         """Evaluates Python script."""
@@ -215,7 +215,7 @@ class Admin(plugins.Plugin):
         )
         return [output.decode() for output in await process.communicate()]
 
-    @checks.owner_only()
+    @lightbulb.check(checks.owner_only)
     @core.command(name="bash")
     async def bash(self, ctx: Context, *, command: str) -> None:
         stdout, stderr = await self.run_command_in_shell(command)
@@ -231,7 +231,7 @@ class Admin(plugins.Plugin):
             or ["No output..."],
         ).start()
 
-    @checks.owner_only()
+    @lightbulb.check(checks.owner_only)
     @core.command(allow_extra_arguments=False)  # empty prefix is a nightmare
     async def restart(self, ctx: Context) -> None:
         """Just to check whether or not the -OO flag was present."""
