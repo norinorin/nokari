@@ -216,8 +216,8 @@ class Admin(plugins.Plugin):
         return [output.decode() for output in await process.communicate()]
 
     @lightbulb.check(checks.owner_only)
-    @core.command(name="bash")
-    async def bash(self, ctx: Context, *, command: str) -> None:
+    @core.command(name="shell")
+    async def shell(self, ctx: Context, *, command: str) -> None:
         stdout, stderr = await self.run_command_in_shell(command)
         output = f"Stdout:\n{stdout}\n" if stdout else ""
         if stderr:
