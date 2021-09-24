@@ -228,7 +228,17 @@ class Nokari(lightbulb.Bot):
 
     @property
     def raw_plugins(self) -> typing.Iterator[str]:
-        """Returns the plugins' path component."""
+        """
+        Returns the plugins' path component.
+
+        I can actually do the following:
+            return (
+                f"{'.'.join(i.parts)}[:-3]"
+                for i in Path("nokari/plugins").rglob("[!_]*.py")
+            )
+
+        Though, I found os.walk() is ~57%–70% faster (it shouldn't matter, but w/e.)
+        """
         return (
             f"{path.strip('/').replace('/', '.')}.{file[:-3]}"
             for path, _, files in os.walk("nokari/plugins/")
