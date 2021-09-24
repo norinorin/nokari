@@ -3,8 +3,10 @@ from __future__ import annotations
 import asyncio
 import datetime
 import re
+import textwrap
 import typing
 from contextlib import suppress
+from functools import partial
 from io import BytesIO
 
 import hikari
@@ -881,17 +883,18 @@ class SpotifyClient:
         ):
             return entries[0]
 
+        shorten = partial(textwrap.shorten, width=100, placeholder="...")
         menu = (
             self.bot.rest.build_action_row()
             .add_select_menu("select_spotify_item")
             .set_min_values(1)
             .set_max_values(1)
-            .set_placeholder(f"1. {format.format(item=seq[0])}")
+            .set_placeholder(shorten(f"1. {format.format(item=seq[0])}"))
         )
 
         for idx, item in enumerate(seq, start=1):
             menu.add_option(
-                f"{idx}. {format.format(item=item)}", str(idx - 1)
+                shorten(f"{idx}. {format.format(item=item)}"), str(idx - 1)
             ).add_to_menu()
 
         respond = await ctx.respond(
