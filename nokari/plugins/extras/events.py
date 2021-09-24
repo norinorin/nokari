@@ -1,12 +1,18 @@
 from contextlib import suppress
 
 from hikari import (
+    Embed,
     GuildMessageCreateEvent,
     GuildMessageDeleteEvent,
     GuildMessageUpdateEvent,
     Message,
 )
 from lightbulb import Bot, errors, plugins
+
+from nokari.core.constants import POSTGRESQL_DSN
+
+if not POSTGRESQL_DSN:
+    from nokari.plugins.config import Config
 
 
 class Events(plugins.Plugin):
@@ -35,6 +41,14 @@ class Events(plugins.Plugin):
             invoked_with="prefix",
             invoked_command=self.bot.get_command("prefix"),
         )
+
+        if not self.bot.pool:
+            embed = Embed(
+                title="Prefixes",
+                description=f"Default prefixes: {', '.join(Config.format_prefixes(self.bot.default_prefixes))}",
+            )
+            await ctx.respond(embed=embed)
+            return
 
         with suppress(errors.CommandIsOnCooldown):
             return await self.bot.get_command("prefix").invoke(ctx)

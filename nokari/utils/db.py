@@ -8,6 +8,8 @@ import typing
 
 import asyncpg
 
+from nokari.core.constants import POSTGRESQL_DSN
+
 __all__: typing.Final[typing.List[str]] = [
     "Column",
     "PrimaryKeyColumn",
@@ -108,7 +110,7 @@ def create_tables(
 async def create_pool(
     min_size: int = 3, max_size: int = 10, max_inactive_connection_lifetime: int = 60
 ) -> asyncpg.Pool | None:
-    if not (dsn := os.getenv("POSTGRESQL_DSN")):
+    if not POSTGRESQL_DSN:
         return None
 
     def _encode_jsonb(value: dict) -> str:
@@ -127,7 +129,7 @@ async def create_pool(
         )
 
     return asyncpg.create_pool(
-        dsn=dsn,
+        dsn=POSTGRESQL_DSN,
         init=init,
         min_size=min_size,
         max_size=max_size,

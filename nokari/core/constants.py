@@ -1,5 +1,6 @@
 """A module that contains constants for consistency."""
 
+import os
 from enum import Enum
 
 
@@ -39,3 +40,5 @@ TEXT_CARET_OPTIONAL = "[text|^]"
 EMOJI = "emoji name|id"
 EMOJI_REQUIRED = format_(EMOJI, FieldType.req)
 EMOJI_OPTIONAL = format_(EMOJI, FieldType.opt)
+
+POSTGRESQL_DSN = os.getenv("POSTGRES_DSN")
