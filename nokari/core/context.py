@@ -1,4 +1,5 @@
 """A module that contains a custom Context class implementation."""
+from __future__ import annotations
 
 import logging
 import time
@@ -23,11 +24,12 @@ class Context(lightbulb.Context):
 
     parsed_arg: typing.Optional[SimpleNamespace]
 
-    __slots__: typing.List[str] = ["parsed_arg"]
+    __slots__: typing.List[str] = ["parsed_arg", "interaction"]
 
     def __init__(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         super().__init__(*args, **kwargs)
         self.parsed_arg = None
+        self.interaction: hikari.PartialInteraction | None = None
 
     async def respond(  # pylint: disable=arguments-differ,too-many-locals
         self,
@@ -76,6 +78,20 @@ class Context(lightbulb.Context):
             )
             content = f"{(content or '')[:2000-len(time_taken)-2]}\n\n{time_taken}"
 
+        if self.interaction:
+            # assume it's been deferred
+            await self.interaction.edit_initial_response(
+                content=content or None,
+                embed=embed or None,
+                attachment=attachment,
+                attachments=attachments,
+                components=components or [],
+                mentions_everyone=mentions_everyone,
+                user_mentions=user_mentions,
+                role_mentions=role_mentions,
+            )
+            return self.interaction.message
+
         if (
             resp := self.bot.cache.get_message(
                 self.bot.responses_cache.get(self.message_id, 0)
@@ -86,8 +102,7 @@ class Context(lightbulb.Context):
                 embed=embed or None,
                 attachment=attachment,
                 attachments=attachments,
-                component=component,
-                components=components,
+                component=component or None,
                 replace_attachments=True,
                 mentions_reply=mentions_reply,
                 mentions_everyone=mentions_everyone,

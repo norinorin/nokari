@@ -236,7 +236,12 @@ class Paginator:
         """Starts paginating the contents."""
         options = await self.kwargs
         options.pop("response_type", None)
-        self.message = await self.ctx.respond(**options)
+
+        if interaction := self.ctx.interaction:
+            self.message = interaction.message
+            await interaction.edit_initial_response(**options)
+        else:
+            self.message = await self.ctx.respond(**options)
 
         if not self.is_paginated:
             self.clean_up()

@@ -871,8 +871,6 @@ class SpotifyClient:
         title: typing.Tuple[str, str],
         format: str,
     ) -> typing.Optional[T]:
-        ret = None
-
         if len(seq) == 1:
             return seq[0]
 
@@ -914,12 +912,15 @@ class SpotifyClient:
                     and e.interaction.custom_id == "select_spotify_item",
                     timeout=60,
                 )
-
-                ret = seq[int(event.interaction.values[0])]
+                ctx.interaction = interaction = event.interaction
+                await interaction.create_initial_response(
+                    response_type=hikari.ResponseType.DEFERRED_MESSAGE_UPDATE
+                )
+                return seq[int(interaction.values[0])]
 
             await respond.delete()
 
-        return ret
+        return None
 
     async def get_audio_features(self, _id: str) -> AudioFeatures:
         audio_features = self.cache.audio_features.get(_id)
