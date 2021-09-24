@@ -1,3 +1,4 @@
+import logging
 import typing
 from inspect import getmembers
 
@@ -25,6 +26,7 @@ _ErrorHandlerT = typing.TypeVar(
         typing.Literal[None],
     ],
 )
+_LOGGER = logging.getLogger("nokari.plugins.extras.errors")
 
 
 def handle(
@@ -90,7 +92,7 @@ class Errors(plugins.Plugin):
             # then it's an empty prefix
             return
 
-        self.bot.log.error(
+        _LOGGER.error(
             "Ignoring exception in command %s",
             event.command and event.command.qualified_name,
             exc_info=error,

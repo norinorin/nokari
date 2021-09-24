@@ -6,6 +6,7 @@ from lightbulb import Command
 
 __all__: typing.Final[typing.List[str]] = ["require_env"]
 CommandT = typing.TypeVar("CommandT", bound=Command)
+_LOGGER = logging.getLogger("nokari.utils.checks")
 
 
 def require_env(*vars_: str) -> typing.Callable[[Command], Command]:
@@ -16,9 +17,11 @@ def require_env(*vars_: str) -> typing.Callable[[Command], Command]:
                     "'require_env' decorator must be above the command decorator."
                 )
 
-            logging.warning(
-                f"Missing {', '.join(missing)} env variable{'s'*bool(missing)}, "
-                f"{cmd.name} will be disabled"
+            _LOGGER.warning(
+                "Missing %s env variable%s. %s will be disabled",
+                ", ".join(missing),
+                "s" * bool(missing),
+                cmd.name,
             )
 
             cmd.disabled = True

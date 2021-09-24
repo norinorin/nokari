@@ -30,6 +30,7 @@ class Indexable(Iterable[T], Protocol[T]):
     def __getitem__(self, key: slice) -> "Indexable[T]":
         ...
 
+    # pylint: disable=non-iterator-returned
     def __iter__(self) -> Iterator[T]:
         ...
 
@@ -82,6 +83,7 @@ def simple_chunk(
     ...
 
 
+# pylint: disable=used-before-assignment
 def simple_chunk(text: Any, length: Any, lazy: bool = False) -> Any:
     """A lite version of the chunk function."""
     return (

@@ -105,9 +105,12 @@ def create_tables(
     return con.execute(" ".join(statements))
 
 
-def create_pool(
+async def create_pool(
     min_size: int = 3, max_size: int = 10, max_inactive_connection_lifetime: int = 60
-) -> typing.Coroutine[typing.Any, typing.Any, asyncpg.Pool]:
+) -> asyncpg.Pool | None:
+    if not (dsn := os.getenv("POSTGRESQL_DSN")):
+        return None
+
     def _encode_jsonb(value: dict) -> str:
         return json.dumps(value)
 
@@ -124,7 +127,7 @@ def create_pool(
         )
 
     return asyncpg.create_pool(
-        dsn=os.getenv("POSTGRESQL_DSN"),
+        dsn=dsn,
         init=init,
         min_size=min_size,
         max_size=max_size,

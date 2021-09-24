@@ -23,6 +23,7 @@ def convert_prefix(arg: WrappedArg) -> str:
     return arg.data.strip().lower()
 
 
+@core.bot.requires_db
 class Config(plugins.Plugin):
     """A plugin that contains config commands."""
 

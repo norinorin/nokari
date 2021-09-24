@@ -1,4 +1,5 @@
 """A module that contains a custom command handler class implementation."""
+from __future__ import annotations
 
 import asyncio
 import datetime
@@ -8,7 +9,6 @@ import logging
 import os
 import shutil
 import sys
-import traceback
 import typing
 from contextlib import suppress
 
@@ -32,6 +32,10 @@ from nokari.core.entity_factory import EntityFactory
 from nokari.utils import db, human_timedelta
 
 __all__: typing.Final[typing.List[str]] = ["Nokari"]
+_CommandOrPluginT = typing.TypeVar(
+    "_CommandOrPluginT", bound=typing.Union[lightbulb.Plugin, lightbulb.Command]
+)
+_LOGGER = logging.getLogger("nokari.core.bot")
 
 
 def _get_prefixes(bot: lightbulb.Bot, message: hikari.Message) -> typing.List[str]:
@@ -92,9 +96,6 @@ class Nokari(lightbulb.Bot):
         # Responses cache
         self._resp_cache = LRU(1024)
 
-        # Setup logger
-        self.setup_logger()
-
         # Non-modular commands
         _ = [
             self.add_command(g)
@@ -103,11 +104,12 @@ class Nokari(lightbulb.Bot):
         ]
 
         # Set Launch time
-        self.launch_time: typing.Optional[datetime.datetime] = None
+        self.launch_time: datetime.datetime | None = None
 
         # Default prefixes
         self.default_prefixes = ["nokari", "n!"]
 
+    # pylint: disable=redefined-outer-name
     @functools.wraps(lightbulb.Bot._invoke_command)
     async def _invoke_command(
         self,
@@ -165,7 +167,7 @@ class Nokari(lightbulb.Bot):
         return asyncio.get_running_loop()
 
     @property
-    def session(self) -> typing.Optional[aiohttp.ClientSession]:
+    def session(self) -> aiohttp.ClientSession | None:
         """Returns a ClientSession."""
         return self.rest._get_live_attributes().client_session
 
@@ -175,30 +177,22 @@ class Nokari(lightbulb.Bot):
         return self._resp_cache
 
     @property
-    def pool(self) -> typing.Optional[asyncpg.Pool]:
+    def pool(self) -> asyncpg.Pool | None:
         return getattr(self, "_pool", None)
 
     async def create_pool(self) -> None:
         """Creates a connection pool."""
-        self._pool = await db.create_pool()
+        if pool := await db.create_pool():
+            self._pool = pool
 
     async def _load_prefixes(self) -> None:
-        self.prefixes = {
-            record["hash"]: record["prefixes"]
-            for record in await self._pool.fetch("SELECT * FROM prefixes")
-        }
+        if self.pool:
+            self.prefixes = {
+                record["hash"]: record["prefixes"]
+                for record in await self.pool.fetch("SELECT * FROM prefixes")
+            }
 
-    def setup_logger(self) -> None:
-        """Sets a logger that outputs to a file as well as stdout."""
-        self.log = logging.getLogger(self.__class__.__name__)
-
-        file_handler = logging.handlers.TimedRotatingFileHandler(  # type: ignore
-            "nokari.log", when="D", interval=7
-        )
-        file_handler.setLevel(logging.INFO)
-        self.log.addHandler(file_handler)
-
-    async def _resolve_prefix(self, message: hikari.Message) -> typing.Optional[str]:
+    async def _resolve_prefix(self, message: hikari.Message) -> str | None:
         """Case-insensitive prefix resolver."""
         prefixes = await maybe_await(self.get_prefix, self, message)
 
@@ -258,20 +252,11 @@ class Nokari(lightbulb.Bot):
             try:
                 self.load_extension(extension)
             except lightbulb.errors.ExtensionMissingLoad:
-                print(extension, "is missing load function.")
+                _LOGGER.error("%s is missing load function", extension)
             except lightbulb.errors.ExtensionAlreadyLoaded:
                 pass
             except lightbulb.errors.ExtensionError as _e:
-                print(extension, "failed to load.")
-                print(
-                    " ".join(
-                        traceback.format_exception(
-                            type(_e or _e.__cause__),
-                            _e or _e.__cause__,
-                            _e.__traceback__,
-                        )
-                    )
-                )
+                _LOGGER.error("%s failed to load", exc_info=_e)
 
     # pylint: disable=lost-exception
     async def prompt(
@@ -340,9 +325,21 @@ class Nokari(lightbulb.Bot):
             return confirm
 
     @property
-    def me(self) -> typing.Optional[hikari.OwnUser]:
+    def me(self) -> hikari.OwnUser | None:
         """Temp fix until lightbub updates."""
         return self.get_me()
+
+    def add_plugin(
+        self, plugin: lightbulb.Plugin | typing.Type[lightbulb.Plugin]
+    ) -> None:
+        if getattr(plugin, "__requires_db__", False) and self.pool is None:
+            if (name := getattr(plugin, "name", None)) is None:
+                name = plugin.__class__.name
+
+            _LOGGER.warning("Not loading %s plugin as it requires DB", name)
+            return None
+
+        return super().add_plugin(plugin)
 
 
 @lightbulb.check(checks.owner_only)
@@ -378,7 +375,7 @@ async def reload_module(ctx: Context, *, modules: str) -> None:
             module = sys.modules[mod]
             importlib.reload(module)
         except Exception as e:  # pylint: disable=broad-except
-            ctx.bot.log.error("Failed to reload %s", mod, exc_info=e)
+            _LOGGER.error("Failed to reload %s", mod, exc_info=e)
             failed.add((mod, e.__class__.__name__))
 
     for parent in parents:
@@ -388,8 +385,16 @@ async def reload_module(ctx: Context, *, modules: str) -> None:
                 module = sys.modules[".".join(parent_split[:idx])]
                 importlib.reload(module)
             except Exception as e:  # pylint: disable=broad-except
-                ctx.bot.log.error("Failed to reload parent %s", parent, exc_info=e)
+                _LOGGER.error("Failed to reload parent %s", parent, exc_info=e)
 
     loaded = "\n".join(f"+ {i}" for i in modules ^ {x[0] for x in failed})
     failed = "\n".join(f"- {m} {e}" for m, e in failed)
     await ctx.respond(f"```diff\n{loaded}\n{failed}```")
+
+
+def requires_db(command_or_plugin: _CommandOrPluginT) -> _CommandOrPluginT:
+    if isinstance(command_or_plugin, commands.Command):
+        command_or_plugin.disabled = True
+    else:
+        command_or_plugin.__requires_db__ = True
+    return command_or_plugin

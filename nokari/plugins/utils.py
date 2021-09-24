@@ -1,6 +1,7 @@
 # Reminders based on RoboDanny.
 
 import asyncio
+import logging
 import textwrap
 import typing
 from datetime import datetime, timedelta, timezone
@@ -14,6 +15,7 @@ from lightbulb.converters import Greedy, WrappedArg
 from tabulate import tabulate
 
 from nokari.core import command, group
+from nokari.core.bot import requires_db
 from nokari.core.context import Context
 from nokari.utils import db, plural, timers
 from nokari.utils.chunker import chunk, simple_chunk
@@ -24,6 +26,7 @@ from nokari.utils.parser import ArgumentParser
 
 MAX_DAYS: typing.Final[int] = 40
 RETRY_IN: typing.Final[int] = 86400
+_LOGGER = logging.getLogger("nokari.plugins.utils")
 
 
 class SERIAL:
@@ -43,6 +46,9 @@ class Reminders(db.Table):
     interval: db.Column[Snowflake]  # BIGINT
 
 
+# todo: move this to commands
+# if there were commands that don't require DB.
+@requires_db
 class Utils(Plugin):
     def __init__(self, bot: Bot) -> None:
         self.bot = bot
@@ -50,7 +56,8 @@ class Utils(Plugin):
 
         self.event = asyncio.Event()
         self._current_timer: typing.Optional[timers.Timer] = None
-        self._task: asyncio.Task[None] = asyncio.create_task(self.dispatch_timers())
+        if bot.pool:
+            self._task: asyncio.Task[None] = asyncio.create_task(self.dispatch_timers())
         self._remind_parser = (
             ArgumentParser()
             .interval("--interval", "-i", argmax=0, default=False)
@@ -83,7 +90,7 @@ class Utils(Plugin):
     async def call_timer(self, timer: timers.Timer) -> None:
         args = [timer.id]
 
-        self.bot.log.debug("Dispatching timer with interval %s", timer.interval)
+        _LOGGER.debug("Dispatching timer with interval %s", timer.interval)
 
         if timer.interval:
             query = "UPDATE reminders SET expires_at = CURRENT_TIMESTAMP + $2 * interval '1 sec' WHERE id=$1"

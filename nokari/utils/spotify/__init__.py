@@ -476,6 +476,7 @@ class SpotifyClient:
                 spotify_text + metadata.album, self.SMALL_FONT, False
             )
 
+            # pylint: disable=unsubscriptable-object
             spotify_width = sum(
                 [spotify_album_c_mapping[char][0] for char in spotify_text]
             )

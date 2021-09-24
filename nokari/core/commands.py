@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import typing
 
-from lightbulb import commands, context, errors
+from lightbulb import commands
+from lightbulb import context as context_
+from lightbulb import errors
 
 __all__: typing.Final[typing.List[str]] = ["Command", "command", "group"]
 _CommandCallbackT = typing.TypeVar(
@@ -26,7 +28,7 @@ class Command(commands.Command):
         self.usage = usage
         """The custom command signature if specified."""
 
-    async def is_runnable(self, context: context.Context) -> bool:
+    async def is_runnable(self, context: context_.Context) -> bool:
         if getattr(self, "disabled", False):
             raise errors.CheckFailure("Command is disabled.")
 

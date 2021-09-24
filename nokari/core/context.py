@@ -1,5 +1,6 @@
 """A module that contains a custom Context class implementation."""
 
+import logging
 import time
 import typing
 from types import SimpleNamespace
@@ -14,6 +15,7 @@ from hikari.api import special_endpoints
 from nokari.utils.perms import has_channel_perms, has_guild_perms
 
 __all__: typing.Final[typing.List[str]] = ["Context"]
+_LOGGER = logging.getLogger("nokari.core.context")
 
 
 class Context(lightbulb.Context):
@@ -151,7 +153,7 @@ class Context(lightbulb.Context):
                     else plugin
                 )
             except Exception as _e:  # pylint: disable=broad-except
-                self.bot.log.error("Failed to reload %s", plugin, exc_info=_e)
+                _LOGGER.error("Failed to reload %s", plugin, exc_info=_e)
                 failed.add((plugin, _e.__class__.__name__))
 
         key = lambda s: (len(s), s)
