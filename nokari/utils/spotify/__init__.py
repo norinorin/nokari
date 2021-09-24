@@ -847,12 +847,12 @@ class SpotifyClient:
     ) -> typing.Optional[T]:
         tnf: typing.Dict[str, typing.Tuple[typing.Tuple[str, str], str]] = {
             "track": (
-                ("Choose a Track", "No track was found..."),
+                ("Choose a track", "No track was found..."),
                 "{item.artists_str} - {item.title}",
             ),
-            "artist": (("Choose an Artist", "No artist was found..."), "{item}"),
+            "artist": (("Choose an artist", "No artist was found..."), "{item}"),
             "album": (
-                ("Choose an Album", "No album was found..."),
+                ("Choose an album", "No album was found..."),
                 "{item.artists_str} - {item}",
             ),
         }
@@ -881,31 +881,38 @@ class SpotifyClient:
         ):
             return entries[0]
 
-        embed = hikari.Embed(
-            title=title[not seq],
-            description="\n".join(
-                f"{idx}. {format.format(item=item)}"
-                for idx, item in enumerate(seq, start=1)
-            ),
+        menu = (
+            self.bot.rest.build_action_row()
+            .add_select_menu("select_spotify_item")
+            .set_min_values(1)
+            .set_max_values(1)
+            .set_placeholder(f"1. {format.format(item=seq[0])}")
         )
 
-        respond = await ctx.respond(embed=embed)
+        for idx, item in enumerate(seq, start=1):
+            menu.add_option(
+                f"{idx}. {format.format(item=item)}", str(idx - 1)
+            ).add_to_menu()
+
+        respond = await ctx.respond(
+            content=title[not seq], component=menu.add_to_container()
+        )
 
         if seq:
             with suppress(asyncio.TimeoutError):
-                msg = await self.bot.wait_for(
-                    hikari.GuildMessageCreateEvent,
-                    predicate=lambda m: m.author.id == ctx.author.id
-                    and m.channel_id == ctx.channel_id,
+                event = await self.bot.wait_for(
+                    hikari.InteractionCreateEvent,
+                    predicate=lambda e: isinstance(
+                        e.interaction, hikari.ComponentInteraction
+                    )
+                    and e.interaction.message.id == respond.id
+                    and e.interaction.user.id == ctx.author.id
+                    and e.interaction.channel_id == ctx.channel_id
+                    and e.interaction.custom_id == "select_spotify_item",
                     timeout=60,
                 )
 
-                if msg.content.isdigit():
-                    index = int(msg.content) - 1
-                    if index >= len(seq):
-                        await ctx.respond(f"Number should be from 1 to {len(seq)}")
-                    else:
-                        ret = seq[index]
+                ret = seq[int(event.interaction.values[0])]
 
             await respond.delete()
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import typing
 
 import asyncpg
@@ -128,7 +127,7 @@ async def create_pool(
             format="text",
         )
 
-    return asyncpg.create_pool(
+    return await asyncpg.create_pool(
         dsn=POSTGRESQL_DSN,
         init=init,
         min_size=min_size,

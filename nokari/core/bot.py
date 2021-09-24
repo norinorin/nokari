@@ -25,6 +25,7 @@ from lightbulb import checks, commands
 from lightbulb.utils import maybe_await
 from lru import LRU  # pylint: disable=no-name-in-module
 
+from nokari.core import constants
 from nokari.core.cache import Cache
 from nokari.core.commands import command, group
 from nokari.core.context import Context
@@ -64,7 +65,7 @@ class Nokari(lightbulb.Bot):
         manually put it when calling the superclass' __init__.
         """
         super().__init__(
-            token=os.getenv("DISCORD_BOT_TOKEN"),
+            token=constants.DISCORD_BOT_TOKEN,
             banner="nokari.assets",
             intents=hikari.Intents.GUILDS
             | hikari.Intents.GUILD_EMOJIS
@@ -75,7 +76,7 @@ class Nokari(lightbulb.Bot):
             insensitive_commands=True,
             prefix=lightbulb.when_mentioned_or(_get_prefixes),
             owner_ids=[265080794911866881],
-            logs=os.getenv("LOG_LEVEL", "INFO"),
+            logs=constants.LOG_LEVEL,
         )
 
         # Custom cache

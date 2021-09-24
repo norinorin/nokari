@@ -3,6 +3,10 @@
 import os
 from enum import Enum
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 class FieldType(Enum):
     opt = 0
@@ -41,4 +45,14 @@ EMOJI = "emoji name|id"
 EMOJI_REQUIRED = format_(EMOJI, FieldType.req)
 EMOJI_OPTIONAL = format_(EMOJI, FieldType.opt)
 
-POSTGRESQL_DSN = os.getenv("POSTGRES_DSN")
+for var in (
+    "DISCORD_BOT_TOKEN",
+    "POSTGRESQL_DSN",
+    "DISCORD_BROWSER",
+    "SPOTIPY_CLIENT_ID",
+    "SPOTIPY_CLIENT_SECRET",
+):
+    globals()[var] = os.getenv(var)
+
+
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")

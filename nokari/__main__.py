@@ -6,9 +6,8 @@ from pathlib import Path
 if (nokari_path := str(Path(__file__).parent / "..")) not in sys.path:
     sys.path.insert(0, nokari_path)
 
-from dotenv import load_dotenv
-
-from nokari.core import Nokari
+# pylint: disable=wrong-import-position
+from nokari.core import Nokari, constants
 from nokari.utils import monkey_patch
 
 if os.name != "nt":
@@ -16,19 +15,8 @@ if os.name != "nt":
 
     uvloop.install()
 
-load_dotenv()
 
-if missing := [
-    var
-    for var in (
-        "DISCORD_BOT_TOKEN",
-        # "POSTGRESQL_DSN"
-    )
-    if var not in os.environ
-]:
-    raise RuntimeError(f"missing {', '.join(missing)} env variable{'s'*bool(missing)}")
-
-if browser := os.getenv("DISCORD_BROWSER"):
-    monkey_patch.set_browser(browser)
+if browser := constants.DISCORD_BROWSER:
+    monkey_patch.set_browser(constants.DISCORD_BROWSER)
 
 Nokari().run()
