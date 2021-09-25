@@ -1,12 +1,12 @@
 [Unit]
-Description=Nokari
+Description=
 
 [Service]
 WorkingDirectory=
 Restart=always
 RestartSec=30
 ExecStart=/usr/bin/python -OO nokari
-User=nori
+User=
 
 [Install]
 WantedBy=multi-user.target
