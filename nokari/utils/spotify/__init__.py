@@ -810,6 +810,7 @@ class SpotifyClient:
     async def search(self, q: str, /, type: typing.Type[T]) -> typing.List[T]:
         plural = type.type + "s"
         queries = self.cache.get_queries(type.type)
+        q = q.lower()
         ids = queries.get(q)
 
         if ids is not None:
