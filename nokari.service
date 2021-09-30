@@ -5,7 +5,7 @@ Description=
 WorkingDirectory=
 Restart=always
 RestartSec=30
-ExecStart=/usr/bin/python -OO nokari
+ExecStart=/usr/bin/python -O nokari
 User=
 
 [Install]

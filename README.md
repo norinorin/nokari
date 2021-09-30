@@ -27,11 +27,13 @@ DISCORD_BROWSER=
 After having all the requirements, run it with:
 ```
 # Unix
-python3 -OO nokari
+python3 -O nokari
 
 # Windows
-py -3 -OO nokari
+py -3 -O nokari
 ```
+
+Note: second level optimisation (`-OO`) will break the help command.
 
 ## License
 This project is licensed under the MPL-2.0 license.
