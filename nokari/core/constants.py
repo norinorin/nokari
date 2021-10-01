@@ -51,6 +51,7 @@ for var in (
     "DISCORD_BROWSER",
     "SPOTIPY_CLIENT_ID",
     "SPOTIPY_CLIENT_SECRET",
+    "GUILD_LOGS_WEBHOOK_URL",
 ):
     globals()[var] = os.getenv(var)
 

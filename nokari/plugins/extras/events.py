@@ -1,4 +1,9 @@
+from __future__ import annotations
+
+import asyncio
+import logging
 from contextlib import suppress
+from functools import partial
 
 from hikari import (
     Embed,
@@ -7,12 +12,19 @@ from hikari import (
     GuildMessageUpdateEvent,
     Message,
 )
+from hikari.colors import Color
+from hikari.events.guild_events import GuildLeaveEvent
+from hikari.events.shard_events import ShardPayloadEvent
+from hikari.guilds import GatewayGuild
 from lightbulb import Bot, errors, plugins
 
-from nokari.core.constants import POSTGRESQL_DSN
+from nokari.core.constants import GUILD_LOGS_WEBHOOK_URL, POSTGRESQL_DSN
+from nokari.utils import plural
 
 if not POSTGRESQL_DSN:
     from nokari.plugins.config import Config
+
+_LOGGER = logging.getLogger("nokari.plugins.extras.events")
 
 
 class Events(plugins.Plugin):
@@ -26,6 +38,29 @@ class Events(plugins.Plugin):
     def __init__(self, bot: Bot):
         super().__init__()
         self.bot = bot
+
+        if GUILD_LOGS_WEBHOOK_URL:
+            webhook_id, webhook_token = GUILD_LOGS_WEBHOOK_URL.strip("/").split("/")[
+                -2:
+            ]
+            self.execute_webhook = partial(
+                self.bot.rest.execute_webhook, int(webhook_id), webhook_token
+            )
+
+            for event_type, callback in self.optional_events:
+                bot.subscribe(event_type, getattr(self, callback))
+
+    @property
+    def optional_events(self):
+        return (
+            (ShardPayloadEvent, "on_guild_join"),
+            (GuildLeaveEvent, "on_guild_leave"),
+        )
+
+    def plugin_remove(self) -> None:
+        if GUILD_LOGS_WEBHOOK_URL:
+            for event_type, callback in self.optional_events:
+                self.bot.unsubscribe(event_type, callback)
 
     async def handle_ping(self, message: Message) -> None:
 
@@ -88,6 +123,47 @@ class Events(plugins.Plugin):
             return
 
         await resp.delete()
+
+    async def execute_guild_webhook(
+        self, guild: GatewayGuild | None, color: Color, suffix: str
+    ) -> None:
+        embed = Embed(
+            title=guild.name if guild else "Unknown guild",
+            description=f"I'm now in {plural(len(self.bot.cache.get_guilds_view())):server,}",
+            color=color,
+        )
+
+        if guild:
+            (
+                embed.add_field(
+                    "Owner:",
+                    str(guild.get_member(guild.owner_id) or await guild.fetch_owner()),
+                )
+                .add_field("Member count:", guild.member_count)
+                .add_field("ID:", guild.id)
+            )
+
+        await self.execute_webhook(
+            embed=embed, username=f"{self.bot.get_me()} {suffix}"
+        )
+
+    async def on_guild_join(self, event: ShardPayloadEvent) -> None:
+        if event.name == "GUILD_CREATE" and event.payload.get("unavailable") is None:
+            for _ in range(5):
+                if not (guild := self.bot.cache.get_guild(int(event.payload["id"]))):
+                    await asyncio.sleep(0.5)  # wait for Hikari to cache the guild, kekw
+                    continue
+
+                await self.execute_guild_webhook(
+                    guild,
+                    Color.of("#00FF00"),
+                    "(+)",
+                )
+                break
+
+    async def on_guild_leave(self, _: GuildLeaveEvent) -> None:
+        # TODO: event.old_guild
+        await self.execute_guild_webhook(None, Color.of("#FF0000"), "(-)")
 
 
 def load(bot: Bot) -> None:

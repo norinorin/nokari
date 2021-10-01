@@ -126,9 +126,9 @@ class Nokari(lightbulb.Bot):
 
     @functools.wraps(lightbulb.Bot.start)
     async def start(self, *args: typing.Any, **kwargs: typing.Any) -> None:
-        await super().start(*args, **kwargs)
         await self.create_pool()
         self.load_extensions()
+        await super().start(*args, **kwargs)
         self.launch_time = datetime.datetime.now(datetime.timezone.utc)
 
         if sys.argv[-1] == "init":
