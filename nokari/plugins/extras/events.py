@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 from contextlib import suppress
 from functools import partial
@@ -13,8 +12,7 @@ from hikari import (
     Message,
 )
 from hikari.colors import Color
-from hikari.events.guild_events import GuildLeaveEvent
-from hikari.events.shard_events import ShardPayloadEvent
+from hikari.events.guild_events import GuildJoinEvent, GuildLeaveEvent
 from hikari.guilds import GatewayGuild
 from lightbulb import Bot, errors, plugins
 
@@ -53,7 +51,7 @@ class Events(plugins.Plugin):
     @property
     def optional_events(self):
         return (
-            (ShardPayloadEvent, "on_guild_join"),
+            (GuildJoinEvent, "on_guild_join"),
             (GuildLeaveEvent, "on_guild_leave"),
         )
 
@@ -147,19 +145,8 @@ class Events(plugins.Plugin):
             embed=embed, username=f"{self.bot.get_me()} {suffix}"
         )
 
-    async def on_guild_join(self, event: ShardPayloadEvent) -> None:
-        if event.name == "GUILD_CREATE" and event.payload.get("unavailable") is None:
-            for _ in range(5):
-                if not (guild := self.bot.cache.get_guild(int(event.payload["id"]))):
-                    await asyncio.sleep(0.5)  # wait for Hikari to cache the guild, kekw
-                    continue
-
-                await self.execute_guild_webhook(
-                    guild,
-                    Color.of("#00FF00"),
-                    "(+)",
-                )
-                break
+    async def on_guild_join(self, event: GuildJoinEvent) -> None:
+        await self.execute_guild_webhook(event.guild, Color.of("#00FF00"), "(+)")
 
     async def on_guild_leave(self, _: GuildLeaveEvent) -> None:
         # TODO: event.old_guild
