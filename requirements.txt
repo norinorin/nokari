@@ -1,4 +1,5 @@
-git+https://github.com/hikari-py/hikari@master#egg=hikari
+# upstream: git+https://github.com/hikari-py/hikari@master#egg=hikari
+git+https://github.com/norinorin/hikari@feature/guild-join-event#egg=hikari
 git+https://github.com/tandemdude/hikari-lightbulb@development#egg=hikari-lightbulb
 python-dotenv
 python-dateutil
