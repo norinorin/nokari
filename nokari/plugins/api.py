@@ -455,7 +455,7 @@ class API(plugins.Plugin):
     async def rtfd_hikari(self, ctx: Context, obj: typing.Optional[str] = None) -> None:
         """Returns jump links to the specified object in Hikari docs page."""
 
-        BASE_URL = "https://hikari-py.github.io/hikari"
+        BASE_URL = "https://hikari-py.dev/hikari"
 
         if not obj:
             await ctx.respond(BASE_URL)
