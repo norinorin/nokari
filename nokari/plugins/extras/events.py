@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from contextlib import suppress
 from functools import partial
 
@@ -21,8 +20,6 @@ from nokari.utils import plural
 
 if not POSTGRESQL_DSN:
     from nokari.plugins.config import Config
-
-_LOGGER = logging.getLogger("nokari.plugins.extras.events")
 
 
 class Events(plugins.Plugin):
