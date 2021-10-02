@@ -403,6 +403,7 @@ class API(plugins.Plugin):
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify_playlist(self, ctx: Context, *, query: str) -> None:
         playlist = await self.spotify_client.get_item(ctx, query, Playlist)
+        playlist = await self.spotify_client.ensure_playlist(playlist)
         cover = await self.spotify_client._get_album(playlist.cover_url)
         colors = self.spotify_client._get_colors(
             BytesIO(cover), "top-bottom blur", playlist.cover_url
@@ -410,7 +411,7 @@ class API(plugins.Plugin):
 
         spotify_code_url = playlist.get_code_url(hikari.Color.from_rgb(*colors))
         spotify_code = await self.spotify_client._get_spotify_code(spotify_code_url)
-
+        _LOGGER.debug("%s", playlist.tracks)
         chunks = chunk_from_list(
             [
                 f"{idx}. {track.get_formatted_url(prepend_artists=True)}"

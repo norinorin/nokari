@@ -842,11 +842,7 @@ class SpotifyClient:
             raw_items = res[plural]
 
         elif type is Playlist:
-            if not ids:
-                return []
-
-            res = await self.rest.playlists(ids)
-            raw_items = res[plural]
+            return [SimplifiedPlaylist.from_dict(self, item) for item in raw_items]
 
         items = [type.from_dict(self, item) for item in raw_items]
         self.cache.update_items(items)
@@ -930,6 +926,13 @@ class SpotifyClient:
 
         await respond.delete()
         return None
+
+    async def ensure_playlist(self, playlist: SimplifiedPlaylist) -> Playlist:
+        if type(playlist) is SimplifiedPlaylist:
+            _LOGGER.debug("Simplified")
+            return await self.get_item_from_id(playlist.id, Playlist)
+
+        return playlist
 
     async def get_audio_features(self, _id: str) -> AudioFeatures:
         audio_features = self.cache.audio_features.get(_id)
