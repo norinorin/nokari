@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import logging
 import re
 import textwrap
 import time
@@ -30,10 +31,13 @@ from .cache import SpotifyCache
 from .errors import LocalFilesDetected, NoSpotifyPresenceError
 from .rest import SpotifyRest
 from .typings import Artist  # re-export
+from .typings import User  # re-export
 from .typings import (
     _RGB,
     Album,
     AudioFeatures,
+    Playlist,
+    SimplifiedPlaylist,
     SongMetadata,
     Spotify,
     Track,
@@ -47,6 +51,7 @@ if typing.TYPE_CHECKING:
 
 _RGBs = typing.List[_RGB]
 PI_RAD: int = 180
+_LOGGER = logging.getLogger("nokari.utils.spotify")
 
 
 SPOTIFY_URL = re.compile(
@@ -789,7 +794,7 @@ class SpotifyClient:
             raise RuntimeError("Please pass in either URI/URL/name.")
 
         try:
-            id = self._get_id(type.type, id_or_query)
+            id = self._get_id(type.type, id_or_query.strip("<>"))
         except RuntimeError:
             return self.search_and_pick_item(ctx, id_or_query, type)
         else:
@@ -802,6 +807,7 @@ class SpotifyClient:
             return item
 
         res = await getattr(self.rest, type.type)(_id)
+        _LOGGER.debug("%s %s", _id, res)
         item = self.cache.set_item(type.from_dict(self, res))
         return item
 
@@ -835,6 +841,13 @@ class SpotifyClient:
             res = await self.rest.albums(ids)
             raw_items = res[plural]
 
+        elif type is Playlist:
+            if not ids:
+                return []
+
+            res = await self.rest.playlists(ids)
+            raw_items = res[plural]
+
         items = [type.from_dict(self, item) for item in raw_items]
         self.cache.update_items(items)
         return items
@@ -856,6 +869,7 @@ class SpotifyClient:
                 ("Choose an album", "No album was found..."),
                 "{item.artists_str} - {item}",
             ),
+            "playlist": (("Choose a playlist", "No playlist was found..."), "{item}"),
         }
         items = await self.search(q, type)
         title, format = tnf[type.type]
@@ -928,6 +942,27 @@ class SpotifyClient:
         self.cache.set_item(audio_features)
         return audio_features
 
+    async def get_user_playlists(self, user_id: str) -> typing.List[SimplifiedPlaylist]:
+        ids = self.cache.user_playlists.get(user_id)
+        if ids is not None:
+            playlists: typing.List[SimplifiedPlaylist] = []
+            playlist_cache = self.cache.user_playlists
+            for id in ids:
+                if not (playlist := playlist_cache.get(id)):
+                    break
+
+                playlists.append(playlist)
+            else:
+                return playlists
+
+        res = await self.rest.user_playlists(user_id)
+        playlists = [
+            SimplifiedPlaylist.from_dict(self, playlist) for playlist in res["items"]
+        ]
+        self.cache.update_items(playlists)
+        self.cache.user_playlists[user_id] = [playlist.id for playlist in playlists]
+        return playlists
+
     async def get_top_tracks(
         self, artist_id: str, country: str = "US"
     ) -> typing.List[Track]:
@@ -936,9 +971,7 @@ class SpotifyClient:
             top_tracks: typing.List[Track] = []
             track_cache = self.cache.tracks
             for id in ids:
-                track = track_cache.get(id)
-
-                if not track:
+                if not (track := track_cache.get(id)):
                     break
 
                 top_tracks.append(track)

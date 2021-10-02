@@ -1,4 +1,5 @@
 import datetime
+import logging
 import operator
 import os
 import types
@@ -28,7 +29,11 @@ from nokari.utils.spotify import (
     NoSpotifyPresenceError,
     SpotifyClient,
     Track,
+    User,
 )
+from nokari.utils.spotify.typings import Playlist
+
+_LOGGER = logging.getLogger("nokari.plugins.api")
 
 
 class API(plugins.Plugin):
@@ -396,14 +401,109 @@ class API(plugins.Plugin):
     @utils.checks.require_env(*_spotify_vars)
     @spotify.command(name="playlist")
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
-    async def spotify_playlist(self, ctx: Context) -> None:
-        """Not implemented yet."""
+    async def spotify_playlist(self, ctx: Context, *, query: str) -> None:
+        playlist = await self.spotify_client.get_item(ctx, query, Playlist)
+        cover = await self.spotify_client._get_album(playlist.cover_url)
+        colors = self.spotify_client._get_colors(
+            BytesIO(cover), "top-bottom blur", playlist.cover_url
+        )[0]
+
+        spotify_code_url = playlist.get_code_url(hikari.Color.from_rgb(*colors))
+        spotify_code = await self.spotify_client._get_spotify_code(spotify_code_url)
+
+        chunks = chunk_from_list(
+            [
+                f"{idx}. {track.get_formatted_url(prepend_artists=True)}"
+                for idx, track in enumerate(playlist.tracks, start=1)
+            ],
+            1024,
+        )
+
+        paginator = Paginator.default(ctx)
+
+        initial_embed = (
+            hikari.Embed(title=f"Playlist Info", description=playlist.description)
+            .set_thumbnail(cover)
+            .set_image(spotify_code)
+            .add_field(
+                name="Name",
+                value=f"{playlist.formatted_url}",
+            )
+            .add_field(
+                name="Owner",
+                value=str(playlist.owner),
+            )
+            .add_field(name="Total tracks", value=str(playlist.total_tracks))
+            .add_field(name="Colaborative", value=str(playlist.colaborative))
+            .add_field(name="Public", value=str(playlist.public))
+        )
+
+        initial_embed.add_field(
+            name="Tracks",
+            value=chunks.pop(0),
+        )
+
+        if chunks:
+            length = len(chunks) + 1
+            initial_embed.set_footer(text=f"Page 1/{length}")
+
+        paginator.add_page(initial_embed)
+
+        for idx, chunk in enumerate(chunks, start=2):
+            embed = (
+                hikari.Embed(title="Tracks cont.", description=chunk)
+                .set_image(initial_embed.image)
+                .set_thumbnail(initial_embed.thumbnail)
+                .set_footer(text=f"Pages {idx}/{length}")
+            )
+            paginator.add_page(embed)
+
+        await paginator.start()
 
     @utils.checks.require_env(*_spotify_vars)
     @spotify.command(name="user")
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
-    async def spotify_user(self, ctx: Context) -> None:
-        """Not implemented yet."""
+    async def spotify_user(self, ctx: Context, *, query: str) -> None:
+        """Displays the information of a user on Spotify."""
+        # TODO: add followers, following, and recent played artists
+        user = await self.spotify_client.get_item_from_id(query, User)
+        initial_embed = (
+            hikari.Embed(title="User Info", url=user.url)
+            .add_field("Name", user.display_name)
+            .add_field("ID", user.id)
+            .add_field("Follower count", user.follower_count)
+            .set_thumbnail(user.avatar_url or None)
+        )
+
+        paginator = Paginator.default(ctx)
+        playlists = await self.spotify_client.get_user_playlists(user.id)
+        chunks = chunk_from_list(
+            [f"{idx}. {playlist}" for idx, playlist in enumerate(playlists, start=1)],
+            1024,
+        )
+        if chunk := chunks.pop(0):
+            initial_embed.add_field(
+                name="User playlists",
+                value=chunk,
+            )
+
+        if chunks:
+            # TODO: implement higher level API for this
+            length = len(chunks) + 1
+            initial_embed.set_footer(text=f"Page 1/{length}")
+
+        paginator.add_page(initial_embed)
+
+        for idx, chunk in enumerate(chunks, start=2):
+            embed = (
+                hikari.Embed(title="User playlists cont.", description=chunk)
+                .set_image(initial_embed.image)
+                .set_thumbnail(initial_embed.thumbnail)
+                .set_footer(text=f"Page {idx}/{length}")
+            )
+            paginator.add_page(embed)
+
+        await paginator.start()
 
     @utils.checks.require_env(*_spotify_vars)
     @spotify.command(name="cache")

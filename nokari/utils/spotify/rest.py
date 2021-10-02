@@ -4,6 +4,8 @@ from functools import partial
 
 import spotipy
 
+from nokari.utils.spotify.typings import Playlist
+
 
 class SpotifyRest:
     def __init__(
@@ -30,4 +32,16 @@ class SpotifyRest:
             res["tracks"]["items"].extend(ext["items"])
             next = ext["next"]
 
+        return res
+
+    async def playlist(self, playlist_id: str) -> typing.Dict[str, typing.Any]:
+        res = await self.__getattr__("playlist")(playlist_id)
+        next = res["tracks"]["next"]
+
+        while next:
+            ext = await self.__getattr__("_get")(next)
+            res["tracks"]["items"].extend(ext["items"])
+            next = ext["next"]
+
+        res["total_tracks"] = len(res["tracks"]["items"])
         return res
