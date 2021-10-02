@@ -924,7 +924,9 @@ class SpotifyClient:
             )
             return seq[int(interaction.values[0])]
 
-        await respond.delete()
+        with suppress(hikari.NotFoundError):
+            await respond.delete()
+
         return None
 
     async def ensure_playlist(self, playlist: SimplifiedPlaylist) -> Playlist:

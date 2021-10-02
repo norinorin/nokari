@@ -402,6 +402,7 @@ class API(plugins.Plugin):
     @spotify.command(name="playlist")
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify_playlist(self, ctx: Context, *, query: str) -> None:
+        """Displays the information about a playlist on Spotify."""
         playlist = await self.spotify_client.get_item(ctx, query, Playlist)
         playlist = await self.spotify_client.ensure_playlist(playlist)
         cover = await self.spotify_client._get_album(playlist.cover_url)
