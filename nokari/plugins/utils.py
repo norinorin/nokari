@@ -103,6 +103,9 @@ class Utils(Plugin):
 
     async def dispatch_timers(self) -> None:
         try:
+            while not self.bot.is_alive:
+                # dirty solution
+                await asyncio.sleep(0.5)
             while self.bot.is_alive:
                 timer = self._current_timer = await self.wait_for_active_timers()
 
