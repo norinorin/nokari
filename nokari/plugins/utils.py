@@ -516,7 +516,7 @@ class Utils(Plugin):
         have = "have" if plural_ else "has"
 
         await ctx.respond(
-            f"{reminder} with id {', '.join(map(str, deletes))} {have} been deleted."
+            f"{reminder} with ID {', '.join(map(str, deletes))} {have} been deleted."
         )
 
     @remind.command(
