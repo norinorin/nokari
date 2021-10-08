@@ -43,13 +43,13 @@ class Events(plugins.Plugin):
             )
 
             for event_type, callback in self.optional_events:
-                bot.subscribe(event_type, getattr(self, callback))
+                bot.subscribe(event_type, callback)
 
     @property
     def optional_events(self):
         return (
-            (GuildJoinEvent, "on_guild_join"),
-            (GuildLeaveEvent, "on_guild_leave"),
+            (GuildJoinEvent, self.on_guild_join),
+            (GuildLeaveEvent, self.on_guild_leave),
         )
 
     def plugin_remove(self) -> None:
