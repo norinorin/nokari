@@ -119,8 +119,8 @@ class Meta(plugins.Plugin):
             return f"{emoji} `{latency} ms`"
 
         embed = (
-            hikari.Embed(title="Ping")
-            .set_author(icon=self.bot.get_me().avatar_url)
+            hikari.Embed()
+            .set_author(name="Ping", icon=self.bot.get_me().avatar_url)
             .add_field(
                 "WS heartbeat latency", format_latency(self.bot.heartbeat_latency)
             )
