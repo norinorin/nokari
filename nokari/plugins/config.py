@@ -3,6 +3,7 @@ import typing
 import hikari
 from hikari.snowflakes import Snowflake
 from lightbulb import Bot, errors, plugins
+from lightbulb.checks import check, has_role_permissions
 from lightbulb.converters import WrappedArg
 from lightbulb.cooldowns import UserBucket
 
@@ -103,6 +104,7 @@ class Config(plugins.Plugin):
         await self.prefix.callback(self, ctx)
 
     @cooldown(4, 1, UserBucket)
+    @check(has_role_permissions(hikari.Permissions.MANAGE_MESSAGES))
     @prefix.command(name="guild")
     async def prefix_guild(self, ctx: core.Context, *args: str) -> None:
         """
