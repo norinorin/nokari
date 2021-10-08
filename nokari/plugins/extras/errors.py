@@ -106,7 +106,7 @@ class Errors(plugins.Plugin):
         embed: hikari.Embed,
     ) -> None:
         """Handles NotEnoughArguments error."""
-        embed.description = "Please pass in the required argument"
+        embed.description = "Please pass in the required argument."
         embed.add_field(
             name="Usage:",
             value=f"`{ctx.prefix}{ctx.bot.help_command.get_command_signature(error.command)}`",
@@ -121,7 +121,9 @@ class Errors(plugins.Plugin):
     ) -> None:
         """Handles CommandIsOnCooldown error."""
         embed.description = "You're on cooldown"
-        embed.set_footer(text=f"Please try again in {round(error.retry_in, 2)} seconds")
+        embed.set_footer(
+            text=f"Please try again in {round(error.retry_in, 2)} seconds."
+        )
 
     @staticmethod
     @handle(CommandInvocationError)
@@ -141,9 +143,11 @@ class Errors(plugins.Plugin):
         embed: hikari.Embed,
     ) -> None:
         """Handles MissingRequiredPermissions error."""
-        perms = ", ".join(i.replace("_", " ").lower() for i in error.missing_perms)
-        plural = f"permission{'s' * (len(error.missing_perms) > 1)}"
-        embed.description = f"You're missing {perms} {plural} to invoke this command"
+        perms = ", ".join(
+            i.replace("_", " ").lower() for i in str(error.permissions).split("|")
+        )
+        plural = f"permission{'s' * (len(error.permissions) > 1)}"
+        embed.description = f"You're missing {perms} {plural} to invoke this command."
 
     @staticmethod
     @handle(BotMissingRequiredPermission)
@@ -153,9 +157,11 @@ class Errors(plugins.Plugin):
         embed: hikari.Embed,
     ) -> None:
         """Handles BotMissingPermission error."""
-        perms = ", ".join(i.replace("_", " ").lower() for i in error.missing_perms)
+        perms = ", ".join(
+            i.replace("_", " ").lower() for i in str(error.permissions).split("|")
+        )
         embed.description = (
-            f"I'm missing {perms} permission{'s' * (len(error.missing_perms) > 1)}"
+            f"I'm missing {perms} permission{'s' * (len(error.permissions) > 1)}."
         )
 
     @staticmethod
