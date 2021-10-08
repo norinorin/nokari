@@ -1,6 +1,8 @@
+import datetime
 import inspect
 import os
 import sys
+import time
 import typing
 from collections import Counter
 
@@ -105,9 +107,30 @@ class Meta(plugins.Plugin):
     @core.commands.command(aliases=["pong", "latency"])
     async def ping(self, ctx: Context) -> None:
         """Displays the WebSocket latency to the Discord gateway."""
-        latency = int(ctx.bot.heartbeat_latency * 1_000)
-        emoji = "🔴" if latency > 500 else "🟡" if latency > 100 else "🟢"
-        await ctx.respond(f"Pong? {emoji} {latency}ms")
+
+        def format_latency(latency):
+            emoji = (
+                "🔴"
+                if (latency := int(latency * 1000)) > 500
+                else "🟡"
+                if latency > 100
+                else "🟢"
+            )
+            return f"{emoji} `{latency} ms`"
+
+        embed = (
+            hikari.Embed(title="Ping")
+            .set_author(icon=self.bot.get_me().avatar_url)
+            .add_field(
+                "WS heartbeat latency", format_latency(self.bot.heartbeat_latency)
+            )
+        )
+
+        t0 = time.perf_counter()
+        msg = await ctx.respond(embed=embed)
+        rest_latency = time.perf_counter() - t0
+        embed.add_field("REST latency", format_latency(rest_latency))
+        await msg.edit(embed=embed)
 
     @cooldown(10, 1, lightbulb.cooldowns.UserBucket)
     @core.commands.command()
