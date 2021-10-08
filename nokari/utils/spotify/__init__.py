@@ -462,9 +462,7 @@ class SpotifyClient:
 
             data = numpy.array(Image.open("nokari/assets/media/Spotify-50px.png"))
 
-            non_transparent_areas = data.T[-1] > 0
-
-            data[..., :-1][non_transparent_areas.T] = lighter_color
+            data[..., :-1][data[..., :-1] > 0] = lighter_color
 
             spotify_logo = Image.fromarray(data)
 
