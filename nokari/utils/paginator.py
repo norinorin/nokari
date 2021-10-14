@@ -292,6 +292,7 @@ class Paginator:
             lambda x: isinstance(x.interaction, ComponentInteraction)
             and x.interaction.user.id == self.ctx.author.id
             and x.interaction.message.id == self.message.id
+            and x.interaction.custom_id in self._buttons
         )
 
         while True:
