@@ -10,6 +10,7 @@ import os
 import shutil
 import sys
 import typing
+import weakref
 from contextlib import suppress
 
 import aiohttp
@@ -109,6 +110,9 @@ class Nokari(lightbulb.Bot):
 
         # Default prefixes
         self.default_prefixes = ["nokari", "n!"]
+
+        # Paginators
+        self.paginators = weakref.WeakValueDictionary()
 
     # pylint: disable=redefined-outer-name
     @functools.wraps(lightbulb.Bot._invoke_command)

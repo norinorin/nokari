@@ -15,6 +15,9 @@ from hikari.api import special_endpoints
 
 from nokari.utils.perms import has_channel_perms, has_guild_perms
 
+if typing.TYPE_CHECKING:
+    from nokari.utils.paginator import Paginator
+
 __all__: typing.Final[typing.List[str]] = ["Context"]
 _LOGGER = logging.getLogger("nokari.core.context")
 
@@ -22,13 +25,11 @@ _LOGGER = logging.getLogger("nokari.core.context")
 class Context(lightbulb.Context):
     """Custom Context class with overriden methods."""
 
-    parsed_arg: typing.Optional[SimpleNamespace]
-
     __slots__: typing.List[str] = ["parsed_arg", "interaction"]
 
     def __init__(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         super().__init__(*args, **kwargs)
-        self.parsed_arg = None
+        self.parsed_arg: SimpleNamespace | None = None
         self.interaction: hikari.PartialInteraction | None = None
 
     async def respond(  # pylint: disable=arguments-differ,too-many-locals

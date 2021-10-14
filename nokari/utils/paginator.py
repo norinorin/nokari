@@ -102,6 +102,7 @@ class Paginator:
         "user_mentions",
         "role_mentions",
         "component",
+        "__weakref__",
     ]
 
     message: hikari.Message
@@ -200,14 +201,15 @@ class Paginator:
 
         return decorator
 
-    async def stop(self) -> None:
+    async def stop(self, delete_components: bool = True) -> None:
         """The default callback that stops the internal loop and does a clean up."""
         if not self._task:
             return
 
         self._task.cancel()
 
-        await self.message.edit(component=None)
+        if delete_components:
+            await self.message.edit(component=None)
 
         self.clean_up()
 
@@ -269,6 +271,13 @@ class Paginator:
 
         This method will return a message if return_message was set to True.
         """
+
+        paginators = self.ctx.bot.paginators
+
+        if paginator := paginators.get(self.ctx.message.id):
+            await paginator.stop(False)
+
+        paginators[self.ctx.message.id] = self
 
         # Interactions' lifetime is 15 minutes.
         if timeout > 900:
