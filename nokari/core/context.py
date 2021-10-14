@@ -30,7 +30,7 @@ class Context(lightbulb.Context):
     def __init__(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         super().__init__(*args, **kwargs)
         self.parsed_arg: SimpleNamespace | None = None
-        self.interaction: hikari.PartialInteraction | None = None
+        self.interaction: hikari.MessageResponseMixin | None = None
 
     async def respond(  # pylint: disable=arguments-differ,too-many-locals
         self,
