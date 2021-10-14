@@ -91,6 +91,7 @@ class API(plugins.Plugin):
 
                 await ctx.respond(**kwargs)
 
+    # pylint: disable=no-self-use
     @utils.checks.require_env(*_spotify_vars)
     @core.commands.group()
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)

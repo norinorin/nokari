@@ -209,7 +209,8 @@ class Admin(plugins.Plugin):
 
             await utils.Paginator.default(ctx, pages=pages).start()
 
-    async def run_command_in_shell(self, command: str) -> typing.List[str]:
+    @staticmethod
+    async def run_command_in_shell(command: str) -> typing.List[str]:
         process = await asyncio.create_subprocess_shell(
             command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
