@@ -134,8 +134,8 @@ class Events(plugins.Plugin):
                     "Owner:",
                     str(guild.get_member(guild.owner_id) or await guild.fetch_owner()),
                 )
-                .add_field("Member count:", guild.member_count)
-                .add_field("ID:", guild.id)
+                .add_field("Member count:", str(guild.member_count or 0))
+                .add_field("ID:", str(guild.id))
             )
 
         await self.execute_webhook(
