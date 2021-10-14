@@ -33,6 +33,9 @@ from nokari.core.context import Context
 from nokari.core.entity_factory import EntityFactory
 from nokari.utils import db, human_timedelta
 
+if typing.TYPE_CHECKING:
+    from nokari.utils.paginator import Paginator
+
 __all__: typing.Final[typing.List[str]] = ["Nokari"]
 _CommandOrPluginT = typing.TypeVar(
     "_CommandOrPluginT", bound=typing.Union[lightbulb.Plugin, lightbulb.Command]
@@ -112,7 +115,9 @@ class Nokari(lightbulb.Bot):
         self.default_prefixes = ["nokari", "n!"]
 
         # Paginators
-        self.paginators = weakref.WeakValueDictionary()
+        self.paginators: typing.Mapping[
+            Snowflake, Paginator
+        ] = weakref.WeakValueDictionary()
 
     # pylint: disable=redefined-outer-name
     @functools.wraps(lightbulb.Bot._invoke_command)
