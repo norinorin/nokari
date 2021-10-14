@@ -242,7 +242,7 @@ class Admin(plugins.Plugin):
         with suppress(FileExistsError):
             os.mkdir("tmp")
 
-        with open("tmp/restarting", "w") as fp:
+        with open("tmp/restarting", "w", encoding="utf-8") as fp:
             fp.write(f"{msg.channel_id}-{msg.id}")
 
         doc = self.restart.callback.__doc__

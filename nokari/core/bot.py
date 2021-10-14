@@ -141,7 +141,7 @@ class Nokari(lightbulb.Bot):
         await self._load_prefixes()
 
         with suppress(FileNotFoundError):
-            with open("tmp/restarting", "r") as fp:
+            with open("tmp/restarting", "r", encoding="utf-8") as fp:
                 raw = fp.read()
 
             shutil.rmtree("tmp", ignore_errors=True)
