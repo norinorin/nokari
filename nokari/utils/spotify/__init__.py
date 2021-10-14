@@ -4,6 +4,7 @@ import asyncio
 import datetime
 import re
 import textwrap
+import time
 import typing
 from contextlib import suppress
 from functools import partial
@@ -870,7 +871,11 @@ class SpotifyClient:
         title: typing.Tuple[str, str],
         format: str,
     ) -> typing.Optional[T]:
-        if len(seq) == 1:
+        if not (length := len(seq)):
+            await ctx.respond(title[1])
+            return None
+
+        if length == 1:
             return seq[0]
 
         # This if statement adds an overhead, but w/e
@@ -880,10 +885,11 @@ class SpotifyClient:
         ):
             return entries[0]
 
+        custom_id = f"{int(time.time())}-select-spotify-item"
         shorten = partial(textwrap.shorten, width=100, placeholder="...")
         menu = (
             self.bot.rest.build_action_row()
-            .add_select_menu("select_spotify_item")
+            .add_select_menu(custom_id)
             .set_min_values(1)
             .set_max_values(1)
             .set_placeholder(shorten(f"1. {format.format(item=seq[0])}"))
@@ -898,28 +904,25 @@ class SpotifyClient:
             content=title[not seq], component=menu.add_to_container()
         )
 
-        if seq:
-            with suppress(asyncio.TimeoutError):
-                event = await self.bot.wait_for(
-                    hikari.InteractionCreateEvent,
-                    predicate=lambda e: isinstance(
-                        e.interaction, hikari.ComponentInteraction
-                    )
-                    and e.interaction.message.id == respond.id
-                    and e.interaction.user.id == ctx.author.id
-                    and e.interaction.channel_id == ctx.channel_id
-                    and e.interaction.custom_id == "select_spotify_item",
-                    timeout=60,
+        with suppress(asyncio.TimeoutError):
+            event = await self.bot.wait_for(
+                hikari.InteractionCreateEvent,
+                predicate=lambda e: isinstance(
+                    e.interaction, hikari.ComponentInteraction
                 )
-                ctx.interaction = interaction = event.interaction
-                await interaction.create_initial_response(
-                    response_type=hikari.ResponseType.DEFERRED_MESSAGE_UPDATE
-                )
-                return seq[int(interaction.values[0])]
+                and e.interaction.message.id == respond.id
+                and e.interaction.user.id == ctx.author.id
+                and e.interaction.channel_id == ctx.channel_id
+                and e.interaction.custom_id == custom_id,
+                timeout=60,
+            )
+            ctx.interaction = interaction = event.interaction
+            await interaction.create_initial_response(
+                response_type=hikari.ResponseType.DEFERRED_MESSAGE_UPDATE
+            )
+            return seq[int(interaction.values[0])]
 
-            await respond.delete()
-
-        return None
+        await respond.delete()
 
     async def get_audio_features(self, _id: str) -> AudioFeatures:
         audio_features = self.cache.audio_features.get(_id)
