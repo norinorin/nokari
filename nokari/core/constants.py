@@ -45,6 +45,13 @@ EMOJI = "emoji name|id"
 EMOJI_REQUIRED = format_(EMOJI, FieldType.req)
 EMOJI_OPTIONAL = format_(EMOJI, FieldType.opt)
 
+DISCORD_BOT_TOKEN: str
+POSTGRESQL_DSN: str
+DISCORD_BROWSER: str
+SPOTIPY_CLIENT_ID: str
+SPOTIPY_CLIENT_SECRET: str
+GUILD_LOGS_WEBHOOK_URL: str
+
 for var in (
     "DISCORD_BOT_TOKEN",
     "POSTGRESQL_DSN",
