@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import typing
 from contextlib import suppress
 from functools import partial
 
+import hikari
 from hikari import (
     Embed,
     GuildMessageCreateEvent,
@@ -46,7 +48,12 @@ class Events(plugins.Plugin):
                 bot.subscribe(event_type, callback)
 
     @property
-    def optional_events(self):
+    def optional_events(
+        self,
+    ) -> tuple[
+        tuple[typing.Type[hikari.Event], typing.Callable[..., typing.Awaitable[None]]],
+        ...,
+    ]:
         return (
             (GuildJoinEvent, self.on_guild_join),
             (GuildLeaveEvent, self.on_guild_leave),
