@@ -107,7 +107,7 @@ class Meta(plugins.Plugin):
     async def ping(self, ctx: Context) -> None:
         """Displays the WebSocket latency to the Discord gateway."""
 
-        def format_latency(latency):
+        def format_latency(latency: float) -> str:
             emoji = (
                 "🔴"
                 if (latency := int(latency * 1000)) > 500
