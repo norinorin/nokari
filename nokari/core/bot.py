@@ -354,7 +354,7 @@ class Nokari(lightbulb.Bot):
     ) -> None:
         if getattr(plugin, "__requires_db__", False) and self.pool is None:
             if (name := getattr(plugin, "name", None)) is None:
-                name = plugin.__class__.name
+                name = plugin.__class__.name  # type: ignore
 
             _LOGGER.warning("Not loading %s plugin as it requires DB", name)
             return None
