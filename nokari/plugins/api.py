@@ -470,14 +470,16 @@ class API(plugins.Plugin):
             return
 
         if not hasattr(self, "hikari_objects"):
-            inv = partial(Inventory, url=f"{BASE_URL}/objects.inv")
-            raw_objects = await self.bot.loop.run_in_executor(self.bot.executor, inv)
-            self.hikari_objects = set()
-            for hikari_obj in raw_objects.objects:
-                name = hikari_obj.name
-                self.hikari_objects.add(
-                    (name, f"[`{name}`]({BASE_URL}/{hikari_obj.uri.rstrip('#$')})")
-                )
+            self.hikari_objects = {
+                (name, f"[`{name}`]({BASE_URL}/{hikari_obj.uri.rstrip('#$')})")
+                for hikari_obj in (
+                    await self.bot.loop.run_in_executor(
+                        self.bot.executor,
+                        partial(Inventory, url=f"{BASE_URL}/objects.inv"),
+                    )
+                ).objects
+                if (name := hikari_obj.name)
+            }
 
         if not (
             entries := [
