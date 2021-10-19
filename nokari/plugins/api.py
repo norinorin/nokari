@@ -463,7 +463,7 @@ class API(plugins.Plugin):
             return
 
         if not hasattr(self, "hikari_inv"):
-            inv = partial(Inventory, url=f"{BASE_URL}/objects.inv")
+            inv = partial(Inventory, url=f"{BASE_URL[:-7]}/objects.inv")
             self.hikari_inv = await self.bot.loop.run_in_executor(
                 self.bot.executor, inv
             )
