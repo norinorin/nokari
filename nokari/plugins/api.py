@@ -1,4 +1,5 @@
 import datetime
+import operator
 import os
 import types
 import typing
@@ -7,12 +8,18 @@ from io import BytesIO
 
 import hikari
 import lightbulb
-from fuzzywuzzy import fuzz
 from lightbulb import Bot, Context, plugins
 from sphobjinv import Inventory
 
 from nokari import core, utils
-from nokari.utils import Paginator, chunk_from_list, converters, get_timestamp, plural
+from nokari.utils import (
+    Paginator,
+    algorithm,
+    chunk_from_list,
+    converters,
+    get_timestamp,
+    plural,
+)
 from nokari.utils.formatter import discord_timestamp
 from nokari.utils.parser import ArgumentParser
 from nokari.utils.spotify import (
@@ -456,26 +463,30 @@ class API(plugins.Plugin):
     async def rtfd_hikari(self, ctx: Context, obj: typing.Optional[str] = None) -> None:
         """Returns jump links to the specified object in Hikari docs page."""
 
-        BASE_URL = "https://hikari-py.dev/hikari"
+        BASE_URL = "https://hikari-py.dev"
 
         if not obj:
-            await ctx.respond(BASE_URL)
+            await ctx.respond(f"{BASE_URL}/hikari")
             return
 
-        if not hasattr(self, "hikari_inv"):
-            inv = partial(Inventory, url=f"{BASE_URL[:-7]}/objects.inv")
-            self.hikari_inv = await self.bot.loop.run_in_executor(
-                self.bot.executor, inv
-            )
+        if not hasattr(self, "hikari_objects"):
+            inv = partial(Inventory, url=f"{BASE_URL}/objects.inv")
+            raw_objects = await self.bot.loop.run_in_executor(self.bot.executor, inv)
+            self.hikari_objects = set()
+            for hikari_obj in raw_objects.objects:
+                name = hikari_obj.name
+                self.hikari_objects.add(
+                    (name, f"[`{name}`]({BASE_URL}/{hikari_obj.uri.rstrip('#$')})")
+                )
 
-        entries = [
-            f"[`{name}`]({BASE_URL}/{hikari_obj.uri.rstrip('#$')}#{name})"
-            for hikari_obj in self.hikari_inv.objects
-            if fuzz.token_set_ratio(obj, hikari_obj.name.rsplit(".")[-1]) >= 75
-            and (name := hikari_obj.name)
-        ]
-
-        if not entries:
+        if not (
+            entries := [
+                url
+                for _, url in algorithm.search(
+                    self.hikari_objects, obj, key=operator.itemgetter(0)
+                )
+            ]
+        ):
             raise RuntimeError("Couldn't find anything...")
 
         chunks = chunk_from_list(entries, 2_048)

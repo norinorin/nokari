@@ -13,11 +13,10 @@ from io import BytesIO
 import hikari
 import numpy
 from colorthief import ColorThief
-from fuzzywuzzy import fuzz
 from lightbulb import Bot, utils
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-from nokari.utils import caches
+from nokari.utils import algorithm, caches
 from nokari.utils.algorithm import get_alt_color, get_luminance
 from nokari.utils.formatter import get_timestamp as format_time
 from nokari.utils.images import (
@@ -878,13 +877,6 @@ class SpotifyClient:
         if length == 1:
             return seq[0]
 
-        # This if statement adds an overhead, but w/e
-        if (
-            len(entries := [i for i in seq if str(i).lower() == query.lower()]) == 1
-            or len(entries := [i for i in seq if fuzz.ratio(str(i), query) >= 75]) == 1
-        ):
-            return entries[0]
-
         custom_id = f"{int(time.time())}-select-spotify-item"
         shorten = partial(textwrap.shorten, width=100, placeholder="...")
         menu = (
@@ -923,6 +915,7 @@ class SpotifyClient:
             return seq[int(interaction.values[0])]
 
         await respond.delete()
+        return None
 
     async def get_audio_features(self, _id: str) -> AudioFeatures:
         audio_features = self.cache.audio_features.get(_id)

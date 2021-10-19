@@ -1,8 +1,11 @@
 """A module that contains algorithm implementations."""
+from __future__ import annotations
+
+import re
 import typing
 
-__all__: typing.Final[typing.List[str]] = ["get_luminance", "get_alt_color"]
-
+__all__: typing.Final[typing.List[str]] = ["get_luminance", "get_alt_color", "search"]
+T = typing.TypeVar("T")
 
 # pylint: disable=keyword-arg-before-vararg
 def get_luminance(
@@ -37,3 +40,21 @@ def get_alt_color(
         ret.append(min(255, int(i * lighten)) if mode else max(0, int(i * darken)))
 
     return tuple(ret)
+
+
+def search(
+    iterable: typing.Iterable[T],
+    term: str,
+    key: typing.Callable[[T], typing.Any] | None,
+) -> typing.List[T]:
+    pattern = ".*?".join(map(re.escape, term))
+    results = sorted(
+        [
+            (len(match.groups()), match.start(), item)
+            for item in iterable
+            if (match := re.search(pattern, key(item) if key else item))
+        ],
+        reverse=True,
+        key=(lambda x: (*x[:2], key(x[2]))) if key else None,
+    )
+    return [result for _, _, result in results]
