@@ -321,9 +321,10 @@ class Utils(Plugin):
             or await self.bot.rest.fetch_user(author_id)
         )
 
-        has_guild = hasattr(channel, "guild_id")
-        if (msg_id := event.timer.kwargs.get("message_id")) and has_guild:
-            message += f'\n\n[Jump URL](https://discordapp.com/channels/{channel.guild_id}/{channel.id}/{msg_id} "Jump to the message.")'
+        if (msg_id := event.timer.kwargs.get("message_id")) and (
+            guild_id := getattr(channel, "guild_id", None)
+        ):
+            message += f'\n\n[Jump URL](https://discordapp.com/channels/{guild_id}/{channel.id}/{msg_id} "Jump to the message.")'
 
         embed = (
             hikari.Embed(
