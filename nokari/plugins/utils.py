@@ -4,6 +4,7 @@ import asyncio
 import logging
 import textwrap
 import typing
+from contextlib import suppress
 from datetime import datetime, timedelta, timezone
 from itertools import zip_longest
 
@@ -80,12 +81,11 @@ class Utils(Plugin):
 
         self.event.clear()
         self._current_timer = None
-        try:
+
+        with suppress(asyncio.TimeoutError):
             await asyncio.wait_for(self.event.wait(), timeout=RETRY_IN)
-        except TimeoutError:
-            return await self.wait_for_active_timers()
-        else:
-            return typing.cast(timers.Timer, await self.get_active_timer())
+
+        return await self.wait_for_active_timers()
 
     async def call_timer(self, timer: timers.Timer) -> None:
         args = [timer.id]
