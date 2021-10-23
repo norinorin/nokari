@@ -61,8 +61,8 @@ class Errors(plugins.Plugin):
             name=str(author),
             icon=author.avatar_url or author.default_avatar_url,
         )
-        error = event.exception or event.exception.__cause__
-        class_t = t if (t := error.__class__) is not type else error
+        error = event.exception
+        class_t = error if hasattr(error, "__mro__") else error.__class__
         func = self.handlers.get(
             class_t,
             self.handlers.get(
