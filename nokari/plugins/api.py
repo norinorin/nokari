@@ -266,7 +266,11 @@ class API(plugins.Plugin):
             hikari.Embed(title="Artist Info")
             .set_thumbnail(cover)
             .set_image(spotify_code)
-            .add_field(name="Name", value=artist.formatted_url)
+            .add_field(
+                name="Name",
+                value=artist.formatted_url
+                + " <:spverified:903257221234831371>" * overview["verified"],
+            )
             .add_field(
                 name="Follower Count",
                 value=f"{plural(artist.follower_count):follower,}",
