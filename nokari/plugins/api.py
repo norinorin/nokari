@@ -273,7 +273,11 @@ class API(plugins.Plugin):
             )
             .add_field(
                 name="Follower Count",
-                value=f"{plural(artist.follower_count):follower,}",
+                value=format(plural(artist.follower_count), "follower,"),
+            )
+            .add_field(
+                name="Monthly Listeners",
+                value=format(plural(overview["monthly_listeners"]), "listener,"),
             )
             .add_field(name="Popularity", value=f"\N{fire} {artist.popularity}")
         )
@@ -281,11 +285,11 @@ class API(plugins.Plugin):
         if artist.genres:
             initial_embed.add_field(name="Genres", value=", ".join(artist.genres))
 
-        chunk = chunks.pop(0)
-        initial_embed.add_field(
-            name="Top Tracks",
-            value=chunk,
-        )
+        if chunk := chunks.pop(0):
+            initial_embed.add_field(
+                name="Top Tracks",
+                value=chunk,
+            )
 
         length = 2
         if chunks:
@@ -316,7 +320,6 @@ class API(plugins.Plugin):
                 name=city, value=format(plural(listeners), "listener,")
             )
         paginator.add_page(listeners_embed)
-
         await paginator.start()
 
     @utils.checks.require_env(*_spotify_vars)
