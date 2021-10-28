@@ -282,6 +282,14 @@ class Copyrights(typing.TypedDict, total=False):
     Phonogram: str
 
 
+class ArtistOverview(typing.TypedDict):
+    verified: bool
+    top_tracks: typing.Tuple[str, int]
+    monthly_listeners: int
+    follower_count: int
+    top_cities: typing.Tuple[str, int]
+
+
 class Spotify:
     def __init__(self, act: hikari.RichActivity) -> None:
         self._act = act

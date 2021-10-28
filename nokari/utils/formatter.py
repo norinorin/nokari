@@ -22,13 +22,12 @@ class plural:
     """This will append s to the word if the value isn't 1."""
 
     def __init__(self, value: int) -> None:
-        self.value = value
+        self.value = int(value)
 
     def __format__(self, format_spec: str) -> str:
         v = self.value
         fmt = ""
 
-        # should I even use endswith here? w/e
         if format_spec[-1] == ",":
             format_spec = format_spec[:-1]
             fmt = ","

@@ -1,10 +1,16 @@
+from __future__ import annotations
+
 import asyncio
 import typing
 from functools import partial
 
+import aiohttp
 import spotipy
 
-from nokari.utils.spotify.typings import Playlist
+from nokari.utils.spotify.credentials import Credentials
+
+if typing.TYPE_CHECKING:
+    from nokari.utils.spotify.typings import ArtistOverview
 
 
 class SpotifyRest:
@@ -14,8 +20,10 @@ class SpotifyRest:
         executor: typing.Any = None,
     ) -> None:
         self.spotipy = spotipy.Spotify(auth_manager=spotipy.SpotifyClientCredentials())
+        self.api_partner_credentials = Credentials()
         self._loop = asyncio.get_running_loop()
         self._executor = executor
+        self._session = aiohttp.ClientSession()
 
     def __getattr__(self, attr: str) -> partial[typing.Awaitable[typing.Any]]:
         return partial(
@@ -45,3 +53,35 @@ class SpotifyRest:
 
         res["total_tracks"] = len(res["tracks"]["items"])
         return res
+
+    async def artist_overview(self, artist_id: str) -> ArtistOverview:
+        async with self._session.get(
+            "https://api-partner.spotify.com/"
+            "pathfinder/v1/query?operationName=queryArtistOverview"
+            f"&variables=%7B%22uri%22%3A%22spotify%3Aartist%3A{artist_id}%22%7D"
+            "&extensions=%7B%22persistedQuery%22%3A%7B%22version%22%3A1%2C%22"
+            "sha256Hash%22%3A%22d66221ea13998b2f81883c5187d174c8646e4041d67f5b1e103bc262d447e3a0%22%7D%7D",
+            headers={
+                "Authorization": await self.api_partner_credentials.get_access_token()
+            },
+        ) as r:
+            res = await r.json()
+
+        artist = res["data"]["artist"]
+        stats = artist["stats"]
+        return {
+            "verified": artist["profile"]["verified"],
+            "top_tracks": [
+                (i["track"]["name"], i["track"]["playcount"])
+                for i in artist["discography"]["topTracks"]["items"]
+            ],
+            "monthly_listeners": stats["monthlyListeners"],
+            "follower_count": stats["followers"],
+            "top_cities": [
+                (i["city"] + ", " + i["country"], i["numberOfListeners"])
+                for i in stats["topCities"]["items"]
+            ],
+        }
+
+    async def user_overview(self, user_id: str) -> typing.Dict[str, typing.Any]:
+        raise NotImplementedError

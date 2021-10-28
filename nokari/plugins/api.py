@@ -248,11 +248,14 @@ class API(plugins.Plugin):
         spotify_code_url = artist.get_code_url(hikari.Color.from_rgb(*colors))
         spotify_code = await self.spotify_client._get_spotify_code(spotify_code_url)
 
+        overview = await self.spotify_client.rest.artist_overview(artist.id)
         top_tracks = await artist.get_top_tracks()
         chunks = chunk_from_list(
             [
-                f"{idx}. {track.formatted_url} - \N{fire} {track.popularity}"
-                for idx, track in enumerate(top_tracks, start=1)
+                f"{idx}. {track.formatted_url} - \N{fire} {track.popularity} - {plural(track_overview[1]):play,}"
+                for idx, (track, track_overview) in enumerate(
+                    zip(top_tracks, overview["top_tracks"]), start=1
+                )
             ],
             1024,
         )
@@ -274,19 +277,21 @@ class API(plugins.Plugin):
         if artist.genres:
             initial_embed.add_field(name="Genres", value=", ".join(artist.genres))
 
-        if chunk := chunks.pop(0):
-            initial_embed.add_field(
-                name="Top Tracks",
-                value=chunk,
-            )
+        chunk = chunks.pop(0)
+        initial_embed.add_field(
+            name="Top Tracks",
+            value=chunk,
+        )
 
+        length = 2
         if chunks:
             # TODO: implement higher level API for this
-            length = len(chunks) + 1
+            length = len(chunks) + 2
             initial_embed.set_footer(text=f"Page 1/{length}")
 
         paginator.add_page(initial_embed)
 
+        idx = 1
         for idx, chunk in enumerate(chunks, start=2):
             embed = (
                 hikari.Embed(title="Top tracks cont.", description=chunk)
@@ -295,6 +300,18 @@ class API(plugins.Plugin):
                 .set_footer(text=f"Page {idx}/{length}")
             )
             paginator.add_page(embed)
+
+        listeners_embed = (
+            hikari.Embed(title="Top listeners")
+            .set_image(initial_embed.image)
+            .set_thumbnail(initial_embed.thumbnail)
+            .set_footer(text=f"Page {idx + 1}/{length}")
+        )
+        for city, listeners in overview["top_cities"]:
+            listeners_embed.add_field(
+                name=city, value=format(plural(listeners), "listener,")
+            )
+        paginator.add_page(listeners_embed)
 
         await paginator.start()
 
