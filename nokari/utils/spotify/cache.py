@@ -10,6 +10,7 @@ if typing.TYPE_CHECKING:
 
 
 class SpotifyCache:
+    # pylint: disable=too-many-instance-attributes
     def __init__(self) -> None:
         self._tracks = LRU(50)
         self._artists = LRU(50)

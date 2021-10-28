@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import time
 import typing
@@ -8,12 +10,12 @@ CACHE_FILE_NAME = ".spat"
 
 
 class Credentials:
-    def __init__(self):
-        self.token = None
-        self.expires_at = None
+    def __init__(self) -> None:
+        self.token: str | None = None
+        self.expires_at: float | None = None
 
         try:
-            with open(CACHE_FILE_NAME, "r") as f:
+            with open(CACHE_FILE_NAME, "r", encoding="utf-8") as f:
                 cache = json.load(f)
         except FileNotFoundError:
             pass
@@ -21,7 +23,7 @@ class Credentials:
             self._set_prop(cache)
 
     async def get_access_token(self) -> str:
-        if self.expires_at and time.time() < self.expires_at:
+        if self.token and self.expires_at and time.time() < self.expires_at:
             return self.token
 
         async with aiohttp.ClientSession() as session:
@@ -30,12 +32,12 @@ class Credentials:
                 headers={"User-Agent": "Nokari Bot"},
             ) as r:
                 data = await r.json()
-                with open(CACHE_FILE_NAME, "w") as f:
+                with open(CACHE_FILE_NAME, "w", encoding="utf-8") as f:
                     json.dump(data, f)
 
                 self._set_prop(data)
 
-        return self.token
+        return typing.cast(str, self.token)
 
     def _set_prop(self, data: typing.Dict[str, typing.Any]) -> None:
         self.token = "Bearer " + data["accessToken"]

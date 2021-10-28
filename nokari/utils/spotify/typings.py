@@ -284,10 +284,10 @@ class Copyrights(typing.TypedDict, total=False):
 
 class ArtistOverview(typing.TypedDict):
     verified: bool
-    top_tracks: typing.Tuple[str, int]
+    top_tracks: typing.List[typing.Tuple[str, int]]
     monthly_listeners: int
     follower_count: int
-    top_cities: typing.Tuple[str, int]
+    top_cities: typing.List[typing.Tuple[str, int]]
 
 
 class Spotify:

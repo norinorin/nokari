@@ -317,7 +317,7 @@ class API(plugins.Plugin):
         )
         for city, listeners in overview["top_cities"]:
             listeners_embed.add_field(
-                name=city, value=format(plural(listeners), "listener,")
+                name=str(city), value=format(plural(listeners), "listener,")
             )
         paginator.add_page(listeners_embed)
         await paginator.start()
@@ -427,7 +427,9 @@ class API(plugins.Plugin):
     @core.cooldown(1, 2, lightbulb.cooldowns.UserBucket)
     async def spotify_playlist(self, ctx: Context, *, query: str) -> None:
         """Displays the information about a playlist on Spotify."""
-        playlist = await self.spotify_client.get_item(ctx, query, Playlist)
+        if not (playlist := await self.spotify_client.get_item(ctx, query, Playlist)):
+            return
+
         playlist = await self.spotify_client.ensure_playlist(playlist)
         cover = await self.spotify_client._get_album(playlist.cover_url)
         colors = self.spotify_client._get_colors(
@@ -448,7 +450,7 @@ class API(plugins.Plugin):
         paginator = Paginator.default(ctx)
 
         initial_embed = (
-            hikari.Embed(title=f"Playlist Info", description=playlist.description)
+            hikari.Embed(title="Playlist Info", description=playlist.description)
             .set_thumbnail(cover)
             .set_image(spotify_code)
             .add_field(
@@ -497,7 +499,7 @@ class API(plugins.Plugin):
             hikari.Embed(title="User Info", url=user.url)
             .add_field("Name", user.display_name)
             .add_field("ID", user.id)
-            .add_field("Follower count", user.follower_count)
+            .add_field("Follower count", str(user.follower_count))
             .set_thumbnail(user.avatar_url or None)
         )
 
