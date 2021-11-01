@@ -3,7 +3,7 @@ from __future__ import annotations
 import typing
 import weakref
 
-from hikari import ActivityType, guilds, presences, snowflakes, users
+from hikari import ActivityType, guilds, messages, presences, snowflakes, users
 from hikari.impl.cache import CacheImpl
 from hikari.internal import cache
 from lightbulb import utils
@@ -100,3 +100,9 @@ class Cache(CacheImpl):
             return None  # type: ignore
 
         return super()._set_member(member, is_reference=is_reference)
+
+    def delete_message(
+        self, message: snowflakes.SnowflakeishOr[messages.PartialMessage], /
+    ) -> typing.Optional[messages.Message]:
+        self._app.responses_cache.pop(int(message), None)
+        return super().delete_message(message)
