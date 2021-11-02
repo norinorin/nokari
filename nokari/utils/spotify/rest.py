@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import typing
 from functools import partial
 
@@ -11,6 +12,15 @@ from nokari.utils.spotify.credentials import Credentials
 
 if typing.TYPE_CHECKING:
     from nokari.utils.spotify.typings import ArtistOverview
+
+EXTENSIONS: typing.Final[str] = json.dumps(
+    {
+        "persistedQuery": {
+            "version": 1,
+            "sha256Hash": "c54d1f5a13f7780be8ad8df47e076f811abea3c682c57221cd04d1bc59a65e07",
+        }
+    }
+)
 
 
 class SpotifyRest:
@@ -56,13 +66,14 @@ class SpotifyRest:
 
     async def artist_overview(self, artist_id: str) -> ArtistOverview:
         async with self._session.get(
-            "https://api-partner.spotify.com/"
-            "pathfinder/v1/query?operationName=queryArtistOverview"
-            f"&variables=%7B%22uri%22%3A%22spotify%3Aartist%3A{artist_id}%22%7D"
-            "&extensions=%7B%22persistedQuery%22%3A%7B%22version%22%3A1%2C%22"
-            "sha256Hash%22%3A%22d66221ea13998b2f81883c5187d174c8646e4041d67f5b1e103bc262d447e3a0%22%7D%7D",
+            "https://api-partner.spotify.com/pathfinder/v1/query?",
             headers={
                 "Authorization": await self.api_partner_credentials.get_access_token()
+            },
+            params={
+                "operationName": "queryArtistOverview",
+                "variables": json.dumps({"uri": f"spotify:artist:{artist_id}"}),
+                "extensions": EXTENSIONS,
             },
         ) as r:
             res = await r.json()
