@@ -3,7 +3,7 @@ from __future__ import annotations
 import typing
 import weakref
 
-from hikari import ActivityType, guilds, messages, presences, snowflakes, users
+from hikari import ActivityType, guilds, presences, snowflakes, users
 from hikari.impl.cache import CacheImpl
 from hikari.internal import cache
 from lightbulb import utils
@@ -101,8 +101,9 @@ class Cache(CacheImpl):
 
         return super()._set_member(member, is_reference=is_reference)
 
-    def delete_message(
-        self, message: snowflakes.SnowflakeishOr[messages.PartialMessage], /
-    ) -> typing.Optional[messages.Message]:
-        self._app.responses_cache.pop(int(message), None)
-        return super().delete_message(message)
+    def _on_message_expire(self, message: cache.RefCell[cache.MessageData], /) -> None:
+        if not self._garbage_collect_message(message):
+            self._referenced_messages[message.object.id] = message
+            return
+
+        self._app.responses_cache.pop(message.object.id, None)
