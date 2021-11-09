@@ -139,7 +139,10 @@ class Events(plugins.Plugin):
             (
                 embed.add_field(
                     "Owner:",
-                    str(guild.get_member(guild.owner_id) or await guild.fetch_owner()),
+                    str(
+                        guild.get_member(guild.owner_id)
+                        or await self.bot.rest.fetch_user(guild.owner_id)
+                    ),
                 )
                 .add_field("Member count:", str(guild.member_count or 0))
                 .add_field("ID:", str(guild.id))
