@@ -155,9 +155,8 @@ class Events(plugins.Plugin):
     async def on_guild_join(self, event: GuildJoinEvent) -> None:
         await self.execute_guild_webhook(event.guild, Color.of("#00FF00"), "(+)")
 
-    async def on_guild_leave(self, _: GuildLeaveEvent) -> None:
-        # TODO: event.old_guild
-        await self.execute_guild_webhook(None, Color.of("#FF0000"), "(-)")
+    async def on_guild_leave(self, event: GuildLeaveEvent) -> None:
+        await self.execute_guild_webhook(event.old_guild, Color.of("#FF0000"), "(-)")
 
 
 def load(bot: Bot) -> None:
