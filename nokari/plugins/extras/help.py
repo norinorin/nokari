@@ -135,8 +135,8 @@ class CustomHelp(help_.HelpCommand):
 
         embed.add_field(
             name="Links:",
-            value="[Invite](https://discord.com/oauth2/authorize?client_id=7250819253115290"
-            "31&permissions=1609953143&scope=bot 'Click this to invite me') | [Vote](https:"
+            value=f"[Invite](https://discord.com/oauth2/authorize?client_id={context.me.id}"
+            "&permissions=1609953143&scope=bot 'Click this to invite me') | [Vote](https:"
             "//top.gg/bot/725081925311529031/vote 'Click this to vote me') | [Support Server]"
             "(https://discord.com/invite/4KPMCum 'Click this to join the support server!')",
             inline=False,
