@@ -8,7 +8,6 @@ Click this [link](https://discord.com/oauth2/authorize?client_id=725081925311529
 - A Discord application
 - Things listed in requirements.txt
 - Python 3.8+
-- PostgreSQL server
 - a `.env` file in the root directory
 
 ## .env File Example
