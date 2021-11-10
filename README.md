@@ -6,6 +6,7 @@ Click this [link](https://discord.com/oauth2/authorize?client_id=725081925311529
 
 ## Requirements
 - A Discord application
+- Spotify Client ID & Client Secret
 - Things listed in requirements.txt
 - Python 3.8+
 - PostgreSQL server
