@@ -3,6 +3,7 @@ import typing
 from datetime import datetime
 
 import hikari
+import lightbulb
 import parsedatetime as pdt
 import pytz
 from dateutil.relativedelta import relativedelta
@@ -137,68 +138,71 @@ def ensure_future_time(dt: datetime, now: datetime) -> None:
         raise ValueError("The argument can't be past time.")
 
 
-# pylint: disable=too-many-branches
-async def time_converter(arg: WrappedArg) -> typing.Tuple[datetime, str]:
-    now = arg.context.message.created_at
+class ConvertTime(lightbulb.converters.BaseConverter[typing.Tuple[datetime, str]]):
+    __slots__ = ()
 
-    if (match := TIME_RE.match(arg.data)) is not None and match.group(0):
-        data = {k: int(v) for k, v in match.groupdict(default="0").items()}
-        remaining = arg.data[match.end() :].strip()
-        dt = now + relativedelta(**data)  # type: ignore
+    # pylint: disable=too-many-branches
+    async def convert(self, arg: str) -> typing.Tuple[datetime, str]:
+        now = self.context.message.created_at
+
+        if (match := TIME_RE.match(arg.data)) is not None and match.group(0):
+            data = {k: int(v) for k, v in match.groupdict(default="0").items()}
+            remaining = arg.data[match.end() :].strip()
+            dt = now + relativedelta(**data)  # type: ignore
+            ensure_future_time(dt, now)
+            return dt, remaining
+
+        if arg.data.endswith("from now"):
+            arg.data = arg.data[:-8].strip()
+
+        if arg.data.startswith(("me to ", "me in ", "me at ")):
+            arg.data = arg.data[6:]
+
+        exc = ValueError('Invalid time provided, try e.g. "next week" or "2 days".')
+
+        if (elements := CALENDAR.nlp(arg.data, sourceTime=now)) is None or len(
+            elements
+        ) == 0:
+            raise exc
+
+        n_dt, status, begin, end, _ = elements[0]
+
+        dt = pytz.UTC.localize(n_dt)  # pylint: disable=no-value-for-parameter
+
+        if not status.hasDateOrTime:
+            raise exc
+
+        if begin not in (0, 1) and end != len(arg.data):
+            raise ValueError(
+                "The time must be either in the beginning or end of the argument."
+            )
+
+        if not status.hasTime:
+            dt = dt.replace(
+                hour=now.hour,
+                minute=now.minute,
+                second=now.second,
+                microsecond=now.microsecond,
+            )
+
+        if status.accuracy == pdt.pdtContext.ACU_HALFDAY:
+            dt = dt.replace(day=now.day + 1)
+
         ensure_future_time(dt, now)
+
+        if begin in (0, 1):
+            if begin == 1:
+                # check if it's quoted:
+                if arg.data[0] != '"':
+                    raise ValueError("Expected quote before time input...")
+
+                if not (end < len(arg.data) and arg.data[end] == '"'):
+                    raise ValueError("Expected closing quote...")
+
+                remaining = arg.data[end + 1 :].lstrip(" ,.!")
+            else:
+                remaining = arg.data[end:].lstrip(" ,.!")
+        elif len(arg.data) == end:
+            remaining = arg.data[:begin].strip()
+
         return dt, remaining
-
-    if arg.data.endswith("from now"):
-        arg.data = arg.data[:-8].strip()
-
-    if arg.data.startswith(("me to ", "me in ", "me at ")):
-        arg.data = arg.data[6:]
-
-    exc = ValueError('Invalid time provided, try e.g. "next week" or "2 days".')
-
-    if (elements := CALENDAR.nlp(arg.data, sourceTime=now)) is None or len(
-        elements
-    ) == 0:
-        raise exc
-
-    n_dt, status, begin, end, _ = elements[0]
-
-    dt = pytz.UTC.localize(n_dt)  # pylint: disable=no-value-for-parameter
-
-    if not status.hasDateOrTime:
-        raise exc
-
-    if begin not in (0, 1) and end != len(arg.data):
-        raise ValueError(
-            "The time must be either in the beginning or end of the argument."
-        )
-
-    if not status.hasTime:
-        dt = dt.replace(
-            hour=now.hour,
-            minute=now.minute,
-            second=now.second,
-            microsecond=now.microsecond,
-        )
-
-    if status.accuracy == pdt.pdtContext.ACU_HALFDAY:
-        dt = dt.replace(day=now.day + 1)
-
-    ensure_future_time(dt, now)
-
-    if begin in (0, 1):
-        if begin == 1:
-            # check if it's quoted:
-            if arg.data[0] != '"':
-                raise ValueError("Expected quote before time input...")
-
-            if not (end < len(arg.data) and arg.data[end] == '"'):
-                raise ValueError("Expected closing quote...")
-
-            remaining = arg.data[end + 1 :].lstrip(" ,.!")
-        else:
-            remaining = arg.data[end:].lstrip(" ,.!")
-    elif len(arg.data) == end:
-        remaining = arg.data[:begin].strip()
-
-    return dt, remaining

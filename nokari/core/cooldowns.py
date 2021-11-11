@@ -2,14 +2,14 @@
 
 import typing
 
-from lightbulb import Bucket, commands, cooldowns
+from lightbulb import Bucket, commands, decorators
 
 from .context import Context
 
-__all__: typing.Final[typing.List[str]] = ["cooldown"]
+__all__: typing.Final[typing.List[str]] = ["add_cooldown"]
 
 
-def cooldown(
+def add_cooldown(
     length: float,
     usages: int,
     bucket: Bucket,
@@ -31,4 +31,4 @@ def cooldown(
 
         return bucket(length, usages)
 
-    return cooldowns.dynamic_cooldown(callback=callback)
+    return decorators.add_cooldown(callback=callback)

@@ -350,9 +350,11 @@ class Nokari(lightbulb.Bot):
         return self.get_me()
 
     def add_plugin(
-        self, plugin: lightbulb.Plugin | typing.Type[lightbulb.Plugin]
+        self,
+        plugin: lightbulb.Plugin | typing.Type[lightbulb.Plugin],
+        requires_db: bool = False,
     ) -> None:
-        if getattr(plugin, "__requires_db__", False) and self.pool is None:
+        if requires_db and self.pool is None:
             if (name := getattr(plugin, "name", None)) is None:
                 name = plugin.__class__.name  # type: ignore
 
