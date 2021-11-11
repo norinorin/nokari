@@ -3,7 +3,7 @@ from __future__ import annotations
 import typing
 import weakref
 
-from hikari import ActivityType, guilds, presences, snowflakes, users
+from hikari import ActivityType, guilds, messages, presences, snowflakes, users
 from hikari.impl.cache import CacheImpl
 from hikari.internal import cache
 from lightbulb import utils
@@ -107,3 +107,7 @@ class Cache(CacheImpl):
             return
 
         self._app.responses_cache.pop(message.object.id, None)
+
+    def clear_messages(self) -> cache.CacheView[snowflakes.Snowflake, messages.Message]:
+        self._app.responses_cache.clear()
+        return super().clear_messages()
