@@ -117,7 +117,7 @@ class Cache(CacheImpl):
         return super()._set_member(member, is_reference=is_reference)
 
     def _on_message_expire(self, message: cache.RefCell[cache.MessageData], /) -> None:
-        if not self._garbage_collect_message(message):
+        if not self._garbage_collect_message(message, decrement=1):
             self._referenced_messages[message.object.id] = message
             return
 
