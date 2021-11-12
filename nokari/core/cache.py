@@ -80,6 +80,21 @@ class Cache(CacheImpl):
 
         return super().update_member(member)
 
+    def _garbage_collect_member(
+        self,
+        guild_record: cache.GuildRecord,
+        member: cache.RefCell[cache.MemberData],
+        *,
+        decrement: typing.Optional[int] = None,
+        deleting: bool = False,
+    ) -> typing.Optional[cache.RefCell[cache.MemberData]]:
+        try:
+            return super()._garbage_collect_member(
+                guild_record, member, decrement=decrement, deleting=deleting
+            )
+        finally:
+            self._gc(snowflakes.Snowflake(member.object.user))
+
     def delete_member(
         self,
         guild: snowflakes.SnowflakeishOr[guilds.PartialGuild],
