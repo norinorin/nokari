@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import hikari
 import lightbulb
-from hikari import Message, PartialMessage
+from hikari import PartialMessage
 from hikari import embeds as embeds_
 from hikari import files, guilds, snowflakes, undefined, users
 from hikari.api import special_endpoints

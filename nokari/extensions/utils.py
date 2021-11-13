@@ -46,10 +46,8 @@ class Reminders(db.Table):
     interval: db.Column[Snowflake]  # BIGINT
 
 
-utils = Plugin("Utils")
-event = asyncio.Event()
-_current_timer: typing.Optional[timers.Timer] = None
-_task: asyncio.Task[None] = None
+utils = Plugin("Utils", None, True)
+utils.d.event = asyncio.Event()
 REMIND_PARSER = (
     ArgumentParser()
     .interval("--interval", "-i", argmax=0, default=False)
@@ -64,17 +62,16 @@ async def get_active_timer() -> typing.Optional[timers.Timer]:
 
 
 async def wait_for_active_timers() -> timers.Timer:
-    global _current_timer
     timer = await utils.bot.get_active_timer()
     if timer is not None:
-        event.set()
+        utils.d.event.set()
         return timer
 
-    event.clear()
-    _current_timer = None
+    utils.d.event.clear()
+    utils.d_current_timer = None
 
     with suppress(asyncio.TimeoutError):
-        await asyncio.wait_for(event.wait(), timeout=RETRY_IN)
+        await asyncio.wait_for(utils.d.event.wait(), timeout=RETRY_IN)
 
     return await wait_for_active_timers()
 
@@ -95,21 +92,20 @@ async def call_timer(timer: timers.Timer) -> None:
 
 
 async def dispatch_timers() -> None:
-    global _current_timer, _task
     try:
         while not utils.bot.is_alive:
             # dirty solution
             await asyncio.sleep(0.5)
         while utils.bot.is_alive:
-            timer = _current_timer = await wait_for_active_timers()
+            timer = utils.d._current_timer = await wait_for_active_timers()
 
             if timer.expires_at >= (now := datetime.now(timezone.utc)):
                 await asyncio.sleep((timer.expires_at - now).total_seconds())
 
             await call_timer(timer)
     except (OSError, asyncpg.PostgresConnectionError):
-        _task.cancel()
-        _task = asyncio.create_task(dispatch_timers())
+        utils.d._task.cancel()
+        utils.d._task = asyncio.create_task(dispatch_timers())
 
 
 async def short_timer_optimisation(seconds: float, timer: timers.Timer) -> None:
@@ -149,23 +145,21 @@ async def create_timer(*args: typing.Any, **kwargs: typing.Any) -> timers.Timer:
     timer.id = row[0]
 
     if delta <= (86400 * MAX_DAYS):
-        event.set()
+        utils.d.event.set()
 
-    global _task
-    if _current_timer and when < _current_timer.expires_at:
-        _task.cancel()
-        _task = asyncio.create_task(dispatch_timers())
+    if utils.d._current_timer and when < utils.d._current_timer.expires_at:
+        utils.d._task.cancel()
+        utils.d._task = asyncio.create_task(dispatch_timers())
 
     return timer
 
 
 async def verify_timer_integrity(id_: typing.Optional[int] = None) -> None:
-    global _task
-    if id_ and (not _current_timer or _current_timer.id != id_):
+    if id_ and (not utils.d._current_timer or utils.d._current_timer.id != id_):
         return
 
-    _task.cancel()
-    _task = asyncio.create_task(dispatch_timers())
+    utils.d._task.cancel()
+    utils.d._task = asyncio.create_task(dispatch_timers())
 
 
 @utils.command
@@ -352,7 +346,7 @@ async def on_reminder(event: ReminderTimerEvent) -> None:
 @utils.command
 @core.command("reminders", "A convenient shortcut for the `remind list` command.")
 @core.implements(lightbulb.commands.PrefixCommand)
-async def reminders(ctx: Context) -> None:
+async def _reminders(ctx: Context) -> None:
     """
     A convenient shortcut for the `remind list` command.
     """
@@ -557,20 +551,19 @@ async def remind_edit(ctx: Context) -> None:
         await ctx.respond("Hmm... there's no reminder with given ID.")
         return
 
-    if _current_timer and _current_timer.id == ctx.options.id:
-        self._current_timer.args[2] = ctx.options.message  # type: ignore
+    if utils.d._current_timer and utils.d._current_timer.id == ctx.options.id:
+        utils.d._current_timer.args[2] = ctx.options.message  # type: ignore
 
     await ctx.respond(f"Alright, it's now set to {ctx.options.message}.")
 
 
 def load(bot: BotApp) -> None:
-    global _task
     bot.add_plugin(utils, requires_db=True)
     if bot.pool:
-        _task = asyncio.create_task(dispatch_timers())
+        utils.d._task = asyncio.create_task(dispatch_timers())
 
 
 def unload(bot: BotApp) -> None:
     bot.remove_plugin("Utils")
-    with suppress(NameError, AttributeError):
-        _task.cancel()  # TODO: remove_hook
+    with suppress(AttributeError):
+        utils.d._task.cancel()  # TODO: remove_hook

@@ -267,20 +267,24 @@ class CustomHelp(help_command.DefaultHelpCommand):
         await context.respond(embed=embed)
 
 
-old_help_inst: help_command.BaseHelpCommand
-old_help_command: lightbulb.commands.CommandLike
+class _HelpWrapper:
+    def __init__(self, inst, command):
+        inst: help_command.BaseHelpCommand = inst
+        command: lightbulb.commands.CommandLike = command
+
+
+old_help = _HelpWrapper(None, None)
 
 
 def load(bot: BotApp) -> None:
-    global old_help_inst, old_help_command
-    old_help_inst = bot._help_command
-    old_help_command = bot.get_prefix_command("help")._initialiser
+    old_help.inst = bot._help_command
+    old_help.command = bot.get_prefix_command("help")._initialiser
     bot._help_command = CustomHelp(bot)
-    bot.remove_command(old_help_command)
+    bot.remove_command(old_help.command)
     bot.command(_help_cmd)
 
 
 def unload(bot: BotApp) -> None:
-    bot.help_command = old_help_command
+    bot.help_command = old_help.inst
     bot.remove_command(_help_cmd)
-    bot.command(old_help_command)
+    bot.command(old_help.command)

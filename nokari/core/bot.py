@@ -21,7 +21,7 @@ from hikari.interactions.base_interactions import ResponseType
 from hikari.interactions.component_interactions import ComponentInteraction
 from hikari.messages import ButtonStyle
 from hikari.snowflakes import Snowflake
-from lightbulb import checks, commands
+from lightbulb import checks
 from lru import LRU  # pylint: disable=no-name-in-module
 
 from nokari.core import commands, constants
@@ -99,7 +99,7 @@ class Nokari(lightbulb.BotApp):
         _ = [
             self.command(g)
             for g in globals().values()
-            if isinstance(g, commands.CommandLike)
+            if isinstance(g, lightbulb.commands.CommandLike)
         ]
 
         # Set Launch time

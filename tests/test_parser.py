@@ -2,7 +2,7 @@ import typing
 
 import pytest
 
-from nokari.plugins.api import API
+from nokari.extensions.api import SPOTIFY_PARSER
 from nokari.utils import ArgumentParser
 
 tuple_io_string = [
@@ -60,16 +60,10 @@ tuple_io_string = [
 ]
 
 
-@pytest.fixture
-def parser() -> ArgumentParser:
-    return API._spotify_argument_parser
-
-
 @pytest.mark.parametrize(
     "input_string, style, hidden, card, time, color, member, remainder", tuple_io_string
 )
 def test_parse(
-    parser: ArgumentParser,
     input_string: str,
     style: str,
     hidden: bool,
@@ -79,7 +73,7 @@ def test_parse(
     member: bool,
     remainder: str,
 ) -> None:
-    arguments = parser.parse(None, input_string)
+    arguments = SPOTIFY_PARSER.parse(None, input_string)
     assert arguments.style == style
     assert arguments.hidden is hidden
     assert arguments.card is card

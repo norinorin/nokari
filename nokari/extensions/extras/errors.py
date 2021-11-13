@@ -95,7 +95,7 @@ async def on_error(event: lightbulb.PrefixCommandErrorEvent) -> None:
 @handle(NotEnoughArguments)
 def handle_not_enough_arguments(
     ctx: Context,
-    error: lightbulb.errors.NotEnoughArguments,
+    _error: lightbulb.errors.NotEnoughArguments,
     embed: hikari.Embed,
 ) -> None:
     """Handles NotEnoughArguments error."""
@@ -173,11 +173,11 @@ def handle_converter_failure(
 
 # Prevent size change while iterating.
 obj = None
-error = None
+err_t = None
 for obj in globals().values():
     if hasattr(obj, "__errors__"):
-        for error in obj.__errors__:
-            handlers[error] = obj
+        for err_t in obj.__errors__:
+            handlers[err_t] = obj
 
 
 def load(bot: BotApp) -> None:

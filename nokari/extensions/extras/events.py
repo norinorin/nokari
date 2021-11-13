@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import typing
 from contextlib import suppress
 from functools import partial
 
@@ -23,8 +22,7 @@ if not POSTGRESQL_DSN:
     from nokari.extensions.config import format_prefixes
 
 
-execute_webhook: typing.Callable[..., typing.Any]
-events = plugins.Plugin("Events")
+events = plugins.Plugin("Events", None, True)
 
 
 async def handle_ping(event: GuildMessageCreateEvent | GuildMessageUpdateEvent) -> None:
@@ -111,7 +109,9 @@ async def execute_guild_webhook(
             .add_field("ID:", str(guild.id))
         )
 
-    await execute_webhook(embed=embed, username=f"{events.bot.get_me()} {suffix}")
+    await events.d.execute_webhook(
+        embed=embed, username=f"{events.bot.get_me()} {suffix}"
+    )
 
 
 async def on_guild_join(event: GuildJoinEvent) -> None:
@@ -130,10 +130,9 @@ OPTIONAL_EVENTS = (
 
 def load(bot: BotApp) -> None:
     bot.add_plugin(events)
-    global execute_webhook
     if GUILD_LOGS_WEBHOOK_URL:
         webhook_id, webhook_token = GUILD_LOGS_WEBHOOK_URL.strip("/").split("/")[-2:]
-        execute_webhook = partial(
+        events.d.execute_webhook = partial(
             bot.rest.execute_webhook, int(webhook_id), webhook_token
         )
 

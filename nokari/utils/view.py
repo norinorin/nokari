@@ -25,7 +25,6 @@ DEALINGS IN THE SOFTWARE.
 
 import typing
 
-from hikari.commands import Command
 from lightbulb.errors import LightbulbError
 
 __all__: typing.Final[typing.List[str]] = [
