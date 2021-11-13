@@ -116,8 +116,19 @@ class Cache(CacheImpl):
 
         return super()._set_member(member, is_reference=is_reference)
 
+    def _garbage_collect_message(
+        self,
+        message: cache.RefCell[cache.MessageData],
+        *,
+        decrement: typing.Optional[int] = 1,
+        override_ref: bool = False,
+    ) -> typing.Optional[cache.RefCell[cache.MessageData]]:
+        return super()._garbage_collect_message(
+            message, decrement=decrement, override_ref=override_ref
+        )
+
     def _on_message_expire(self, message: cache.RefCell[cache.MessageData], /) -> None:
-        if not self._garbage_collect_message(message, decrement=1):
+        if not self._garbage_collect_message(message):
             self._referenced_messages[message.object.id] = message
             return
 
