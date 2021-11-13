@@ -79,7 +79,7 @@ async def on_error(event: lightbulb.PrefixCommandErrorEvent) -> None:
 
     if isinstance(
         error, lightbulb.errors.CommandNotFound
-    ) and event.message.content.startswith(error.invoked_with):
+    ) and event.context.event.message.content.startswith(error.invoked_with):
         # might not be the best thing to do
         # but since the context will be None if the command wasn't found
         # we'll just assume if the prefix was the same as the command name
