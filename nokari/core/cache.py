@@ -93,7 +93,7 @@ class Cache(CacheImpl):
                 guild_record, member, decrement=decrement, deleting=deleting
             )
         finally:
-            self._gc(snowflakes.Snowflake(member.object.user))
+            self._gc(snowflakes.Snowflake(member.object.user.object))
 
     def delete_member(
         self,
