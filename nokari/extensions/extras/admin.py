@@ -20,7 +20,7 @@ from nokari.core import Context
 from nokari.extensions.extras._eval_globals import *  # pylint: disable=wildcard-import,unused-wildcard-import
 
 ZWS_ACUTE = "\u200b`"
-admin = plugins.Plugin("Admin")
+admin = core.Plugin("Admin", hidden=True)
 
 
 def insert_returns(
@@ -267,4 +267,4 @@ def load(bot: BotApp) -> None:
 
 
 def unload(bot: BotApp) -> None:
-    bot.remove_plugin("Admin")
+    bot.remove_plugin("_Admin")

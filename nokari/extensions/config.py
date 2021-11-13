@@ -29,7 +29,7 @@ class PrefixConverter(lightbulb.converters.BaseConverter[str]):
         return arg.strip().lower()
 
 
-config = plugins.Plugin("Config")
+config = core.Plugin("Config")
 
 PREFIX_TOGGLE_QUERY: str = """
     INSERT INTO prefixes (hash, prefixes) VALUES ($1, ARRAY[$2])

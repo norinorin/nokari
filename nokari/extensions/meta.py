@@ -13,7 +13,7 @@ from nokari import core
 from nokari.core import Context
 from nokari.utils import converters, human_timedelta, paginator, parser, plural, spotify
 
-meta = plugins.Plugin("Meta")
+meta = core.Plugin("Meta")
 PROCESS = psutil.Process()
 
 

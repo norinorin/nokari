@@ -93,7 +93,7 @@ class CustomHelp(help_command.DefaultHelpCommand):
         embed.footer.text = "For more information, do help <category>"  # type: ignore
 
         for name, plugin in context.bot.plugins.items():
-            if plugin.__module__.startswith("nokari.plugins.extras."):
+            if plugin.hidden:
                 continue
 
             embed.add_field(
@@ -115,10 +115,7 @@ class CustomHelp(help_command.DefaultHelpCommand):
 
     @staticmethod
     async def send_plugin_help(context: Context, plugin: plugins.Plugin) -> None:
-        if (
-            plugin.__module__.startswith("nokari.plugins.extras.")
-            and context.author.id not in context.bot.owner_ids
-        ):
+        if plugin.hidden and context.author.id not in context.bot.owner_ids:
             return await CustomHelp.object_not_found(context, "")
 
         entries = await help_command.filter_commands(plugin._all_commands, context)
@@ -208,8 +205,7 @@ class CustomHelp(help_command.DefaultHelpCommand):
             for a in [
                 p
                 for p in context.bot.plugins.values()
-                if context.author.id in context.bot.owner_ids
-                or not p.__module__.startswith("nokari.plugins.extras.")
+                if context.author.id in context.bot.owner_ids or not p.hidden
             ]
             if i in a.name.lower()
         ]

@@ -8,7 +8,7 @@ from io import BytesIO
 
 import hikari
 import lightbulb
-from lightbulb import BotApp, plugins
+from lightbulb import BotApp
 from sphobjinv import Inventory
 
 from nokari import core, utils
@@ -31,7 +31,7 @@ from nokari.utils.spotify import (
     Track,
 )
 
-api = plugins.Plugin("API", None, True)
+api = core.Plugin("API", None, True)
 SPOTIFY_PARSER: ArgumentParser = (
     utils.ArgumentParser()
     .style("--style", "-s", argmax=1, default="2")

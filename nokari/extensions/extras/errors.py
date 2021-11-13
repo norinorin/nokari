@@ -16,6 +16,7 @@ from lightbulb.errors import (
     NotEnoughArguments,
 )
 
+from nokari import core
 from nokari.core import Context
 from nokari.utils.view import CommandSyntaxError
 
@@ -41,7 +42,7 @@ def handle(
     return decorator
 
 
-errors = plugins.Plugin("Errors")
+errors = core.Plugin("Errors", hidden=True)
 handlers: typing.Dict[str, _ErrorHandlerT] = {}
 
 
@@ -185,4 +186,4 @@ def load(bot: BotApp) -> None:
 
 
 def unload(bot: BotApp) -> None:
-    bot.remove_plugin("Errors")
+    bot.remove_plugin("_Errors")

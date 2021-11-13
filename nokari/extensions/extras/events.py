@@ -12,8 +12,9 @@ from hikari import (
 from hikari.colors import Color
 from hikari.events.guild_events import GuildJoinEvent, GuildLeaveEvent
 from hikari.guilds import GatewayGuild
-from lightbulb import BotApp, errors, plugins
+from lightbulb import BotApp, errors
 
+from nokari import core
 from nokari.core.constants import GUILD_LOGS_WEBHOOK_URL, POSTGRESQL_DSN
 from nokari.utils import plural
 
@@ -22,7 +23,7 @@ if not POSTGRESQL_DSN:
     from nokari.extensions.config import format_prefixes
 
 
-events = plugins.Plugin("Events", None, True)
+events = core.Plugin("Events", None, True, hidden=True)
 
 
 async def handle_ping(event: GuildMessageCreateEvent | GuildMessageUpdateEvent) -> None:
@@ -141,7 +142,7 @@ def load(bot: BotApp) -> None:
 
 
 def unload(bot: BotApp) -> None:
-    bot.remove_plugin("Events")
+    bot.remove_plugin("_Events")
     if GUILD_LOGS_WEBHOOK_URL:
         # TODO: remove_hook
         for event_type, callback in OPTIONAL_EVENTS:

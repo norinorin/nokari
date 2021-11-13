@@ -5,3 +5,4 @@ from .cache import *
 from .commands import *
 from .context import *
 from .cooldowns import *
+from .plugins import *
