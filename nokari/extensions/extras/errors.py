@@ -3,7 +3,7 @@ import typing
 
 import hikari
 import lightbulb
-from lightbulb import BotApp, plugins, utils
+from lightbulb import plugins, utils
 
 # TODO: UnclosedQuotes
 from lightbulb.errors import (
@@ -181,9 +181,9 @@ for obj in globals().values():
             handlers[err_t] = obj
 
 
-def load(bot: BotApp) -> None:
+def load(bot: core.Nokari) -> None:
     bot.add_plugin(errors)
 
 
-def unload(bot: BotApp) -> None:
-    bot.remove_plugin("_Errors")
+def unload(bot: core.Nokari) -> None:
+    bot.remove_plugin("Errors")

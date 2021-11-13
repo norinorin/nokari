@@ -3,7 +3,7 @@ import typing
 import hikari
 import lightbulb
 from hikari.snowflakes import Snowflake
-from lightbulb import BotApp, errors, plugins
+from lightbulb import errors
 from lightbulb.checks import has_role_permissions
 from lightbulb.cooldowns import UserBucket
 
@@ -67,15 +67,20 @@ async def prefix(ctx: core.Context) -> None:
     )
     SELECT hash, prefixes FROM PREFIXES
     """
-    prefixes = {
-        record["hash"]: record["prefixes"]
-        for record in await ctx.bot.pool.fetch(query, [ctx.guild_id, ctx.author.id])
-    }
+    prefixes = (
+        {
+            record["hash"]: record["prefixes"]
+            for record in await ctx.bot.pool.fetch(query, [ctx.guild_id, ctx.author.id])
+        }
+        if ctx.bot.pool
+        else {}
+    )
 
-    ctx.bot.prefixes.update(prefixes)
+    cache = getattr(ctx.bot, "prefixes", {})
+    cache.update(prefixes)
 
     if not prefixes.get(ctx.guild_id):
-        ctx.bot.prefixes.pop(ctx.guild_id, None)
+        cache.pop(ctx.guild_id, None)
         prefixes[ctx.guild_id] = ctx.bot.default_prefixes
 
     embed = hikari.Embed(
@@ -89,7 +94,7 @@ async def prefix(ctx: core.Context) -> None:
             f"{', '.join(format_prefixes(prefixes[ctx.author.id]))}"
         )
     else:
-        ctx.bot.prefixes.pop(ctx.author.id, None)
+        cache.pop(ctx.author.id, None)
 
     await ctx.respond(embed=embed)
 
@@ -111,7 +116,9 @@ async def prefix_user(ctx: core.Context) -> None:
 @core.add_checks(has_role_permissions(hikari.Permissions.MANAGE_MESSAGES))
 @core.consume_rest_option("prefix", "The prefix to toggle.", PrefixConverter)
 @core.command(
-    "guild", "Appends the prefix to guild prefixes if not exists, otherwise remove it."
+    "guild",
+    "Appends the prefix to guild prefixes if not exists, otherwise remove it.",
+    required_vars=["POSTGRESQL_DSN"],
 )
 @core.implements(lightbulb.commands.PrefixSubCommand)
 async def prefix_guild(ctx: core.Context) -> None:
@@ -125,7 +132,7 @@ async def prefix_guild(ctx: core.Context) -> None:
 
 @prefix.child
 @core.add_cooldown(4, 1, UserBucket)
-@core.command("cache", "Displays the prefix cache.")
+@core.command("cache", "Displays the prefix cache.", required_vars=["POSTGRESQL_DSN"])
 @core.implements(lightbulb.commands.PrefixSubCommand)
 async def prefix_cache(ctx: core.Context) -> None:
     """Displays the prefix cache."""
@@ -147,9 +154,9 @@ async def prefix_cache(ctx: core.Context) -> None:
     await ctx.respond(embed=embed)
 
 
-def load(bot: BotApp) -> None:
-    bot.add_plugin(config, True)
+def load(bot: core.Nokari) -> None:
+    bot.add_plugin(config)
 
 
-def unload(bot: BotApp) -> None:
+def unload(bot: core.Nokari) -> None:
     bot.remove_plugin("Config")

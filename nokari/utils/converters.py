@@ -25,30 +25,33 @@ class CaretConverter(BaseConverter):
 
     async def convert(self, arg: str) -> typing.Optional[hikari.Message]:
         ret = None
+        event = self.context.event
+        assert isinstance(event, hikari.MessageCreateEvent)
 
         if not arg:
-            return arg.context.message
+            return event.message
 
         if set((stripped := arg.strip())) == {"^"}:
             n = len(stripped)
             try:
-                ret = (
-                    await self.context.bot.cache.get_messages_view()
-                    .iterator()
-                    .filter(
-                        lambda m: m.created_at < self.context.message.created_at
-                        and m.channel_id == self.context.channel_id
-                    )
-                    .reversed()
-                    .limit(n)
-                    .collect(list)
+                ret = typing.cast(
+                    list,
+                    (
+                        await self.context.bot.cache.get_messages_view()
+                        .iterator()
+                        .filter(
+                            lambda m: m.created_at < event.message.created_at
+                            and m.channel_id == event.channel_id
+                        )
+                        .reversed()
+                        .limit(n)
+                        .collect(list)
+                    ),
                 )[n]
             except IndexError:
-                ret = await (
-                    self.context.channel.fetch_history(before=self.context.message_id)
-                    .limit(n)
-                    .last()
-                )
+                channel = self.context.get_channel()
+                assert isinstance(channel, hikari.GuildChannel)
+                ret = await channel.fetch_history(before=msg).limit(n).last()
 
         return ret
 

@@ -178,18 +178,20 @@ class PrefixContext(Context, lightbulb.context.PrefixContext):
             resp := self.bot.cache.get_message(
                 self.bot.responses_cache.get(self.event.message_id, 0)
             )
-        ) is not None and self.edited_timestamp:
-            return await resp.edit(
-                content=content or None,
-                embed=embed or None,
-                attachment=attachment,
-                attachments=attachments,
-                component=component or None,
-                replace_attachments=True,
-                mentions_reply=mentions_reply,
-                mentions_everyone=mentions_everyone,
-                user_mentions=user_mentions,
-                role_mentions=role_mentions,
+        ) is not None and self.event.message.edited_timestamp:
+            return lightbulb.context.ResponseProxy(
+                await resp.edit(
+                    content=content or None,
+                    embed=embed or None,
+                    attachment=attachment,
+                    attachments=attachments,
+                    component=component or None,
+                    replace_attachments=True,
+                    mentions_reply=mentions_reply,
+                    mentions_everyone=mentions_everyone,
+                    user_mentions=user_mentions,
+                    role_mentions=role_mentions,
+                )
             )
 
         if resp is None:
@@ -220,3 +222,8 @@ class PrefixContext(Context, lightbulb.context.PrefixContext):
         if getattr(self.command, "disabled", False):
             return None
         return await super().invoke()
+
+    def send_help(
+        self, obj: typing.Any
+    ) -> typing.Coroutine[typing.Any, typing.Any, None]:
+        return self.bot._help_command.send_help(self, obj.name)

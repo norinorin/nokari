@@ -12,7 +12,7 @@ import asyncpg
 import hikari
 import lightbulb
 from hikari.snowflakes import Snowflake
-from lightbulb import BotApp, Plugin
+from lightbulb import Plugin
 from tabulate import tabulate
 
 from nokari import core
@@ -190,7 +190,7 @@ async def remind(ctx: Context) -> None:
     interval = None
 
     if parsed.interval:
-        if (temp := (dt - ctx.message.created_at).total_seconds()) < 300:
+        if (temp := (dt - ctx.event.message.created_at).total_seconds()) < 300:
             raise ValueError("Interval can't be below 5 minutes.")
 
         interval = temp
@@ -206,8 +206,8 @@ async def remind(ctx: Context) -> None:
         ctx.get_channel().id,
         ctx.author.id,
         rem,
-        created_at=ctx.message.created_at,
-        message_id=ctx.message.id,
+        created_at=ctx.event.message.created_at,
+        message_id=ctx.event.message.id,
         interval=interval,
     )
     reminder_id = f" Reminder ID: {timer.id}" if timer.id else ""
@@ -557,13 +557,13 @@ async def remind_edit(ctx: Context) -> None:
     await ctx.respond(f"Alright, it's now set to {ctx.options.message}.")
 
 
-def load(bot: BotApp) -> None:
+def load(bot: core.Nokari) -> None:
     bot.add_plugin(utils, requires_db=True)
     if bot.pool:
         utils.d._task = asyncio.create_task(dispatch_timers())
 
 
-def unload(bot: BotApp) -> None:
+def unload(bot: core.Nokari) -> None:
     bot.remove_plugin("Utils")
     with suppress(AttributeError):
         utils.d._task.cancel()  # TODO: remove_hook

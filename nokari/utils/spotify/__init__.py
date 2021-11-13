@@ -13,7 +13,7 @@ from io import BytesIO
 import hikari
 import numpy
 from colorthief import ColorThief
-from lightbulb import BotApp, utils
+from lightbulb import utils
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from nokari.utils import caches
@@ -68,7 +68,7 @@ class SpotifyClient:
     SIDE_GAP = 50
     WIDTH = 1_280
 
-    def __init__(self, bot: BotApp) -> None:
+    def __init__(self, bot: core.Nokari) -> None:
         self.bot = bot
         self.cache = SpotifyCache()
         self.rest = SpotifyRest()

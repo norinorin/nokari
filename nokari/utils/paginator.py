@@ -275,10 +275,10 @@ class Paginator:
 
         paginators = self.ctx.bot.paginators
 
-        if paginator := paginators.get(self.ctx.message.id):
+        if paginator := paginators.get(self.ctx.event.message.id):
             await paginator.stop(False)
 
-        paginators[self.ctx.message.id] = self
+        paginators[self.ctx.event.message.id] = self
 
         # Interactions' lifetime is 15 minutes.
         if timeout > 900:

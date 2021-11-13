@@ -13,7 +13,7 @@ from inspect import getsource
 from io import StringIO
 from types import TracebackType
 
-from lightbulb import BotApp, checks, plugins
+from lightbulb import checks, plugins
 
 from nokari import core, utils
 from nokari.core import Context
@@ -262,9 +262,9 @@ async def restart(ctx: Context) -> None:
     )
 
 
-def load(bot: BotApp) -> None:
+def load(bot: core.Nokari) -> None:
     bot.add_plugin(admin)
 
 
-def unload(bot: BotApp) -> None:
-    bot.remove_plugin("_Admin")
+def unload(bot: core.Nokari) -> None:
+    bot.remove_plugin("Admin")

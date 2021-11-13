@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import suppress
+from copy import deepcopy
 from functools import partial
 
 from hikari import (
@@ -12,50 +13,44 @@ from hikari import (
 from hikari.colors import Color
 from hikari.events.guild_events import GuildJoinEvent, GuildLeaveEvent
 from hikari.guilds import GatewayGuild
-from lightbulb import BotApp, errors
+from lightbulb import errors
 
 from nokari import core
 from nokari.core.constants import GUILD_LOGS_WEBHOOK_URL, POSTGRESQL_DSN
 from nokari.utils import plural
 
 if not POSTGRESQL_DSN:
-    from nokari.core.bot import Nokari
     from nokari.extensions.config import format_prefixes
 
 
 events = core.Plugin("Events", None, True, hidden=True)
 
 
-async def handle_ping(event: GuildMessageCreateEvent | GuildMessageUpdateEvent) -> None:
-    app: Nokari = event.app
+async def handle_ping(event: GuildMessageCreateEvent) -> None:
+    assert isinstance(event.app, core.Nokari)
 
-    if not (me := app.get_me()) or event.message.content not in (
+    if not (me := event.app.get_me()) or event.message.content not in (
         f"<@{me.id}>",
         f"<@!{me.id}>",
     ):
         return
 
-    ctx = app.get_prefix_context(event.message)
-
-    if not app.pool:
-        embed = Embed(
-            title="Prefixes",
-            description=f"Default prefixes: {', '.join(format_prefixes(app.default_prefixes))}",
-        )
-        await ctx.respond(embed=embed)
-        return
+    copied_event = deepcopy(event)
+    copied_event.message.content = "nokariprefix"
+    ctx = await event.app.get_prefix_context(copied_event)
 
     with suppress(errors.CommandIsOnCooldown):
-        return await app.get_prefix_command("prefix").invoke(ctx)
+        return await event.app.get_prefix_command("prefix").invoke(ctx)
 
 
-@events.listener
+@events.listener(GuildMessageCreateEvent)
 async def on_message(event: GuildMessageCreateEvent) -> None:
     await handle_ping(event)
 
 
-@events.listener
+@events.listener(GuildMessageUpdateEvent)
 async def on_message_edit(event: GuildMessageUpdateEvent) -> None:
+    assert isinstance(event.app, core.Nokari)
     if (
         event.is_bot is True
         or (message := event.app.cache.get_message(event.message_id)) is None
@@ -72,12 +67,13 @@ async def on_message_edit(event: GuildMessageUpdateEvent) -> None:
             message=message, shard=event.shard
         )
     )
-    await event.app.process_commands_for_event(message_create_event)
-    await handle_ping(event)
+    await event.app.handle_messsage_create_for_prefix_commands(message_create_event)
+    await handle_ping(message_create_event)
 
 
-@events.listener
+@events.listener(GuildMessageDeleteEvent)
 async def on_message_delete(event: GuildMessageDeleteEvent) -> None:
+    assert isinstance(event.app, core.Nokari)
     if (
         resp := event.app.cache.get_message(
             event.app.responses_cache.pop(event.message_id, 0)
@@ -129,7 +125,7 @@ OPTIONAL_EVENTS = (
 )
 
 
-def load(bot: BotApp) -> None:
+def load(bot: core.Nokari) -> None:
     bot.add_plugin(events)
     if GUILD_LOGS_WEBHOOK_URL:
         webhook_id, webhook_token = GUILD_LOGS_WEBHOOK_URL.strip("/").split("/")[-2:]
@@ -141,8 +137,8 @@ def load(bot: BotApp) -> None:
             bot.subscribe(event_type, callback)
 
 
-def unload(bot: BotApp) -> None:
-    bot.remove_plugin("_Events")
+def unload(bot: core.Nokari) -> None:
+    bot.remove_plugin("Events")
     if GUILD_LOGS_WEBHOOK_URL:
         # TODO: remove_hook
         for event_type, callback in OPTIONAL_EVENTS:

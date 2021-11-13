@@ -5,7 +5,7 @@ from operator import attrgetter
 
 import hikari
 import lightbulb
-from lightbulb import BotApp, commands, help_command, plugins
+from lightbulb import commands, help_command, plugins
 
 from nokari import core
 from nokari.core import Context
@@ -69,8 +69,9 @@ class CustomHelp(help_command.DefaultHelpCommand):
             fmt = command.name if not parent else f"{parent.name} {command.name}"
 
         return (
-            fmt + " " + getattr(command._initialiser, "signature", None)
-            or command.signature
+            fmt
+            + " "
+            + (getattr(command._initialiser, "signature", None) or command.signature)
         )
 
     @staticmethod
@@ -272,7 +273,7 @@ class _HelpWrapper:
 old_help = _HelpWrapper(None, None)
 
 
-def load(bot: BotApp) -> None:
+def load(bot: core.Nokari) -> None:
     old_help.inst = bot._help_command
     old_help.command = bot.get_prefix_command("help")._initialiser
     bot._help_command = CustomHelp(bot)
@@ -280,7 +281,7 @@ def load(bot: BotApp) -> None:
     bot.command(_help_cmd)
 
 
-def unload(bot: BotApp) -> None:
+def unload(bot: core.Nokari) -> None:
     bot.help_command = old_help.inst
     bot.remove_command(_help_cmd)
     bot.command(old_help.command)

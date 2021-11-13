@@ -8,11 +8,10 @@ from io import BytesIO
 
 import hikari
 import lightbulb
-from lightbulb import BotApp
 from sphobjinv import Inventory
 
 from nokari import core, utils
-from nokari.core import Context
+from nokari.core import Context, Nokari
 from nokari.utils import (
     Paginator,
     algorithm,
@@ -91,15 +90,14 @@ async def send_spotify_card(
     SPOTIFY_VARS,
 )
 @core.implements(lightbulb.commands.PrefixCommandGroup)
-async def spotify(self, ctx: Context) -> None:
-    """"""
+async def spotify(ctx: Context) -> None:
     await ctx.send_help(ctx.command)
 
 
 # pylint: disable=too-many-locals
 @spotify.child
 @core.add_cooldown(1, 2, lightbulb.cooldowns.UserBucket)
-@core.option("track", "The track query.", default="", required=False)
+@core.consume_rest_option("track", "The track query.", default="")
 @core.command(
     "track",
     "Shows the information of a track on Spotify.",
@@ -120,9 +118,7 @@ async def spotify_track(ctx: Context) -> None:
     if not args.remainder:
         data = ctx.author
     elif args.member and args.remainder:
-        data = await converters.user_converter(
-            converters.WrappedArg(args.remainder, ctx)
-        )
+        data = await converters.UserConverter(ctx).convert(args.remainder)
 
         if data.is_bot:
             return await ctx.respond("I won't make a card for bots >:(")
@@ -162,14 +158,9 @@ async def spotify_track(ctx: Context) -> None:
     spotify_code_url = data.get_code_url(hikari.Color.from_rgb(*colors[0]))
     spotify_code = await api.d.spotify_client._get_spotify_code(spotify_code_url)
 
-    invoked_with = (
-        ctx.content[len(ctx.prefix) + len(ctx.invoked_with) :]
-        .strip()
-        .split(maxsplit=1)[0]
-    )
     embed = (
         hikari.Embed(
-            title=f"{invoked_with.capitalize()} Info",
+            title=f"{ctx.invoked_with.capitalize()} Info",
             description=f"**[#{data.track_number}]({data.album.url}) {data.formatted_url} by "
             f"{', '.join(artist.formatted_url for artist in data.artists)} "
             f"on {data.formatted_url}**\n"
@@ -216,7 +207,7 @@ async def spotify_track(ctx: Context) -> None:
 
 @spotify.child
 @core.add_cooldown(1, 2, lightbulb.cooldowns.UserBucket)
-@core.option("artist", description="The artist query.")
+@core.consume_rest_option("artist", description="The artist query.")
 @core.command(
     "artist",
     "Displays the information of an artist on Spotify.",
@@ -297,7 +288,7 @@ async def spotify_artist(ctx: Context) -> None:
 
 @spotify.child
 @core.add_cooldown(1, 2, lightbulb.cooldowns.UserBucket)
-@core.option("album", description="The album query.")
+@core.consume_rest_option("album", description="The album query.", default="")
 @core.command(
     "album",
     "Displays the information of an album on Spotify.",
@@ -459,14 +450,14 @@ async def spotify_cache(ctx: Context) -> None:
     aliases=["rtfm"],
 )
 @core.implements(lightbulb.commands.PrefixCommandGroup)
-async def rtfd(self, ctx: Context) -> None:
+async def rtfd(ctx: Context) -> None:
     """Contains subcommands that links you to the specified object in the docs."""
     await ctx.send_help(ctx.command)
 
 
 @rtfd.child
 @core.add_cooldown(1, 2, lightbulb.cooldowns.UserBucket)
-@core.option("object", "The object query.", default="")
+@core.consume_rest_option("object", "The object query.", default="")
 @core.command(
     "hikari", "Returns jump links to the specified object in Hikari docs page."
 )
@@ -516,7 +507,7 @@ async def rtfd_hikari(ctx: Context) -> None:
     await paginator.start()
 
 
-def load(bot: BotApp) -> None:
+def load(bot: Nokari) -> None:
     bot.add_plugin(api)
     if not hasattr(bot, "spotify_client") and all(
         var in os.environ for var in SPOTIFY_VARS
@@ -526,5 +517,5 @@ def load(bot: BotApp) -> None:
     api.d.spotify_client = bot.spotify_client
 
 
-def unload(bot: BotApp) -> None:
+def unload(bot: Nokari) -> None:
     bot.remove_plugin("API")

@@ -7,7 +7,7 @@ from collections import Counter
 import hikari
 import lightbulb
 import psutil
-from lightbulb import BotApp, plugins
+from lightbulb import plugins
 
 from nokari import core
 from nokari.core import Context
@@ -180,9 +180,9 @@ async def source(ctx: Context) -> None:
     await ctx.respond(f"<{base_url}/blob/{commit_hash}/{blob}{hash_jump}>")
 
 
-def load(bot: BotApp) -> None:
+def load(bot: core.Nokari) -> None:
     bot.add_plugin(meta)
 
 
-def unload(bot: BotApp) -> None:
+def unload(bot: core.Nokari) -> None:
     bot.remove_plugin("Meta")
