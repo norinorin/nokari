@@ -25,7 +25,8 @@ DEALINGS IN THE SOFTWARE.
 
 import typing
 
-from lightbulb.errors import CommandSyntaxError
+from hikari.commands import Command
+from lightbulb.errors import LightbulbError
 
 __all__: typing.Final[typing.List[str]] = [
     "UnexpectedQuoteError",
@@ -35,7 +36,7 @@ __all__: typing.Final[typing.List[str]] = [
 ]
 
 
-class _BaseError(CommandSyntaxError):
+class CommandSyntaxError(LightbulbError):
     def __init__(self, text: typing.Optional[str] = None) -> None:
         super().__init__()
         if text is not None:
@@ -46,13 +47,13 @@ class _BaseError(CommandSyntaxError):
         self.text = text
 
 
-class UnexpectedQuoteError(_BaseError):
+class UnexpectedQuoteError(SyntaxError):
     def __init__(self, quote: str) -> None:
         self.quote = quote
         super().__init__(f"Unexpected quote mark, {quote!r}, in non-quoted string")
 
 
-class InvalidEndOfQuotedStringError(_BaseError):
+class InvalidEndOfQuotedStringError(SyntaxError):
     def __init__(self, char: str) -> None:
         self.char = char
         super().__init__(
@@ -60,7 +61,7 @@ class InvalidEndOfQuotedStringError(_BaseError):
         )
 
 
-class ExpectedClosingQuoteError(_BaseError):
+class ExpectedClosingQuoteError(SyntaxError):
     def __init__(self, close_quote: str) -> None:
         self.close_quote = close_quote
         super().__init__(f"Expected closing {close_quote}.")

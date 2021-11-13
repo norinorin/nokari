@@ -3,7 +3,7 @@ import typing
 import hikari
 import lightbulb
 from hikari.snowflakes import Snowflake
-from lightbulb import Bot, errors, plugins
+from lightbulb import BotApp, errors, plugins
 from lightbulb.checks import has_role_permissions
 from lightbulb.cooldowns import UserBucket
 
@@ -147,9 +147,9 @@ async def prefix_cache(ctx: core.Context) -> None:
     await ctx.respond(embed=embed)
 
 
-def load(bot: Bot) -> None:
+def load(bot: BotApp) -> None:
     bot.add_plugin(config, True)
 
 
-def unload(bot: Bot) -> None:
+def unload(bot: BotApp) -> None:
     bot.remove_plugin("Config")

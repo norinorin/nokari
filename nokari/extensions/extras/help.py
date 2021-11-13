@@ -4,38 +4,38 @@ import typing
 from operator import attrgetter
 
 import hikari
-from lightbulb import Bot, commands
-from lightbulb import context as context_
-from lightbulb import converters, errors
-from lightbulb import help as help_
-from lightbulb import plugins
+import lightbulb
+from lightbulb import BotApp, commands, help_command, plugins
 
 from nokari import core
 from nokari.core import Context
 from nokari.utils import plural
 
 
-@core.commands.command(
-    name="help", aliases=["commands", "command"], usage="[category|command|query]"
+@core.consume_rest_option("object", "Object to get help for.", required=False)
+@core.command(
+    "help",
+    "Get information about the bot.",
+    signature="[category|command|query]",
 )
+@core.implements(lightbulb.commands.PrefixCommand)
 async def _help_cmd(ctx: Context) -> None:
     """
     Displays help for the bot, a command, or a category.
     If no object is specified with the command then a help menu
     for the bot as a whole is displayed instead.
     """
-    obj = ctx.message.content[len(f"{ctx.prefix}{ctx.invoked_with}") :].strip().split()
-    await ctx.bot.help_command.resolve_help_obj(ctx, obj)
+    await ctx.bot._help_command.send_help(ctx, ctx.options.object)
 
 
-class CustomHelp(help_.HelpCommand):
+class CustomHelp(help_command.DefaultHelpCommand):
     @staticmethod
     def get_prefix(context: Context) -> str:
         """
         Returns the cleaned prefix if it's no longer than 10 chars,
         otherwise returns the clean mention of the bot itself.
         """
-        prefix = context.clean_prefix.strip()
+        prefix = context.prefix.strip()
         if len(prefix) > 10:
             prefix = f"@{context.bot.get_me().username}"
 
@@ -54,19 +54,6 @@ class CustomHelp(help_.HelpCommand):
         return embed
 
     @staticmethod
-    def is_consume_rest_converter(
-        converter: converters._BaseConverter,
-    ) -> bool:
-        while 1:
-            if isinstance(converter, converters._ConsumeRestConverter):
-                return True
-
-            if not (converter := getattr(converter, "converter", None)):
-                break
-
-        return False
-
-    @staticmethod
     def get_command_signature(command: commands.Command) -> str:
         """
         Gets the command signature for a command or a command group.
@@ -81,31 +68,13 @@ class CustomHelp(help_.HelpCommand):
         else:
             fmt = command.name if not parent else f"{parent.name} {command.name}"
 
-        items = [fmt]
-
-        if usage := getattr(command, "usage", None):
-            items.append(usage)
-        else:
-            for argname, converter in zip(
-                command.arg_details.arguments, command.arg_details.converters
-            ):
-                if isinstance(converter, converters._Converter) and issubclass(
-                    converter.conversion_func, context_.Context
-                ):
-                    continue
-
-                if isinstance(converter, converters._DefaultingConverter):
-                    items.append(f"[{argname}={converter.default!r}]")
-                else:
-                    items.append(f"<{argname}>")
-
-                if CustomHelp.is_consume_rest_converter(converter):
-                    break
-
-        return " ".join(items)
+        return (
+            fmt + " " + getattr(command._initialiser, "signature", None)
+            or command.signature
+        )
 
     @staticmethod
-    async def send_help_overview(context: Context) -> None:
+    async def send_bot_help(context: Context) -> None:
         zws = "\u200b"
         invoked_with = context.invoked_with
         prefix = CustomHelp.get_prefix(context)
@@ -152,9 +121,9 @@ class CustomHelp(help_.HelpCommand):
         ):
             return await CustomHelp.object_not_found(context, "")
 
-        entries = await help_.filter_commands(context, plugin._commands.values())
+        entries = await help_command.filter_commands(plugin._all_commands, context)
         command_names = sorted(
-            [f"`{cmd.qualified_name}`" for cmd in entries],
+            [f"`{cmd.name}`" for cmd in entries],
             key=lambda s: (s.strip("`"), len(s)),
         )
 
@@ -175,30 +144,38 @@ class CustomHelp(help_.HelpCommand):
     ) -> None:
         embed.title = CustomHelp.get_command_signature(command)
         embed.description = inspect.getdoc(command.callback) or "No help found..."
-        if not isinstance(command, commands.Group):
+        if not isinstance(command, commands.PrefixGroupMixin):
             embed.footer.text = "Got confused? Be sure to join the support server!"  # type: ignore
 
     @staticmethod
     async def send_command_help(context: Context, command: commands.Command) -> None:
-        try:
-            await command.is_runnable(context)
-        except errors.CheckFailure:
-            await CustomHelp.object_not_found(context, "")
-            return
+        # TODO
+        # try:
+        #     await command.is_runnable(context)
+        # except errors.CheckFailure:
+        #     await CustomHelp.object_not_found(context, "")
+        #     return
 
         embed = CustomHelp.get_base_embed(context)
         CustomHelp.common_command_formatting(context, embed, command)
         await context.respond(embed=embed)
 
     @staticmethod
-    async def send_group_help(context: Context, group: commands.Group) -> None:
-        try:
-            await group.is_runnable(context)
-        except errors.CheckFailure:
-            await CustomHelp.object_not_found(context, "")
-            return
+    async def send_group_help(
+        context: Context, group: commands.PrefixGroupMixin
+    ) -> None:
+        # TODO
+        # try:
+        #     await group.is_runnable(context)
+        # except errors.CheckFailure:
+        #     await CustomHelp.object_not_found(context, "")
+        #     return
 
-        if not (subcommands := await help_.filter_commands(context, group.subcommands)):
+        if not (
+            subcommands := await help_command.filter_commands(
+                group._subcommands.values(), context
+            )
+        ):
             return await CustomHelp.send_command_help(context, group)
 
         embed = CustomHelp.get_base_embed(context)
@@ -218,9 +195,9 @@ class CustomHelp(help_.HelpCommand):
         query = CustomHelp.get_arg(context)
         queries = [i.lower() for i in query.split()]
 
-        cmd = context.bot.get_command(query)
+        cmd = context.bot.get_prefix_command(query)
 
-        iterable = getattr(cmd, "subcommands", context.bot.commands)
+        iterable = getattr(cmd, "_subcommands", context.bot._prefix_commands).values()
 
         def fmt(c: commands.Command) -> str:
             return f'{c}{"".join(c.aliases)}{inspect.getdoc(c.callback) or ""}'
@@ -234,7 +211,7 @@ class CustomHelp(help_.HelpCommand):
                 if context.author.id in context.bot.owner_ids
                 or not p.__module__.startswith("nokari.plugins.extras.")
             ]
-            if i in a.__class__.__name__.lower()
+            if i in a.name.lower()
         ]
 
         if len(matched_plugins) == 1:  # To make plugin queries case-insensitive
@@ -251,11 +228,11 @@ class CustomHelp(help_.HelpCommand):
                         if i
                         in (
                             fmt(c)
-                            if not isinstance(c, commands.Group)
-                            else "".join(fmt(cmd) for cmd in c.subcommands)
+                            if not isinstance(c, commands.PrefixGroupMixin)
+                            else "".join(fmt(cmd) for cmd in c._subcommands.values())
                         )
                     ]
-                    for c in await help_.filter_commands(context, iterable)
+                    for c in await help_command.filter_commands(iterable, context)
                 ]
                 if x
             ],
@@ -265,7 +242,7 @@ class CustomHelp(help_.HelpCommand):
         if len(matches) == 1:  # Just send the object if there's only 1 result
             return await context.send_help(matches[0])
 
-        matches: typing.List[str] = [c.qualified_name for c in matches]
+        matches: typing.List[str] = [c.name for c in matches]
         matches.extend([i.__class__.__name__ for i in matched_plugins])
         matches.sort(key=lambda x: (x, len(x)))
         matches = {f"`{i}`" for i in matches}
@@ -276,7 +253,7 @@ class CustomHelp(help_.HelpCommand):
 
     @staticmethod
     def get_arg(context: Context) -> str:
-        return context.message.content[
+        return context.event.message.content[
             len(f"{context.prefix}{context.invoked_with}") :
         ].strip()
 
@@ -290,28 +267,20 @@ class CustomHelp(help_.HelpCommand):
         await context.respond(embed=embed)
 
 
-class Help(plugins.Plugin):
-    """
-    A plugin that overrides the default help command.
-    """
-
-    def __init__(self, bot: Bot) -> None:
-        super().__init__()
-        self.bot = bot
-        self.old_help_command = bot.help_command
-        bot.help_command = CustomHelp(bot)
-        bot.remove_command("help")
-        bot.add_command(_help_cmd)
-
-    def plugin_remove(self) -> None:
-        self.bot.help_command = self.old_help_command
-        self.bot.remove_command("help")
-        self.bot.add_command(help_._help_cmd)
+old_help_inst: help_command.BaseHelpCommand
+old_help_command: lightbulb.commands.CommandLike
 
 
-def load(bot: Bot) -> None:
-    bot.add_plugin(Help(bot))
+def load(bot: BotApp) -> None:
+    global old_help_inst, old_help_command
+    old_help_inst = bot._help_command
+    old_help_command = bot.get_prefix_command("help")._initialiser
+    bot._help_command = CustomHelp(bot)
+    bot.remove_command(old_help_command)
+    bot.command(_help_cmd)
 
 
-def unload(bot: Bot) -> None:
-    bot.remove_plugin("Help")
+def unload(bot: BotApp) -> None:
+    bot.help_command = old_help_command
+    bot.remove_command(_help_cmd)
+    bot.command(old_help_command)

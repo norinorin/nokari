@@ -8,7 +8,7 @@ from io import BytesIO
 
 import hikari
 import lightbulb
-from lightbulb import Bot, plugins
+from lightbulb import BotApp, plugins
 from sphobjinv import Inventory
 
 from nokari import core, utils
@@ -516,7 +516,7 @@ async def rtfd_hikari(ctx: Context) -> None:
     await paginator.start()
 
 
-def load(bot: Bot) -> None:
+def load(bot: BotApp) -> None:
     bot.add_plugin(api)
     if not hasattr(bot, "spotify_client") and all(
         var in os.environ for var in SPOTIFY_VARS
@@ -526,5 +526,5 @@ def load(bot: Bot) -> None:
     api.d.spotify_client = bot.spotify_client
 
 
-def unload(bot: Bot) -> None:
+def unload(bot: BotApp) -> None:
     bot.remove_plugin("API")

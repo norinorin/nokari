@@ -31,12 +31,12 @@ class Context(lightbulb.context.Context):
             and self.bot.cache.get_member(self.guild_id, me.id)
         )
 
-    def execute_plugins(
+    def execute_extensions(
         self, func: typing.Callable[[str], None], plugins: str
     ) -> typing.Awaitable[hikari.Message]:
-        """A helper methods for loading, unloading, and reloading external plugins."""
+        """A helper methods for loading, unloading, and reloading extensions."""
         if plugins in ("all", "*"):
-            plugins_set = set(self.bot.raw_plugins)
+            plugins_set = set(self.bot.raw_extensions)
         else:
             plugins_set = set(
                 sum(
@@ -51,8 +51,8 @@ class Context(lightbulb.context.Context):
         for plugin in plugins_set:
             try:
                 func(
-                    f"nokari.plugins.{plugin}"
-                    if not plugin.startswith("nokari.plugins.")
+                    f"nokari.extensions.{plugin}"
+                    if not plugin.startswith("nokari.extensions.")
                     else plugin
                 )
             except Exception as _e:  # pylint: disable=broad-except
@@ -144,7 +144,7 @@ class PrefixContext(Context, lightbulb.context.PrefixContext):
         role_mentions: undefined.UndefinedOr[
             typing.Union[snowflakes.SnowflakeishSequence[guilds.PartialRole], bool]
         ] = undefined.UNDEFINED,
-    ) -> Message:
+    ) -> lightbulb.context.ResponseProxy:
         """Overrides respond method for command invoke on message edit support."""
         if isinstance(embed, hikari.Embed) and embed.color is None:
             embed.color = self.color
@@ -176,7 +176,7 @@ class PrefixContext(Context, lightbulb.context.PrefixContext):
 
         if (
             resp := self.bot.cache.get_message(
-                self.bot.responses_cache.get(self.message_id, 0)
+                self.bot.responses_cache.get(self.event.message_id, 0)
             )
         ) is not None and self.edited_timestamp:
             return await resp.edit(
@@ -193,7 +193,7 @@ class PrefixContext(Context, lightbulb.context.PrefixContext):
             )
 
         if resp is None:
-            self.bot.responses_cache.pop(self.message_id, None)
+            self.bot.responses_cache.pop(self.event.message_id, None)
 
         resp = await super().respond(
             content=content,
@@ -212,6 +212,11 @@ class PrefixContext(Context, lightbulb.context.PrefixContext):
             mentions_reply=mentions_reply,
         )
 
-        self.bot.responses_cache[self.message_id] = resp.id
+        self.bot.responses_cache[self.event.message_id] = (await resp.message()).id
 
         return resp
+
+    async def invoke(self) -> None:
+        if getattr(self.command, "disabled", False):
+            return None
+        return await super().invoke()

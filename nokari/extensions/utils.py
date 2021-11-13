@@ -12,14 +12,14 @@ import asyncpg
 import hikari
 import lightbulb
 from hikari.snowflakes import Snowflake
-from lightbulb import Bot, Plugin
+from lightbulb import BotApp, Plugin
 from tabulate import tabulate
 
 from nokari import core
 from nokari.core.context import Context
 from nokari.utils import db, plural, timers
 from nokari.utils.chunker import chunk, simple_chunk
-from nokari.utils.converters import time_converter
+from nokari.utils.converters import TimeConverter
 from nokari.utils.formatter import discord_timestamp, escape_markdown, human_timedelta
 from nokari.utils.paginator import Paginator
 from nokari.utils.parser import ArgumentParser
@@ -49,7 +49,7 @@ class Reminders(db.Table):
 utils = Plugin("Utils")
 event = asyncio.Event()
 _current_timer: typing.Optional[timers.Timer] = None
-_task: asyncio.Task[None]
+_task: asyncio.Task[None] = None
 REMIND_PARSER = (
     ArgumentParser()
     .interval("--interval", "-i", argmax=0, default=False)
@@ -170,12 +170,7 @@ async def verify_timer_integrity(id_: typing.Optional[int] = None) -> None:
 
 @utils.command
 @core.consume_rest_option("when", "The time for the bot to remind you.")
-@core.command(
-    "remind",
-    "Create a reminder.",
-    signature="<when[, message]>",
-    insensitive_commands=True,
-)
+@core.command("remind", "Create a reminder.", signature="<when[, message]>")
 @core.implements(lightbulb.commands.PrefixCommandGroup)
 async def remind(ctx: Context) -> None:
     """
@@ -193,7 +188,7 @@ async def remind(ctx: Context) -> None:
     -d, --daily: same as interval with 24 hours period.
     """
     parsed = REMIND_PARSER.parse(None, ctx.options.when)
-    dt, rem = await time_converter(WrappedArg(parsed.remainder, ctx))
+    dt, rem = await TimeConverter(ctx).convert(parsed.remainder)
 
     if parsed.interval and parsed.daily:
         raise ValueError("You can't specify both interval and daily flags.")
@@ -314,7 +309,7 @@ async def remind_list(ctx: Context) -> None:
     await Paginator.default(ctx, callback=get_page).start()
 
 
-@utils.listener()
+@utils.listener
 async def on_reminder(event: ReminderTimerEvent) -> None:
     channel_id, author_id, message = event.timer.args
 
@@ -568,14 +563,14 @@ async def remind_edit(ctx: Context) -> None:
     await ctx.respond(f"Alright, it's now set to {ctx.options.message}.")
 
 
-def load(bot: Bot) -> None:
+def load(bot: BotApp) -> None:
     global _task
     bot.add_plugin(utils, requires_db=True)
     if bot.pool:
-        _task: asyncio.Task[None] = asyncio.create_task(dispatch_timers())
+        _task = asyncio.create_task(dispatch_timers())
 
 
-def unload(bot: Bot) -> None:
+def unload(bot: BotApp) -> None:
     bot.remove_plugin("Utils")
-    with suppress(NameError):
-        _task.cancel()
+    with suppress(NameError, AttributeError):
+        _task.cancel()  # TODO: remove_hook

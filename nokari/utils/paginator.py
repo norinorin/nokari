@@ -21,7 +21,8 @@ import hikari
 from hikari import snowflakes, undefined
 from hikari.impl.special_endpoints import _ButtonBuilder
 from hikari.interactions.component_interactions import ComponentInteraction
-from lightbulb.utils import maybe_await
+
+from nokari.utils import maybe_await
 
 if TYPE_CHECKING:
     from nokari.core.context import Context

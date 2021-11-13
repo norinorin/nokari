@@ -7,7 +7,7 @@ from collections import Counter
 import hikari
 import lightbulb
 import psutil
-from lightbulb import Bot, plugins
+from lightbulb import BotApp, plugins
 
 from nokari import core
 from nokari.core import Context
@@ -111,10 +111,10 @@ async def ping(ctx: Context) -> None:
     )
 
     t0 = time.perf_counter()
-    msg = await ctx.respond(embed=embed)
+    resp = await (await ctx.respond(embed=embed)).message()
     rest_latency = time.perf_counter() - t0
     embed.add_field("REST latency", _format_latency(rest_latency))
-    await msg.edit(embed=embed)
+    await resp.edit(embed=embed)
 
 
 @meta.command
@@ -180,9 +180,9 @@ async def source(ctx: Context) -> None:
     await ctx.respond(f"<{base_url}/blob/{commit_hash}/{blob}{hash_jump}>")
 
 
-def load(bot: Bot) -> None:
+def load(bot: BotApp) -> None:
     bot.add_plugin(meta)
 
 
-def unload(bot: Bot) -> None:
+def unload(bot: BotApp) -> None:
     bot.remove_plugin("Meta")

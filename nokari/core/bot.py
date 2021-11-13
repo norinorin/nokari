@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-import functools
 import importlib
 import logging
 import os
@@ -23,13 +22,11 @@ from hikari.interactions.component_interactions import ComponentInteraction
 from hikari.messages import ButtonStyle
 from hikari.snowflakes import Snowflake
 from lightbulb import checks, commands
-from lightbulb.utils import maybe_await
 from lru import LRU  # pylint: disable=no-name-in-module
 
-from nokari.core import constants
+from nokari.core import commands, constants
 from nokari.core.cache import Cache
-from nokari.core.commands import command, group
-from nokari.core.context import Context
+from nokari.core.context import PrefixContext
 from nokari.core.entity_factory import EntityFactory
 from nokari.utils import db, human_timedelta
 
@@ -37,9 +34,6 @@ if typing.TYPE_CHECKING:
     from nokari.utils.paginator import Paginator
 
 __all__: typing.Final[typing.List[str]] = ["Nokari"]
-_CommandOrPluginT = typing.TypeVar(
-    "_CommandOrPluginT", bound=typing.Union[lightbulb.Plugin, lightbulb.Command]
-)
 _LOGGER = logging.getLogger("nokari.core.bot")
 
 
@@ -58,7 +52,7 @@ class Messageable(typing.Protocol):
     send: typing.Callable[..., typing.Coroutine[None, None, hikari.Message]]
 
 
-class Nokari(lightbulb.Bot):
+class Nokari(lightbulb.BotApp):
     """The custom command handler class."""
 
     # pylint: disable=too-many-instance-attributes
@@ -77,7 +71,7 @@ class Nokari(lightbulb.Bot):
             | hikari.Intents.GUILD_MEMBERS
             | hikari.Intents.GUILD_MESSAGE_REACTIONS
             | hikari.Intents.GUILD_PRESENCES,
-            insensitive_commands=True,
+            case_insensitive_prefix_commands=True,
             prefix=lightbulb.when_mentioned_or(_get_prefixes),
             owner_ids=[265080794911866881],
             logs=constants.LOG_LEVEL,
@@ -103,9 +97,9 @@ class Nokari(lightbulb.Bot):
 
         # Non-modular commands
         _ = [
-            self.add_command(g)
+            self.command(g)
             for g in globals().values()
-            if isinstance(g, commands.Command)
+            if isinstance(g, commands.CommandLike)
         ]
 
         # Set Launch time
@@ -119,24 +113,9 @@ class Nokari(lightbulb.Bot):
             Snowflake, Paginator
         ] = weakref.WeakValueDictionary()
 
-    # pylint: disable=redefined-outer-name
-    @functools.wraps(lightbulb.Bot._invoke_command)
-    async def _invoke_command(
-        self,
-        command: commands.Command,
-        context: Context,
-        args: typing.Sequence[typing.Any],
-        kwargs: typing.Mapping[str, typing.Any],
-    ) -> None:
-        if getattr(command, "disabled", False):
-            return
-
-        return await super()._invoke_command(command, context, args, kwargs)
-
-    @functools.wraps(lightbulb.Bot.start)
     async def start(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         await self.create_pool()
-        self.load_extensions()
+        self._load_extensions()
         await super().start(*args, **kwargs)
         self.launch_time = datetime.datetime.now(datetime.timezone.utc)
 
@@ -155,7 +134,6 @@ class Nokari(lightbulb.Bot):
 
             await self.rest.edit_message(*raw.split("-"), "Successfully restarted!")
 
-    @functools.wraps(lightbulb.Bot.close)
     async def close(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         if utils := self.get_plugin("Utils"):
             utils.plugin_remove()
@@ -202,55 +180,29 @@ class Nokari(lightbulb.Bot):
                 for record in await self.pool.fetch("SELECT * FROM prefixes")
             }
 
-    async def _resolve_prefix(self, message: hikari.Message) -> str | None:
-        """Case-insensitive prefix resolver."""
-        prefixes = await maybe_await(self.get_prefix, self, message)
-
-        if isinstance(prefixes, str):
-            prefixes = [prefixes]
-
-        prefixes.sort(key=len, reverse=True)
-
-        if message.content is not None:
-            lowered_content = message.content.lower()
-            content_length = len(lowered_content)
-            for prefix in prefixes:
-                prefix = prefix.strip()
-                if lowered_content.startswith(prefix):
-                    while (prefix_length := len(prefix)) < content_length and (
-                        next_char := lowered_content[prefix_length : prefix_length + 1]
-                    ).isspace():
-                        prefix += next_char
-                        continue
-                    return prefix
-        return None
-
-    def get_context(
+    def get_prefix_context(
         self,
-        message: hikari.Message,
-        prefix: str,
-        invoked_with: str,
-        invoked_command: commands.Command,
-    ) -> Context:
-        """Gets custom Context object."""
-        return Context(self, message, prefix, invoked_with, invoked_command)
+        event: hikari.MessageCreateEvent,
+        cls: typing.Type[lightbulb.context.prefix.PrefixContext] = PrefixContext,
+    ) -> typing.Awaitable[typing.Optional[lightbulb.context.prefix.PrefixContext]]:
+        return super().get_prefix_context(event, cls=cls)
 
     @property
-    def raw_plugins(self) -> typing.Iterator[str]:
+    def raw_extensions(self) -> typing.Iterator[str]:
         """
         Returns the plugins' path component.
 
         I can actually do the following:
             return (
                 f"{'.'.join(i.parts)}[:-3]"
-                for i in Path("nokari/plugins").rglob("[!_]*.py")
+                for i in Path("nokari/extensions").rglob("[!_]*.py")
             )
 
         Though, I found os.walk() is ~57%–70% faster (it shouldn't matter, but w/e.)
         """
         return (
             f"{path.strip('/').replace('/', '.')}.{file[:-3]}"
-            for path, _, files in os.walk("nokari/plugins/")
+            for path, _, files in os.walk("nokari/extensions/")
             for file in files
             if file.endswith(".py")
             and "__pycache__" not in path
@@ -266,16 +218,16 @@ class Nokari(lightbulb.Bot):
             else "Not available."
         )
 
-    def load_extensions(self) -> None:
+    def _load_extensions(self) -> None:
         """Loads all the plugins."""
-        for extension in self.raw_plugins:
+        for extension in self.raw_extensions:
             try:
-                self.load_extension(extension)
+                self.load_extensions(extension)
             except lightbulb.errors.ExtensionMissingLoad:
                 _LOGGER.error("%s is missing load function", extension)
             except lightbulb.errors.ExtensionAlreadyLoaded:
                 pass
-            except lightbulb.errors.ExtensionError as _e:
+            except lightbulb.errors.LightbulbError as _e:
                 _LOGGER.error("%s failed to load", exc_info=_e)
 
     # pylint: disable=lost-exception
@@ -288,7 +240,7 @@ class Nokari(lightbulb.Bot):
         timeout: float = 60.0,
         delete_after: bool = False,
     ) -> bool:
-        if isinstance(messageable, Context):
+        if isinstance(messageable, PrefixContext):
             color = messageable.color
         else:
             color = self.default_color
@@ -364,31 +316,38 @@ class Nokari(lightbulb.Bot):
         return super().add_plugin(plugin)
 
 
-@lightbulb.check(checks.owner_only)
-@group(name="reload")
-async def reload_plugin(ctx: Context, *, plugins: str = "*") -> None:
-    """Reloads certain or all the plugins."""
-    await ctx.execute_plugins(ctx.bot.reload_extension, plugins)
+@commands.add_checks(checks.owner_only)
+@commands.consume_rest_option("plugins", "The plugins to reload.", default="*")
+@commands.command("reload", "Reloads plugins.")
+@commands.implements(lightbulb.commands.PrefixCommandGroup)
+async def reload_plugin(ctx: PrefixContext) -> None:
+    await ctx.execute_extensions(ctx.bot.reload_extensions, ctx.options.plugins)
 
 
-@lightbulb.check(checks.owner_only)
-@command(name="unload")
-async def unload_plugin(ctx: Context, *, plugins: str = "*") -> None:
-    """Unloads certain or all the plugins."""
-    await ctx.execute_plugins(ctx.bot.unload_extension, plugins)
+@lightbulb.add_checks(checks.owner_only)
+@commands.consume_rest_option("plugins", "The plugins to unload.", default="*")
+@commands.command("unload", "Unloads plugins.")
+@commands.implements(lightbulb.commands.PrefixCommandGroup)
+async def unload_plugin(ctx: PrefixContext) -> None:
+    await ctx.execute_extensions(ctx.bot.unload_extensions, ctx.options.plugins)
 
 
-@lightbulb.check(checks.owner_only)
-@command(name="load")
-async def load_plugin(ctx: Context, *, plugins: str = "*") -> None:
-    """Loads certain or all the plugins."""
-    await ctx.execute_plugins(ctx.bot.load_extension, plugins)
+@lightbulb.add_checks(checks.owner_only)
+@commands.consume_rest_option("plugins", "The plugins to load.", default="*")
+@commands.command("load", "Loads plugins.")
+@commands.implements(lightbulb.commands.PrefixCommandGroup)
+async def load_plugin(ctx: PrefixContext) -> None:
+    await ctx.execute_extensions(ctx.bot.load_extensions, ctx.options.plugins)
 
 
-@reload_plugin.command(name="module")
-async def reload_module(ctx: Context, *, modules: str) -> None:
+@reload_plugin.child
+@lightbulb.add_checks(checks.owner_only)
+@commands.consume_rest_option("modules", "Modules to reload.")
+@commands.command("module", "Reloads modules.")
+@commands.implements(lightbulb.commands.PrefixSubCommand)
+async def reload_module(ctx: PrefixContext) -> None:
     """Hot-reload modules."""
-    modules = set(modules.split())
+    modules = set(ctx.options.modules.split())
     failed = set()
     parents = set()
     for mod in modules:
@@ -412,11 +371,3 @@ async def reload_module(ctx: Context, *, modules: str) -> None:
     loaded = "\n".join(f"+ {i}" for i in modules ^ {x[0] for x in failed})
     failed = "\n".join(f"- {m} {e}" for m, e in failed)
     await ctx.respond(f"```diff\n{loaded}\n{failed}```")
-
-
-def requires_db(command_or_plugin: _CommandOrPluginT) -> _CommandOrPluginT:
-    if isinstance(command_or_plugin, commands.Command):
-        command_or_plugin.disabled = True
-    else:
-        command_or_plugin.__requires_db__ = True
-    return command_or_plugin

@@ -8,55 +8,59 @@ import parsedatetime as pdt
 import pytz
 from dateutil.relativedelta import relativedelta
 from lightbulb import utils
-from lightbulb.converters import WrappedArg
-from lightbulb.converters import member_converter as member_converter_
-from lightbulb.converters import user_converter as user_converter_
+from lightbulb.converters import BaseConverter
 from lightbulb.errors import ConverterFailure
 from lru import LRU  # pylint: disable=no-name-in-module
 
 __all__: typing.Final[typing.List[str]] = [
-    "user_converter",
-    "member_converter",
-    "caret_converter",
-    "time_converter",
+    "UserConverter",
+    "MemberConverter",
+    "CaretConverter",
+    "TimeConverter",
 ]
 
 
-async def caret_converter(arg: WrappedArg) -> typing.Optional[hikari.Message]:
-    ret = None
+class CaretConverter(BaseConverter):
+    __slots__ = ()
 
-    if not arg.data:
-        return arg.context.message
+    async def convert(self, arg: str) -> typing.Optional[hikari.Message]:
+        ret = None
 
-    if set((stripped := arg.data.strip())) == {"^"}:
-        n = len(stripped)
-        try:
-            ret = (
-                await arg.context.bot.cache.get_messages_view()
-                .iterator()
-                .filter(
-                    lambda m: m.created_at < arg.context.message.created_at
-                    and m.channel_id == arg.context.channel_id
+        if not arg:
+            return arg.context.message
+
+        if set((stripped := arg.strip())) == {"^"}:
+            n = len(stripped)
+            try:
+                ret = (
+                    await self.context.bot.cache.get_messages_view()
+                    .iterator()
+                    .filter(
+                        lambda m: m.created_at < self.context.message.created_at
+                        and m.channel_id == self.context.channel_id
+                    )
+                    .reversed()
+                    .limit(n)
+                    .collect(list)
+                )[n]
+            except IndexError:
+                ret = await (
+                    self.context.channel.fetch_history(before=self.context.message_id)
+                    .limit(n)
+                    .last()
                 )
-                .reversed()
-                .limit(n)
-                .collect(list)
-            )[n]
-        except IndexError:
-            ret = await (
-                arg.context.channel.fetch_history(before=arg.context.message_id)
-                .limit(n)
-                .last()
-            )
 
-    return ret
+        return ret
 
 
-async def user_converter(arg: WrappedArg) -> hikari.User:
-    if (msg := await caret_converter(arg)) is not None:
-        return msg.author
+class UserConverter(lightbulb.converters.UserConverter):
+    __slots__ = ()
 
-    return await user_converter_(arg)  # pylint: disable=abstract-class-instantiated
+    async def convert(self, arg: str) -> hikari.User:
+        if (msg := await CaretConverter(self.context).convert(arg)) is not None:
+            return msg.author
+
+        return await super().convert(arg)
 
 
 _member_cache = LRU(50)
@@ -94,27 +98,30 @@ async def search_member(
     return None
 
 
-async def member_converter(arg: WrappedArg) -> hikari.Member:
-    if (msg := await caret_converter(arg)) is not None:
-        if msg.member is not None:
-            return msg.member
+class MemberConverter(lightbulb.converters.MemberConverter):
+    __slots__ = ()
 
-        if (member := arg.context.guild.get_member(msg.author.id)) is not None:
+    async def convert(self, arg: str) -> hikari.Member:
+        if (msg := await CaretConverter(self.context).convert(arg)) is not None:
+            if msg.member is not None:
+                return msg.member
+
+            if (member := arg.context.guild.get_member(msg.author.id)) is not None:
+                return member
+
+        if member := _member_cache.get(f'{arg.context.guild_id}:{arg.strip("<@!>")}'):
             return member
 
-    if member := _member_cache.get(f'{arg.context.guild_id}:{arg.data.strip("<@!>")}'):
-        return member
+        try:
+            member = await super().convert(arg)
+            _member_cache[f"{member.guild_id}:{member.id}"] = member
+            return member
+        except ConverterFailure:
+            member = await search_member(arg.context.bot, arg.context.guild_id, arg)
+            if not member:
+                raise
 
-    try:
-        member = await member_converter_(arg)
-        _member_cache[f"{member.guild_id}:{member.id}"] = member
-        return member
-    except ConverterFailure:
-        member = await search_member(arg.context.bot, arg.context.guild_id, arg.data)
-        if not member:
-            raise
-
-        return member
+            return member
 
 
 # Mostly a copy-paste from RoboDanny.
@@ -138,29 +145,29 @@ def ensure_future_time(dt: datetime, now: datetime) -> None:
         raise ValueError("The argument can't be past time.")
 
 
-class ConvertTime(lightbulb.converters.BaseConverter[typing.Tuple[datetime, str]]):
+class TimeConverter(lightbulb.converters.BaseConverter[typing.Tuple[datetime, str]]):
     __slots__ = ()
 
     # pylint: disable=too-many-branches
     async def convert(self, arg: str) -> typing.Tuple[datetime, str]:
         now = self.context.message.created_at
 
-        if (match := TIME_RE.match(arg.data)) is not None and match.group(0):
+        if (match := TIME_RE.match(arg)) is not None and match.group(0):
             data = {k: int(v) for k, v in match.groupdict(default="0").items()}
-            remaining = arg.data[match.end() :].strip()
+            remaining = arg[match.end() :].strip()
             dt = now + relativedelta(**data)  # type: ignore
             ensure_future_time(dt, now)
             return dt, remaining
 
-        if arg.data.endswith("from now"):
-            arg.data = arg.data[:-8].strip()
+        if arg.endswith("from now"):
+            arg = arg[:-8].strip()
 
-        if arg.data.startswith(("me to ", "me in ", "me at ")):
-            arg.data = arg.data[6:]
+        if arg.startswith(("me to ", "me in ", "me at ")):
+            arg = arg[6:]
 
         exc = ValueError('Invalid time provided, try e.g. "next week" or "2 days".')
 
-        if (elements := CALENDAR.nlp(arg.data, sourceTime=now)) is None or len(
+        if (elements := CALENDAR.nlp(arg, sourceTime=now)) is None or len(
             elements
         ) == 0:
             raise exc
@@ -172,7 +179,7 @@ class ConvertTime(lightbulb.converters.BaseConverter[typing.Tuple[datetime, str]
         if not status.hasDateOrTime:
             raise exc
 
-        if begin not in (0, 1) and end != len(arg.data):
+        if begin not in (0, 1) and end != len(arg):
             raise ValueError(
                 "The time must be either in the beginning or end of the argument."
             )
@@ -193,16 +200,16 @@ class ConvertTime(lightbulb.converters.BaseConverter[typing.Tuple[datetime, str]
         if begin in (0, 1):
             if begin == 1:
                 # check if it's quoted:
-                if arg.data[0] != '"':
+                if arg[0] != '"':
                     raise ValueError("Expected quote before time input...")
 
-                if not (end < len(arg.data) and arg.data[end] == '"'):
+                if not (end < len(arg) and arg[end] == '"'):
                     raise ValueError("Expected closing quote...")
 
-                remaining = arg.data[end + 1 :].lstrip(" ,.!")
+                remaining = arg[end + 1 :].lstrip(" ,.!")
             else:
-                remaining = arg.data[end:].lstrip(" ,.!")
-        elif len(arg.data) == end:
-            remaining = arg.data[:begin].strip()
+                remaining = arg[end:].lstrip(" ,.!")
+        elif len(arg) == end:
+            remaining = arg[:begin].strip()
 
         return dt, remaining

@@ -4,10 +4,20 @@ from __future__ import annotations
 import logging
 import os
 import typing
+from functools import partial
 
-from lightbulb import commands, context
+from lightbulb import add_checks, commands, context, implements, option
+from lightbulb.commands import OptionModifier
 
-__all__: typing.Final[typing.List[str]] = ["CommandLike", "command"]
+__all__: typing.Final[typing.List[str]] = [
+    "CommandLike",
+    "command",
+    "add_checks",
+    "implements",
+    "option",
+    "greedy_option",
+    "consume_rest_option",
+]
 _LOGGER = logging.getLogger("nokari.core.commands")
 
 
@@ -60,3 +70,7 @@ def command(
         return CommandLike(func, name, description, disabled=bool(missing), **kwargs)
 
     return decorate
+
+
+greedy_option = partial(option, modifier=OptionModifier.GREEDY)
+consume_rest_option = partial(option, modifier=OptionModifier.CONSUME_REST)
