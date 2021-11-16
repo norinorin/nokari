@@ -239,11 +239,11 @@ async def shell(ctx: Context) -> None:
 async def restart(ctx: Context) -> None:
     """Just to check whether or not the -OO flag was present."""
 
-    if not (content := ctx.event.message.content) or content.endswith("restart"):
+    if not ((content := ctx.event.message.content) or content.endswith("restart")):
         # Temp replacement for allow_extra_arguments=False
         return
 
-    msg = await ctx.respond("Restarting...")
+    msg = await (await ctx.respond("Restarting...")).message()
 
     with suppress(FileExistsError):
         os.mkdir("tmp")

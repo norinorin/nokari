@@ -892,9 +892,9 @@ class SpotifyClient:
                 shorten(f"{idx}. {format.format(item=item)}"), str(idx - 1)
             ).add_to_menu()
 
-        respond = await ctx.respond(
-            content=title[not seq], component=menu.add_to_container()
-        )
+        respond = await (
+            await ctx.respond(content=title[not seq], component=menu.add_to_container())
+        ).message()
 
         with suppress(asyncio.TimeoutError):
             event = await self.bot.wait_for(

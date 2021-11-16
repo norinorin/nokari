@@ -244,7 +244,7 @@ class Paginator:
             self.message = interaction.message
             await interaction.edit_initial_response(**options)
         else:
-            self.message = await self.ctx.respond(**options)
+            self.message = await (await self.ctx.respond(**options)).message()
 
         if not self.is_paginated:
             self.clean_up()
