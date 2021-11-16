@@ -101,7 +101,9 @@ async def prefix(ctx: core.Context) -> None:
 
 @prefix.child
 @core.add_cooldown(4, 1, UserBucket)
-@core.consume_rest_option("prefix", "The prefix to toggle.", PrefixConverter)
+@core.consume_rest_option(
+    "prefix", "The prefix to toggle.", PrefixConverter, default=""
+)
 @core.command(
     "user", "Appends the prefix to user prefixes if not exists, otherwise remove it."
 )
@@ -114,7 +116,9 @@ async def prefix_user(ctx: core.Context) -> None:
 @prefix.child
 @core.add_cooldown(4, 1, UserBucket)
 @core.add_checks(has_role_permissions(hikari.Permissions.MANAGE_MESSAGES))
-@core.consume_rest_option("prefix", "The prefix to toggle.", PrefixConverter)
+@core.consume_rest_option(
+    "prefix", "The prefix to toggle.", PrefixConverter, default=""
+)
 @core.command(
     "guild",
     "Appends the prefix to guild prefixes if not exists, otherwise remove it.",
