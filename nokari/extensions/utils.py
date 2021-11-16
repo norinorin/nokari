@@ -12,7 +12,6 @@ import asyncpg
 import hikari
 import lightbulb
 from hikari.snowflakes import Snowflake
-from lightbulb import Plugin
 from tabulate import tabulate
 
 from nokari import core
@@ -46,7 +45,7 @@ class Reminders(db.Table):
     interval: db.Column[Snowflake]  # BIGINT
 
 
-utils = Plugin("Utils", None, True)
+utils = core.Plugin("Utils", None, True)
 utils.d.event = asyncio.Event()
 REMIND_PARSER = (
     ArgumentParser()
