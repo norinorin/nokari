@@ -60,18 +60,18 @@ class CustomHelp(help_command.DefaultHelpCommand):
         """
 
         parent = command.parent
+        fmt = command.qualname
         if len(command.aliases) > 0:
             aliases = "|".join(command.aliases)
-            fmt = f"[{command.name}|{aliases}]"
-            if parent:
-                fmt = f"{parent.name} {fmt}"
-        else:
-            fmt = command.name if not parent else f"{parent.name} {command.name}"
+            fmt = f"{parent.name} {fmt}" if parent else f"[{command.name}|{aliases}]"
 
         return (
             fmt
             + " "
-            + (getattr(command._initialiser, "signature", None) or command.signature)
+            + (
+                getattr(command._initialiser, "signature", None)
+                or f" {' '.join(f'<{o.name}>' if o.required else f'[{o.name}={o.default}]' for o in command.options.values())}"
+            )
         )
 
     @staticmethod
