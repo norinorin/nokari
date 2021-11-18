@@ -56,7 +56,7 @@ async def send_spotify_card(
     style_map = {
         "dynamic": "1",
         "fixed": "2",
-        **{s: s for n in range(1, 3) if (s := str(n))},
+        **{(s := str(n)): s for n in range(1, 3)},
     }
     style = style_map.get(args.style, "2")
 
@@ -473,14 +473,13 @@ async def rtfd_hikari(ctx: Context) -> None:
 
     if not api.d.hikari_objects:
         api.d.hikari_objects = {
-            (name, f"[`{name}`]({BASE_URL}/{hikari_obj.uri.rstrip('#$')})")
+            (name := hikari_obj.name, f"[`{name}`]({BASE_URL}/{hikari_obj.uri.rstrip('#$')})")
             for hikari_obj in (
                 await ctx.bot.loop.run_in_executor(
                     ctx.bot.executor,
                     partial(Inventory, url=f"{BASE_URL}/objects.inv"),
                 )
             ).objects
-            if (name := hikari_obj.name)
         }
 
     if not (
