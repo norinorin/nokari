@@ -3,7 +3,7 @@ import typing
 import hikari
 import lightbulb
 from hikari.snowflakes import Snowflake
-from lightbulb import errors
+from hikari.undefined import UNDEFINED, UndefinedOr
 from lightbulb.checks import has_role_permissions
 from lightbulb.cooldowns import UserBucket
 
@@ -16,15 +16,16 @@ class Prefixes(db.Table):
     prefixes: db.Column[typing.List[str]]
 
 
-class PrefixConverter(lightbulb.converters.BaseConverter[str]):
+class PrefixConverter(lightbulb.converters.BaseConverter[UndefinedOr[str]]):
     __slots__ = ()
 
-    async def convert(self, arg: str) -> str:
+    async def convert(self, arg: str) -> UndefinedOr[str]:
         if (me := self.context.bot.get_me()) and arg in (
             f"<@{me.id}>",
             f"<@!{me.id}>",
         ):
-            raise errors.ConverterFailure(f"{arg} is an existing prefix...")
+            await self.context.respond(f"{arg} is an existing prefix...")
+            return UNDEFINED
 
         return arg.strip().lower()
 
@@ -109,7 +110,9 @@ async def prefix(ctx: core.Context) -> None:
 )
 @core.implements(lightbulb.commands.PrefixSubCommand)
 async def prefix_user(ctx: core.Context) -> None:
-    await ctx.bot.pool.execute(PREFIX_TOGGLE_QUERY, ctx.author.id, ctx.options.prefix)
+    if (prefix_ := ctx.options.prefix) is UNDEFINED:
+        return
+    await ctx.bot.pool.execute(PREFIX_TOGGLE_QUERY, ctx.author.id, prefix_)
     await prefix.callback(ctx)
 
 
@@ -130,7 +133,9 @@ async def prefix_guild(ctx: core.Context) -> None:
     Appends the prefix to guild prefixes if not exists, otherwise remove it.
     The default prefixes are only available if there are no guild prefixes were set.
     """
-    await ctx.bot.pool.execute(PREFIX_TOGGLE_QUERY, ctx.guild_id, ctx.options.prefix)
+    if (prefix_ := ctx.options.prefix) is UNDEFINED:
+        return
+    await ctx.bot.pool.execute(PREFIX_TOGGLE_QUERY, ctx.guild_id, prefix_)
     await prefix.callback(ctx)
 
 
