@@ -116,17 +116,6 @@ class Cache(CacheImpl):
 
         return super()._set_member(member, is_reference=is_reference)
 
-    def _garbage_collect_message(
-        self,
-        message: cache.RefCell[cache.MessageData],
-        *,
-        decrement: typing.Optional[int] = 1,
-        override_ref: bool = False,
-    ) -> typing.Optional[cache.RefCell[cache.MessageData]]:
-        return super()._garbage_collect_message(
-            message, decrement=decrement, override_ref=override_ref
-        )
-
     def _on_message_expire(self, message: cache.RefCell[cache.MessageData], /) -> None:
         if not self._garbage_collect_message(message):
             self._referenced_messages[message.object.id] = message
@@ -137,3 +126,48 @@ class Cache(CacheImpl):
     def clear_messages(self) -> cache.CacheView[snowflakes.Snowflake, messages.Message]:
         self._app.responses_cache.clear()
         return super().clear_messages()
+
+    def _garbage_collect_message(
+        self,
+        message: cache.RefCell[cache.MessageData],
+        *,
+        decrement: typing.Optional[int] = None,
+        override_ref: bool = False,
+    ) -> typing.Optional[cache.RefCell[cache.MessageData]]:
+        if decrement is not None:
+            self._increment_ref_count(message, -decrement)
+
+        if not self._can_remove_message(message) or override_ref:
+            return None
+
+        self._garbage_collect_user(message.object.author, decrement=1)
+
+        if message.object.member:
+            guild_record = self._guild_entries.get(
+                message.object.member.object.guild_id
+            )
+            if guild_record:
+                self._garbage_collect_member(
+                    guild_record, message.object.member, decrement=1
+                )
+
+        if not (referenced_message := message.object.referenced_message) and (
+            message_reference := message.object.message_reference
+        ):
+            referenced_message = self._message_entries.get(
+                msg_id := message_reference.id
+            ) or self._referenced_messages.get(msg_id)
+
+        if referenced_message:
+            self._garbage_collect_message(referenced_message, decrement=1)
+
+        if message.object.mentions.users:
+            for user in message.object.mentions.users.values():
+                self._garbage_collect_user(user, decrement=1)
+
+        # If we got this far the message won't be in _message_entries as that'd infer that it hasn't been marked as
+        # deleted yet.
+        if message.object.id in self._referenced_messages:
+            del self._referenced_messages[message.object.id]
+
+        return message
