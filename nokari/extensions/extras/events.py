@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from copy import deepcopy
 from functools import partial
 
+import lightbulb
 from hikari import (
     Embed,
     GuildMessageCreateEvent,
@@ -35,12 +35,12 @@ async def handle_ping(event: GuildMessageCreateEvent) -> None:
     ):
         return
 
-    copied_event = deepcopy(event)
-    copied_event.message.content = "nokariprefix"
-    ctx = await event.app.get_prefix_context(copied_event)
+    cmd = event.app.get_prefix_command("prefix")
+    ctx = core.PrefixContext(event.app, event, cmd, "prefix", "")
+    ctx._parser = lightbulb.utils.Parser(ctx, "")
 
     with suppress(errors.CommandIsOnCooldown):
-        return await event.app.get_prefix_command("prefix").invoke(ctx)
+        return await cmd.invoke(ctx)
 
 
 @events.listener(GuildMessageCreateEvent)
