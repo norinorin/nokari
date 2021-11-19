@@ -7,10 +7,10 @@ from collections import Counter
 import hikari
 import lightbulb
 import psutil
-from lightbulb import plugins
 
 from nokari import core
 from nokari.core import Context
+from nokari.extensions.extras.admin import run_command_in_shell
 from nokari.utils import converters, human_timedelta, paginator, parser, plural, spotify
 
 meta = core.Plugin("Meta")
@@ -173,8 +173,7 @@ async def source(ctx: Context) -> None:
     hash_jump = f"#L{lineno}-L{lineno+len(lines)-1}"
     blob = os.path.relpath(sys.modules[actual_obj.__module__].__file__)
 
-    admin = ctx.bot.get_plugin("Admin")
-    stdout, stderr = await admin.run_command_in_shell("git rev-parse HEAD")
+    stdout, stderr = await run_command_in_shell("git rev-parse HEAD")
     commit_hash = stdout.strip() if not stderr else "master"
 
     await ctx.respond(f"<{base_url}/blob/{commit_hash}/{blob}{hash_jump}>")
