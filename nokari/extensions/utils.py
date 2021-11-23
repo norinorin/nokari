@@ -302,7 +302,7 @@ async def remind_list(ctx: Context) -> None:
     await Paginator.default(ctx, callback=get_page).start()
 
 
-@utils.listener
+@utils.listener(ReminderTimerEvent)
 async def on_reminder(event: ReminderTimerEvent) -> None:
     channel_id, author_id, message = event.timer.args
 
