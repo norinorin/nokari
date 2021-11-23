@@ -114,6 +114,10 @@ class Nokari(lightbulb.BotApp):
             Snowflake, Paginator
         ] = weakref.WeakValueDictionary()
 
+        self.subscribe(hikari.StartingEvent, self.on_starting)
+        self.subscribe(hikari.StartedEvent, self.on_started)
+        self.subscribe(hikari.StoppingEvent, self.on_closing)
+
     async def _setup_topgg_clients(self) -> None:
         if constants.TOPGG_WEBHOOK_AUTH:
             self.webhook_manager = (
@@ -145,16 +149,18 @@ class Nokari(lightbulb.BotApp):
             )
 
     async def _close_topgg_clients(self) -> None:
-        if constants.TOPGG_WEBHOOK_AUTH:
-            await self.webhook_manager.close()
+        if webhook_manager := getattr(self, "webhook_maanger", None):
+            await webhook_manager.close()
 
-        if constants.TOPGG_TOKEN:
-            await self.dblclient.close()
+        if dblclient := getattr(self, "dblclient", None):
+            _LOGGER.info("Closing...")
+            await dblclient.close()
 
-    async def start(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+    async def on_starting(self, _: hikari.StartingEvent) -> None:
         await self.create_pool()
         self._load_extensions()
-        await super().start(*args, **kwargs)
+
+    async def on_started(self, _: hikari.StartedEvent) -> None:
         self.launch_time = datetime.datetime.now(datetime.timezone.utc)
 
         if sys.argv[-1] == "init":
@@ -174,16 +180,12 @@ class Nokari(lightbulb.BotApp):
 
         await self._setup_topgg_clients()
 
-    async def close(self, *args: typing.Any, **kwargs: typing.Any) -> None:
-        if utils := self.get_plugin("Utils"):
-            utils.plugin_remove()
-
+    async def on_closing(self, _: hikari.StoppingEvent) -> None:
         if self.pool:
             await self.pool.close()
             delattr(self, "_pool")
 
         await self._close_topgg_clients()
-        await super().close(*args, **kwargs)
 
     @property
     def default_color(self) -> hikari.Color:
