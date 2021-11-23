@@ -1,5 +1,6 @@
 git+https://github.com/hikari-py/hikari@master#egg=hikari[speedups]
 git+https://github.com/tandemdude/hikari-lightbulb@development#egg=hikari-lightbulb
+topggpy --pre
 python-dotenv
 python-dateutil
 psutil

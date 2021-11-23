@@ -59,6 +59,8 @@ for var in (
     "SPOTIPY_CLIENT_ID",
     "SPOTIPY_CLIENT_SECRET",
     "GUILD_LOGS_WEBHOOK_URL",
+    "TOPGG_TOKEN",
+    "TOPGG_WEBHOOK_AUTH",
 ):
     globals()[var] = os.getenv(var)
 

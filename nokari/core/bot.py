@@ -16,6 +16,7 @@ import aiohttp
 import asyncpg
 import hikari
 import lightbulb
+import topgg
 from hikari.events.interaction_events import InteractionCreateEvent
 from hikari.interactions.base_interactions import ResponseType
 from hikari.interactions.component_interactions import ComponentInteraction
@@ -113,6 +114,43 @@ class Nokari(lightbulb.BotApp):
             Snowflake, Paginator
         ] = weakref.WeakValueDictionary()
 
+    async def _setup_topgg_clients(self) -> None:
+        if constants.TOPGG_WEBHOOK_AUTH:
+            self.webhook_manager = (
+                topgg.WebhookManager()
+                .endpoint()
+                .type(topgg.WebhookType.BOT)
+                .route("/dblwebhook")
+                .auth(constants.TOPGG_WEBHOOK_AUTH)
+                .callback(lambda data: _LOGGER.info("Receives vote %s", data))
+                .add_to_manager()
+            )
+
+        if constants.TOPGG_TOKEN:
+            me = self.get_me()
+            assert me is not None
+            self.dblclient = topgg.DBLClient(
+                constants.TOPGG_TOKEN, default_bot_id=me.id
+            )
+            (
+                self.dblclient.autopost()
+                .on_success(lambda: _LOGGER.info("Successfully posted stats"))
+                .stats(
+                    lambda: topgg.StatsWrapper(
+                        guild_count=len(self.cache.get_guilds_view()),
+                        shard_count=self.shard_count,
+                    )
+                )
+                .start()
+            )
+
+    async def _close_topgg_clients(self) -> None:
+        if constants.TOPGG_WEBHOOK_AUTH:
+            await self.webhook_manager.close()
+
+        if constants.TOPGG_TOKEN:
+            await self.dblclient.close()
+
     async def start(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         await self.create_pool()
         self._load_extensions()
@@ -134,6 +172,8 @@ class Nokari(lightbulb.BotApp):
 
             await self.rest.edit_message(*raw.split("-"), "Successfully restarted!")
 
+        await self._setup_topgg_clients()
+
     async def close(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         if utils := self.get_plugin("Utils"):
             utils.plugin_remove()
@@ -142,6 +182,7 @@ class Nokari(lightbulb.BotApp):
             await self.pool.close()
             delattr(self, "_pool")
 
+        await self._close_topgg_clients()
         await super().close(*args, **kwargs)
 
     @property
