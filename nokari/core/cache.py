@@ -26,7 +26,7 @@ class Cache(CacheImpl):
         ]
     ] = {}
 
-    def add_ref(
+    def _add_presence_ref(
         self, user_id: snowflakes.Snowflake, presence: cache.MemberPresenceData
     ) -> None:
         # dunno if this is atomic, w/e
@@ -35,7 +35,16 @@ class Cache(CacheImpl):
         except KeyError:
             self._presences_garbage[user_id] = weakref.WeakSet((presence,))
 
-    def _gc(self, user_id: snowflakes.Snowflake) -> None:
+    def clear_presences(
+        self,
+    ) -> cache.CacheView[
+        snowflakes.Snowflake,
+        cache.CacheView[snowflakes.Snowflake, presences.MemberPresence],
+    ]:
+        self._presences_garbage.clear()
+        return super().clear_presences()
+
+    def _garbage_collect_presence(self, user_id: snowflakes.Snowflake) -> None:
         if not self._presences_garbage.get(user_id):
             self._presences_garbage.pop(user_id, None)
 
@@ -53,7 +62,7 @@ class Cache(CacheImpl):
         super().set_presence(presence)
 
         if presences_ := self._guild_entries[presence.guild_id].presences:
-            self.add_ref(
+            self._add_presence_ref(
                 presence.user_id,
                 presences_[presence.user_id],
             )
@@ -69,7 +78,7 @@ class Cache(CacheImpl):
         try:
             return super().delete_presence(guild, user)
         finally:
-            self._gc(snowflakes.Snowflake(user))
+            self._garbage_collect_presence(snowflakes.Snowflake(user))
 
     def update_member(
         self, member: guilds.Member, /
@@ -93,7 +102,9 @@ class Cache(CacheImpl):
                 guild_record, member, decrement=decrement, deleting=deleting
             )
         finally:
-            self._gc(snowflakes.Snowflake(member.object.user.object))
+            self._garbage_collect_presence(
+                snowflakes.Snowflake(member.object.user.object)
+            )
 
     def delete_member(
         self,
@@ -115,13 +126,6 @@ class Cache(CacheImpl):
             return None  # type: ignore
 
         return super()._set_member(member, is_reference=is_reference)
-
-    def _on_message_expire(self, message: cache.RefCell[cache.MessageData], /) -> None:
-        if not self._garbage_collect_message(message):
-            self._referenced_messages[message.object.id] = message
-            return
-
-        self._app.responses_cache.pop(message.object.id, None)
 
     def clear_messages(self) -> cache.CacheView[snowflakes.Snowflake, messages.Message]:
         self._app.responses_cache.clear()
@@ -170,4 +174,5 @@ class Cache(CacheImpl):
         if message.object.id in self._referenced_messages:
             del self._referenced_messages[message.object.id]
 
+        self._app.responses_cache.pop(message.object.id, None)
         return message
