@@ -349,7 +349,9 @@ async def _reminders(ctx: Context) -> None:
     """
     A convenient shortcut for the `remind list` command.
     """
-    await remind_list.invoke(ctx)
+    cmd = ctx.bot.get_prefix_command("remind list")
+    assert cmd is not None
+    await cmd.invoke(ctx)
 
 
 @remind.child

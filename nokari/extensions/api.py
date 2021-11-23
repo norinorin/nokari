@@ -147,7 +147,9 @@ async def spotify_track(ctx: Context) -> None:
 
     if args.album:
         ctx.parsed_arg.remainder = data.album.uri
-        return await spotify_album.invoke(ctx)
+        cmd = ctx.bot.get_prefix_command("spotify album")
+        assert cmd is not None
+        return await cmd.invoke(ctx)
 
     audio_features = await data.get_audio_features()
 
@@ -304,7 +306,9 @@ async def spotify_album(ctx: Context) -> None:
 
     if args.member or not args.remainder:
         args.album = True
-        return await spotify_track.invoke(ctx)
+        cmd = ctx.get_prefix_command("spotify album")
+        assert cmd is not None
+        return await cmd.invoke(ctx)
 
     album = await api.d.spotify_client.get_item(ctx, args.remainder, Album)
 
@@ -473,7 +477,10 @@ async def rtfd_hikari(ctx: Context) -> None:
 
     if not api.d.hikari_objects:
         api.d.hikari_objects = {
-            (name := hikari_obj.name, f"[`{name}`]({BASE_URL}/{hikari_obj.uri.rstrip('#$')})")
+            (
+                name := hikari_obj.name,
+                f"[`{name}`]({BASE_URL}/{hikari_obj.uri.rstrip('#$')})",
+            )
             for hikari_obj in (
                 await ctx.bot.loop.run_in_executor(
                     ctx.bot.executor,
