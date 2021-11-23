@@ -153,7 +153,7 @@ class TimeConverter(lightbulb.converters.BaseConverter[typing.Tuple[datetime, st
 
     # pylint: disable=too-many-branches
     async def convert(self, arg: str) -> typing.Tuple[datetime, str]:
-        now = self.context.message.created_at
+        now = self.context.event.message.created_at
 
         if (match := TIME_RE.match(arg)) is not None and match.group(0):
             data = {k: int(v) for k, v in match.groupdict(default="0").items()}
