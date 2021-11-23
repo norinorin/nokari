@@ -61,7 +61,7 @@ async def get_active_timer() -> typing.Optional[timers.Timer]:
 
 
 async def wait_for_active_timers() -> timers.Timer:
-    timer = await utils.bot.get_active_timer()
+    timer = await get_active_timer()
     if timer is not None:
         utils.d.event.set()
         return timer
