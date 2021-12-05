@@ -4,6 +4,7 @@ __license__ = "MPL-2.0"
 
 from kita.command_handler import *
 from kita.commands import *
+from kita.data import *
 from kita.options import *
 from kita.responses import *
 from kita.typedefs import *

@@ -12,15 +12,11 @@ CREATE = sys.intern("create")
 EDIT = sys.intern("edit")
 
 
-def respond(
-    *args: t.Any, **kwargs: t.Any
-) -> t.Callable[[InteractionCreateEvent], t.Awaitable[None]]:
+def respond(*args: t.Any, **kwargs: t.Any) -> Response:
     return Response(CREATE, *args, **kwargs)
 
 
-def edit(
-    *args: t.Any, **kwargs: t.Any
-) -> t.Callable[[InteractionCreateEvent], t.Awaitable[Message]]:
+def edit(*args: t.Any, **kwargs: t.Any) -> Response:
     return Response(EDIT, *args, **kwargs)
 
 
@@ -38,11 +34,14 @@ class Response:
     def kwargs(self) -> t.Dict[str, t.Any]:
         return self._kwargs
 
-    def execute(self, event: InteractionCreateEvent) -> t.Awaitable[None]:
+    def execute(
+        self, event: InteractionCreateEvent
+    ) -> t.Awaitable[t.Optional[Message]]:
         interaction = event.interaction
         assert isinstance(interaction, MessageResponseMixin)
-        return (
+        callback = (
             interaction.create_initial_response
             if self.type == CREATE
             else interaction.edit_initial_response
-        )(*self.args, **self.kwargs)
+        )
+        return callback(*self.args, **self.kwargs)  # type: ignore

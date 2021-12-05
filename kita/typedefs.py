@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import inspect
 import typing as t
+from types import CodeType
 
 from hikari.commands import CommandOption, OptionType
 from hikari.snowflakes import Snowflake
@@ -10,7 +12,6 @@ __all__ = (
     "CommandCallback",
     "CommandContainer",
     "OptionAware",
-    "MetadataAware",
     "ICommandCallback",
     "IGroupCommandCallback",
     "SubCommandCallback",
@@ -23,13 +24,13 @@ class OptionAware(t.Protocol):
     options: t.List[CommandOption]
 
 
-class MetadataAware(t.Protocol):
+class ICommandCallback(OptionAware, t.Protocol):
     __type__: UndefinedOr[OptionType]
     __name__: str
     __description__: str
+    __signature__: inspect.Signature
+    __code__: CodeType
 
-
-class ICommandCallback(OptionAware, MetadataAware, t.Protocol):
     def __call__(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
         ...
 

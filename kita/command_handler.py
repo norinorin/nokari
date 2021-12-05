@@ -1,6 +1,7 @@
 import inspect
 import logging
 import typing as t
+from types import AsyncGeneratorType, GeneratorType
 
 from hikari.api.special_endpoints import CommandBuilder
 from hikari.events.interaction_events import InteractionCreateEvent
@@ -15,6 +16,7 @@ from hikari.snowflakes import Snowflake
 from hikari.undefined import UNDEFINED, UndefinedOr
 
 from kita.commands import command
+from kita.data import DataContainerMixin
 from kita.responses import Response
 from kita.typedefs import (
     CommandCallback,
@@ -28,11 +30,13 @@ __all__ = ("GatewayCommandHandler",)
 _LOGGER = logging.getLogger("kita.command_handler")
 
 
-class GatewayCommandHandler:
+class GatewayCommandHandler(DataContainerMixin):
     def __init__(
         self, app: GatewayBot, guild_ids: t.Optional[t.Set[Snowflake]] = None
     ) -> None:
+        super().__init__()
         self.app = app
+        self.set_data(app)
         self._commands: CommandContainer = {}
         self.guild_ids = guild_ids or set()
         app.subscribe(StartedEvent, self._on_started)
@@ -87,7 +91,7 @@ class GatewayCommandHandler:
 
     def _resolve_cb(
         self, interaction: CommandInteraction
-    ) -> t.Tuple[ICommandCallback, t.Sequence[CommandInteractionOption]]:
+    ) -> t.Tuple[ICommandCallback, t.Dict[str, t.Any]]:
         options = interaction.options
         cb: ICommandCallback = self._commands[interaction.command_name]
 
@@ -96,7 +100,7 @@ class GatewayCommandHandler:
             options = option.options
 
         _LOGGER.debug("Got the callback %s and options %s", cb.__name__, cb.options)
-        return cb, options or []
+        return cb, {o.name: o.value for o in options or []}
 
     async def _process_command_interaction(self, event: InteractionCreateEvent) -> None:
 
@@ -114,12 +118,28 @@ class GatewayCommandHandler:
         except KeyError as err:
             raise RuntimeError("Callback wasn't found") from err
 
-        gen = cb()
+        gen: t.Union[AsyncGeneratorType, GeneratorType] = await self._invoke_callback(
+            cb, {InteractionCreateEvent: event}, **options
+        )
+
+        if async_gen := inspect.isasyncgen(gen):
+            send = gen.asend
+        elif inspect.isgenerator(gen):
+            send = gen.send
+        elif inspect.iscoroutine(gen):
+            await gen
+            return
+        else:
+            return
+
         sent = None
 
         try:
             while 1:
-                val = gen.send(sent)
+                val = send(sent)
+
+                if async_gen:
+                    val = await val
 
                 _LOGGER.debug("Got %s from generator", val)
 
@@ -127,7 +147,9 @@ class GatewayCommandHandler:
                     sent = await val.execute(event)
                 elif inspect.iscoroutine(val):
                     sent = await val
-        except StopIteration:
+                else:
+                    sent = None
+        except (StopIteration, StopAsyncIteration):
             pass
 
 
