@@ -40,6 +40,7 @@ def _set_metadata(
     func.__name__ = name
     func.__description__ = description
     func.__type__ = type
+    func.options = []
     return func
 
 

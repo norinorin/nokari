@@ -20,7 +20,7 @@ T = t.TypeVar("T")
 
 
 class OptionAware(t.Protocol):
-    options: UndefinedOr[t.List[CommandOption]]
+    options: t.List[CommandOption]
 
 
 class MetadataAware(t.Protocol):

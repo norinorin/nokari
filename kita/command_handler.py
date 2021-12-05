@@ -1,17 +1,27 @@
+import inspect
 import logging
 import typing as t
 
 from hikari.api.special_endpoints import CommandBuilder
 from hikari.events.interaction_events import InteractionCreateEvent
-from hikari.events.lifetime_events import StartingEvent
+from hikari.events.lifetime_events import StartedEvent
 from hikari.impl.bot import GatewayBot
 from hikari.interactions.base_interactions import InteractionType
-from hikari.interactions.command_interactions import CommandInteraction
+from hikari.interactions.command_interactions import (
+    CommandInteraction,
+    CommandInteractionOption,
+)
 from hikari.snowflakes import Snowflake
 from hikari.undefined import UNDEFINED, UndefinedOr
 
 from kita.commands import command
-from kita.typedefs import CommandCallback, CommandContainer
+from kita.responses import Response
+from kita.typedefs import (
+    CommandCallback,
+    CommandContainer,
+    ICommandCallback,
+    IGroupCommandCallback,
+)
 from kita.utils import get_command_builder
 
 __all__ = ("GatewayCommandHandler",)
@@ -25,7 +35,8 @@ class GatewayCommandHandler:
         self.app = app
         self._commands: CommandContainer = {}
         self.guild_ids = guild_ids or set()
-        app.subscribe(StartingEvent, self._on_starting)
+        app.subscribe(StartedEvent, self._on_started)
+        app.subscribe(InteractionCreateEvent, self._process_command_interaction)
 
     @property
     def commands(self) -> CommandContainer:
@@ -52,8 +63,8 @@ class GatewayCommandHandler:
 
         del self._commands[func_or_name]
 
-    def _on_starting(self, _: StartingEvent) -> t.Coroutine[t.Any, t.Any, None]:
-        return self._sync()
+    async def _on_started(self, _: StartedEvent) -> None:
+        return await self._sync()
 
     async def _sync(self) -> None:
         commands: t.List[CommandBuilder] = []
@@ -74,13 +85,50 @@ class GatewayCommandHandler:
         for guild_id, commands in guild_commands.items():
             await self.app.rest.set_application_commands(app.id, commands, guild_id)
 
+    def _resolve_cb(
+        self, interaction: CommandInteraction
+    ) -> t.Tuple[ICommandCallback, t.Sequence[CommandInteractionOption]]:
+        options = interaction.options
+        cb: ICommandCallback = self._commands[interaction.command_name]
+
+        while options and (option := options[0]).type in (1, 2):
+            cb = t.cast(IGroupCommandCallback, cb).__sub_commands__[option.name]
+            options = option.options
+
+        _LOGGER.debug("Got the callback %s and options %s", cb.__name__, cb.options)
+        return cb, options or []
+
     async def _process_command_interaction(self, event: InteractionCreateEvent) -> None:
-        if not event.interaction.type is InteractionType.APPLICATION_COMMAND:
+
+        if (
+            interaction := event.interaction
+        ).type is not InteractionType.APPLICATION_COMMAND:
             return
 
-        assert isinstance(event.interaction, CommandInteraction)
+        assert isinstance(interaction, CommandInteraction)
 
-        _LOGGER.debug("Received options: %s", event.interaction.options)
+        _LOGGER.debug("Received options: %s", interaction.options)
+
+        try:
+            cb, options = self._resolve_cb(interaction)
+        except KeyError as err:
+            raise RuntimeError("Callback wasn't found") from err
+
+        gen = cb()
+        sent = None
+
+        try:
+            while 1:
+                val = gen.send(sent)
+
+                _LOGGER.debug("Got %s from generator", val)
+
+                if isinstance(val, Response):
+                    sent = await val.execute(event)
+                elif inspect.iscoroutine(val):
+                    sent = await val
+        except StopIteration:
+            pass
 
 
 class RestCommandHandler:
