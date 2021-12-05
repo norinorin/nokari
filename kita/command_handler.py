@@ -8,10 +8,7 @@ from hikari.events.interaction_events import InteractionCreateEvent
 from hikari.events.lifetime_events import StartedEvent
 from hikari.impl.bot import GatewayBot
 from hikari.interactions.base_interactions import InteractionType
-from hikari.interactions.command_interactions import (
-    CommandInteraction,
-    CommandInteractionOption,
-)
+from hikari.interactions.command_interactions import CommandInteraction
 from hikari.snowflakes import Snowflake
 from hikari.undefined import UNDEFINED, UndefinedOr
 
@@ -119,7 +116,9 @@ class GatewayCommandHandler(DataContainerMixin):
             raise RuntimeError("Callback wasn't found") from err
 
         gen: t.Union[AsyncGeneratorType, GeneratorType] = await self._invoke_callback(
-            cb, {InteractionCreateEvent: event}, **options
+            cb,
+            {InteractionCreateEvent: event, CommandInteraction: event.interaction},
+            **options,
         )
 
         if async_gen := inspect.isasyncgen(gen):
