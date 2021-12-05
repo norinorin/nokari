@@ -75,8 +75,8 @@ class DataContainerMixin:
     async def _invoke_callback(
         self,
         callback: ICommandCallback,
-        extra_env: UndefinedOr[t.MutableMapping[t.Type, t.Any]] = UNDEFINED,
         *args: t.Any,
+        extra_env: UndefinedOr[t.MutableMapping[t.Type, t.Any]] = UNDEFINED,
         **kwargs: t.Any,
     ) -> T:
         signatures: t.Dict[str, Data] = {
@@ -120,8 +120,8 @@ class DataContainerMixin:
             raise LookupError(f"data of type {type_} can't be found.")
 
         assert isinstance(maybe_data, tuple)
-        is_subclass, data = maybe_data
+        is_subclass, data_ = maybe_data
         if is_subclass:
-            self._lookup_cache[type_] = data
+            self._lookup_cache[type_] = data_
 
-        return data
+        return data_

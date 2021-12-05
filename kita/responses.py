@@ -21,8 +21,8 @@ def edit(*args: t.Any, **kwargs: t.Any) -> Response:
 
 
 class Response:
-    def __init__(self, type: str, *args: t.Any, **kwargs: t.Any):
-        self.type = type
+    def __init__(self, type_: str, *args: t.Any, **kwargs: t.Any):
+        self.type = type_
         self._args = args
         self._kwargs = kwargs
 

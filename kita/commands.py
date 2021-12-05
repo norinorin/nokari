@@ -36,11 +36,11 @@ def _set_metadata(
     func: _CallbackT,
     name: str,
     description: str,
-    type: UndefinedOr[OptionType] = UNDEFINED,
+    type_: UndefinedOr[OptionType] = UNDEFINED,
 ) -> _CallbackT:
     func.__name__ = name
     func.__description__ = description
-    func.__type__ = type
+    func.__type__ = type_
     ensure_signature(func)
     return func
 
@@ -50,7 +50,7 @@ def _init_callback(func: CommandCallback) -> None:
         str, t.Union[SubCommandCallback, SubCommandGroupCallback]
     ] = {}
 
-    def command(
+    def command_(
         self: IGroupCommandCallback, name: str, description: str
     ) -> t.Callable[[SubCommandCallback], SubCommandCallback]:
         def decorator(_func: SubCommandCallback) -> SubCommandCallback:
@@ -66,12 +66,12 @@ def _init_callback(func: CommandCallback) -> None:
         def decorator(_func: IGroupCommandCallback) -> IGroupCommandCallback:
             _set_metadata(_func, name, description, OptionType.SUB_COMMAND_GROUP)
             __sub_commands__[name] = _func
-            _func.command = partial(command, _func)  # type: ignore
+            _func.command = partial(command_, _func)  # type: ignore
             _func.__sub_commands__ = {}
             return _func
 
         return decorator
 
     func.__sub_commands__ = __sub_commands__
-    func.command = partial(command, func)  # type: ignore
+    func.command = partial(command_, func)  # type: ignore
     func.group = group  # type: ignore

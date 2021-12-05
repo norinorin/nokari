@@ -13,7 +13,7 @@ __all__ = ("option",)
 
 
 def option(
-    type: OptionType,
+    type_: OptionType,
     name: str,
     description: str,
     required: UndefinedOr[bool] = UNDEFINED,
@@ -28,7 +28,7 @@ def option(
         func.options.insert(
             0,
             CommandOption(
-                type=type,
+                type=type_,
                 name=name,
                 description=description,
                 is_required=required if required is not UNDEFINED else True,
