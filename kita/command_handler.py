@@ -14,7 +14,7 @@ from kita.commands import command
 from kita.typedefs import CommandCallback, CommandContainer
 from kita.utils import get_command_builder
 
-__all__ = ("CommandHandler",)
+__all__ = ("GatewayCommandHandler",)
 _LOGGER = logging.getLogger("kita.command_handler")
 
 
