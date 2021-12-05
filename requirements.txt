@@ -1,5 +1,5 @@
 git+https://github.com/hikari-py/hikari@master#egg=hikari[speedups]
-topggpy --pre
+topggpy>=2.0.0a0
 python-dotenv
 python-dateutil
 psutil
