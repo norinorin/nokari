@@ -62,8 +62,8 @@ def _init_callback(func: CommandCallback) -> None:
 
     def group(
         name: str, description: str
-    ) -> t.Callable[[SubCommandGroupCallback], SubCommandGroupCallback]:
-        def decorator(_func: SubCommandGroupCallback) -> SubCommandGroupCallback:
+    ) -> t.Callable[[IGroupCommandCallback], IGroupCommandCallback]:
+        def decorator(_func: IGroupCommandCallback) -> IGroupCommandCallback:
             _set_metadata(_func, name, description, OptionType.SUB_COMMAND_GROUP)
             __sub_commands__[name] = _func
             _func.command = partial(command, _func)  # type: ignore
