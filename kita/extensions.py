@@ -97,12 +97,14 @@ def reload_extension(name: str) -> Tuple[Extension, Extension]:
 def initializer(func: IExtensionCallback) -> ExtensionInitializer:
     func = cast(ExtensionInitializer, func)
     func.__name__ = "__einit__"
+    func.__module__.__einit__ = func
     return func
 
 
 def finalizer(func: IExtensionCallback) -> ExtensionFinalizer:
     func = cast(ExtensionFinalizer, func)
     func.__name__ = "__edel__"
+    func.__module__.__edel__ = func
     return func
 
 
