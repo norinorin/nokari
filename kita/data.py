@@ -19,7 +19,7 @@ from hikari.undefined import UNDEFINED, UndefinedOr
 
 from kita.typedefs import SignatureAware
 
-T = TypeVar("T")
+T_co = TypeVar("T_co", covariant=True)
 DataContainerT = TypeVar("DataContainerT", bound="DataContainerMixin")
 
 
@@ -35,15 +35,15 @@ _UNSET = _UnsetType()
 EMPTY_DICT: MutableMapping[Type, Any] = {}
 
 
-def data(type_: Type[T]) -> T:
-    return cast(T, Data(type_))
+def data(type_: Type[T_co]) -> T_co:
+    return cast(T_co, Data(type_))
 
 
-class Data(Generic[T]):
+class Data(Generic[T_co]):
     __slots__ = ("type",)
 
-    def __init__(self, type_: Type[T]) -> None:
-        self.type: Type[T] = type_
+    def __init__(self, type_: Type[T_co]) -> None:
+        self.type: Type[T_co] = type_
 
 
 class DataContainerMixin:
@@ -69,11 +69,11 @@ class DataContainerMixin:
         return self
 
     @overload
-    def get_data(self, type_: Type[T]) -> Optional[T]:
+    def get_data(self, type_: Type[T_co]) -> Optional[T_co]:
         ...
 
     @overload
-    def get_data(self, type_: Type[T], default: Any = None) -> Any:
+    def get_data(self, type_: Type[T_co], default: Any = None) -> Any:
         ...
 
     def get_data(self, type_: Any, default: Any = None) -> Any:
@@ -89,7 +89,7 @@ class DataContainerMixin:
         *args: Any,
         extra_env: UndefinedOr[MutableMapping[Type, Any]] = UNDEFINED,
         **kwargs: Any,
-    ) -> T:
+    ) -> T_co:
         signatures: Dict[str, Data] = {
             k: v.default
             for k, v in callback.__signature__.parameters.items()
@@ -109,8 +109,8 @@ class DataContainerMixin:
         return res
 
     def _resolve_data(
-        self, type_: Type[T], env: MutableMapping[Type, Any]
-    ) -> Union[_UnsetType, Tuple[bool, T]]:
+        self, type_: Type[T_co], env: MutableMapping[Type, Any]
+    ) -> Union[_UnsetType, Tuple[bool, T_co]]:
         maybe_data = {**self._data, **env}.get(type_, _UNSET)
         if maybe_data is not _UNSET:
             return False, maybe_data
@@ -126,7 +126,7 @@ class DataContainerMixin:
 
         return _UNSET
 
-    def _get_data(self, type_: Type[T], env: MutableMapping[Type, Any]) -> T:
+    def _get_data(self, type_: Type[T_co], env: MutableMapping[Type, Any]) -> T_co:
         maybe_data = self._resolve_data(type_, env)
 
         if maybe_data is _UNSET:
