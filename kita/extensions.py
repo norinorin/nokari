@@ -19,7 +19,7 @@ from kita.typedefs import (
 from kita.utils import ensure_signature
 
 if t.TYPE_CHECKING:
-    from hikari.api.event_manager import EventT_co
+    from hikari.api.event_manager import CallbackT, EventT_co
 
     from kita.command_handlers import GatewayCommandHandler
 
@@ -108,14 +108,15 @@ def finalizer(func: IExtensionCallback) -> ExtensionFinalizer:
 
 def listener(
     event: t.Optional[t.Type[EventT_co]] = None,
-) -> t.Callable[[EventCallback[EventT_co]], EventCallback[EventT_co]]:
-    def decorator(func: EventCallback[EventT_co]) -> EventCallback[EventT_co]:
+) -> t.Callable[[CallbackT[EventT_co]], EventCallback[EventT_co]]:
+    def decorator(func: CallbackT[EventT_co]) -> EventCallback[EventT_co]:
+        cast_func = t.cast("EventCallback[EventT_co]", func)
         nonlocal event
-        ensure_signature(func)
+        ensure_signature(cast_func)
         if event is None:
             if (
                 annotation := next(
-                    iter(func.__signature__.parameters.values())
+                    iter(cast_func.__signature__.parameters.values())
                 ).annotation
             ) is inspect.Signature.empty:
                 raise RuntimeError(
@@ -123,10 +124,10 @@ def listener(
                 )
 
             assert isinstance(annotation, type) and issubclass(annotation, Event)
-            event = t.cast(t.Type[EventT_co], annotation)
+            event = t.cast("t.Type[EventT_co]", annotation)
 
-        func.__etype__ = event
-        func.__is_listener__ = True
-        return func
+        cast_func.__etype__ = event
+        cast_func.__is_listener__ = True
+        return cast_func
 
     return decorator

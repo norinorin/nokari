@@ -1,5 +1,6 @@
 import inspect
 import typing as t
+from types import TracebackType
 
 from hikari.commands import CommandOption, OptionType
 from hikari.impl.special_endpoints import CommandBuilder
@@ -51,3 +52,9 @@ def find(predicate: t.Callable[[T], bool], iterable: t.Iterable[T]) -> t.Optiona
             return item
     else:
         return None
+
+
+def get_exc_info(
+    exception: BaseException,
+) -> t.Tuple[t.Type[BaseException], BaseException, t.Optional[TracebackType]]:
+    return type(exception), exception, exception.__traceback__

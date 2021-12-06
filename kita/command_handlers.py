@@ -17,7 +17,14 @@ from hikari.undefined import UNDEFINED, UndefinedOr
 
 from kita.commands import command
 from kita.data import DataContainerMixin
-from kita.extensions import load_extension, reload_extension, unload_extension
+from kita.errors import (
+    CommandNameConflictError,
+    CommandRuntimeError,
+    ExtensionFinalizationError,
+    ExtensionInilizationError,
+)
+from kita.events import CommandCallEvent, CommandFailureEvent, CommandSuccessEvent
+from kita.extensions import listener, load_extension, reload_extension, unload_extension
 from kita.responses import Response
 from kita.typedefs import (
     Callable,
@@ -62,9 +69,11 @@ class GatewayCommandHandler(DataContainerMixin):
 
     def listen(
         self, event_type: t.Optional[t.Type[EventT_co]] = None
-    ) -> t.Callable[[EventCallback[EventT_co]], CallbackT[EventT_co]]:
-        def decorator(func: EventCallback[EventT_co]) -> CallbackT[EventT_co]:
-            return self.app.listen(event_type)(self._wrap_event_callback(func))
+    ) -> t.Callable[[CallbackT[EventT_co]], CallbackT[EventT_co]]:
+        def decorator(func: CallbackT[EventT_co]) -> CallbackT[EventT_co]:
+            return self.app.listen(event_type)(
+                self._wrap_event_callback(listener(event_type)(func))
+            )
 
         return decorator
 
@@ -95,7 +104,9 @@ class GatewayCommandHandler(DataContainerMixin):
 
     def add_command(self, func: CommandCallback, /) -> None:
         if func.__name__ in self._commands:
-            raise RuntimeError()  # TODO: CommandExistsError
+            raise CommandNameConflictError(
+                f"command {func.__name__!r} already has a callback."
+            )
 
         self._commands[func.__name__] = func
 
@@ -111,7 +122,7 @@ class GatewayCommandHandler(DataContainerMixin):
             mod.__einit__(self)
         except Exception as e:
             unload_extension(name)
-            raise RuntimeError("{name}'s initializer has raised an error.") from e
+            raise ExtensionInilizationError(e, mod) from e
         else:
             self._extensions[name] = mod
 
@@ -121,7 +132,7 @@ class GatewayCommandHandler(DataContainerMixin):
             mod.__edel__(self)
         except Exception as e:
             load_extension(name)
-            raise RuntimeError("{name}'s finalizer has raised an error.") from e
+            raise ExtensionFinalizationError(e, mod) from e
         else:
             del self._extensions[name]
 
@@ -198,6 +209,24 @@ class GatewayCommandHandler(DataContainerMixin):
             **options,
         )
 
+        await self.app.dispatch(CommandCallEvent(self.app, self, event, cb))
+
+        try:
+            await self._invoke_command(gen, event)
+        except Exception as e:
+            await self.app.dispatch(
+                CommandFailureEvent(
+                    self.app, self, event, cb, CommandRuntimeError(e, cb)
+                )
+            )
+        else:
+            await self.app.dispatch(CommandSuccessEvent(self.app, self, event, cb))
+
+    @staticmethod
+    async def _invoke_command(
+        gen: t.Union[AsyncGeneratorType, GeneratorType],
+        event: InteractionCreateEvent,
+    ) -> None:
         if async_gen := inspect.isasyncgen(gen):
             send = gen.asend
         elif inspect.isgenerator(gen):
@@ -230,4 +259,5 @@ class GatewayCommandHandler(DataContainerMixin):
 
 
 class RestCommandHandler:
+    # likely never gonna get implemented
     ...

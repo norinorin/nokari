@@ -50,6 +50,7 @@ class ICommandCallback(OptionAware, SignatureAware, t.Protocol):
     __name__: str
     __description__: str
     __code__: CodeType
+    __module__: str
     __is_command__: t.Literal[True]
 
 
@@ -127,12 +128,12 @@ class _IEventCallback(SignatureAware, t.Protocol[EventT]):
 
 
 class _EventCallback(_IEventCallback[EventT], t.Protocol):
-    async def call(self, event: EventT) -> t.Any:
+    async def call(self, event: EventT) -> None:
         ...
 
 
 class _EventCallbackWithData(_IEventCallback[EventT], t.Protocol):
-    async def call(self, event: EventT, *args: t.Any, **kwargs: t.Any) -> t.Any:
+    async def call(self, event: EventT, *args: t.Any, **kwargs: t.Any) -> None:
         ...
 
 
