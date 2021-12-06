@@ -2,17 +2,18 @@ import typing as t
 from functools import partial
 
 from hikari.commands import OptionType
-from hikari.snowflakes import Snowflake
+from hikari.snowflakes import Snowflakeish
 from hikari.undefined import UNDEFINED, UndefinedOr
 
 from kita.typedefs import (
+    Callable,
     CommandCallback,
     ICommandCallback,
     IGroupCommandCallback,
     SubCommandCallback,
     SubCommandGroupCallback,
 )
-from kita.utils import ensure_signature
+from kita.utils import ensure_options, ensure_signature
 
 __all__ = ("command",)
 _CallbackT = t.TypeVar("_CallbackT", bound=ICommandCallback)
@@ -21,13 +22,14 @@ _CallbackT = t.TypeVar("_CallbackT", bound=ICommandCallback)
 def command(
     name: str,
     description: str,
-    guild_ids: UndefinedOr[t.Set[Snowflake]] = UNDEFINED,
-) -> t.Callable[[CommandCallback], CommandCallback]:
-    def decorator(func: CommandCallback) -> CommandCallback:
-        _set_metadata(func, name, description)
-        _init_callback(func)
-        func.__guild_ids__ = guild_ids or set()
-        return func
+    guild_ids: UndefinedOr[t.Set[Snowflakeish]] = UNDEFINED,
+) -> t.Callable[[Callable], CommandCallback]:
+    def decorator(func: Callable) -> CommandCallback:
+        cast_func = t.cast(CommandCallback, func)
+        _set_metadata(cast_func, name, description)
+        _init_callback(cast_func)
+        cast_func.__guild_ids__ = guild_ids or set()
+        return cast_func
 
     return decorator
 
@@ -41,7 +43,9 @@ def _set_metadata(
     func.__name__ = name
     func.__description__ = description
     func.__type__ = type_
+    func.__is_command__ = True
     ensure_signature(func)
+    ensure_options(func)
     return func
 
 
@@ -52,23 +56,25 @@ def _init_callback(func: CommandCallback) -> None:
 
     def command_(
         self: IGroupCommandCallback, name: str, description: str
-    ) -> t.Callable[[SubCommandCallback], SubCommandCallback]:
-        def decorator(_func: SubCommandCallback) -> SubCommandCallback:
-            _set_metadata(_func, name, description, OptionType.SUB_COMMAND)
-            self.__sub_commands__[name] = _func
-            return _func
+    ) -> t.Callable[[Callable], SubCommandCallback]:
+        def decorator(_func: Callable) -> SubCommandCallback:
+            cast_func = t.cast(SubCommandCallback, _func)
+            _set_metadata(cast_func, name, description, OptionType.SUB_COMMAND)
+            self.__sub_commands__[name] = cast_func
+            return cast_func
 
         return decorator
 
     def group(
         name: str, description: str
-    ) -> t.Callable[[IGroupCommandCallback], IGroupCommandCallback]:
-        def decorator(_func: IGroupCommandCallback) -> IGroupCommandCallback:
-            _set_metadata(_func, name, description, OptionType.SUB_COMMAND_GROUP)
-            __sub_commands__[name] = _func
-            _func.command = partial(command_, _func)  # type: ignore
-            _func.__sub_commands__ = {}
-            return _func
+    ) -> t.Callable[[Callable], IGroupCommandCallback]:
+        def decorator(_func: Callable) -> IGroupCommandCallback:
+            cast_func = t.cast(IGroupCommandCallback, _func)
+            _set_metadata(cast_func, name, description, OptionType.SUB_COMMAND_GROUP)
+            __sub_commands__[name] = cast_func
+            cast_func.command = partial(command_, cast_func)  # type: ignore
+            cast_func.__sub_commands__ = {}
+            return cast_func
 
         return decorator
 

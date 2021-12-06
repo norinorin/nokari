@@ -4,9 +4,15 @@ import typing as t
 from hikari.commands import CommandOption, OptionType
 from hikari.impl.special_endpoints import CommandBuilder
 
-from kita.typedefs import ICommandCallback, IGroupCommandCallback
+from kita.typedefs import (
+    Callable,
+    ICommandCallback,
+    IGroupCommandCallback,
+    SignatureAware,
+)
 
-__all__ = ("get_command_builder", "ensure_signature")
+__all__ = ("get_command_builder", "ensure_signature", "ensure_options", "find")
+T = t.TypeVar("T")
 
 
 def get_options(callback: ICommandCallback) -> t.List[CommandOption]:
@@ -34,9 +40,19 @@ def get_command_builder(callback: ICommandCallback) -> CommandBuilder:
     return command
 
 
-def ensure_signature(callback: ICommandCallback) -> None:
+def ensure_signature(callback: SignatureAware) -> None:
+    if not hasattr(callback, "__signature__"):
+        callback.__signature__ = inspect.signature(callback)
+
+
+def ensure_options(callback: ICommandCallback) -> None:
     if not hasattr(callback, "options"):
         callback.options = []
 
-    if not hasattr(callback, "__signature__"):
-        callback.__signature__ = inspect.signature(callback)
+
+def find(predicate: t.Callable[[T], bool], iterable: t.Iterable[T]) -> t.Optional[T]:
+    for item in iterable:
+        if predicate(item):
+            return item
+    else:
+        return None

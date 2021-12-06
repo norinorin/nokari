@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import inspect
 import logging
 import typing as t
 from types import AsyncGeneratorType, GeneratorType
+from weakref import WeakValueDictionary
 
 from hikari.api.special_endpoints import CommandBuilder
 from hikari.events.interaction_events import InteractionCreateEvent
@@ -9,19 +12,26 @@ from hikari.events.lifetime_events import StartedEvent
 from hikari.impl.bot import GatewayBot
 from hikari.interactions.base_interactions import InteractionType
 from hikari.interactions.command_interactions import CommandInteraction
-from hikari.snowflakes import Snowflake
+from hikari.snowflakes import Snowflakeish
 from hikari.undefined import UNDEFINED, UndefinedOr
 
 from kita.commands import command
 from kita.data import DataContainerMixin
+from kita.extensions import load_extension, reload_extension, unload_extension
 from kita.responses import Response
 from kita.typedefs import (
+    Callable,
     CommandCallback,
     CommandContainer,
+    EventCallback,
+    Extension,
     ICommandCallback,
     IGroupCommandCallback,
 )
 from kita.utils import get_command_builder
+
+if t.TYPE_CHECKING:
+    from hikari.api.event_manager import CallbackT, EventT, EventT_co
 
 __all__ = ("GatewayCommandHandler",)
 _LOGGER = logging.getLogger("kita.command_handler")
@@ -29,15 +39,43 @@ _LOGGER = logging.getLogger("kita.command_handler")
 
 class GatewayCommandHandler(DataContainerMixin):
     def __init__(
-        self, app: GatewayBot, guild_ids: t.Optional[t.Set[Snowflake]] = None
+        self, app: GatewayBot, guild_ids: t.Optional[t.Set[Snowflakeish]] = None
     ) -> None:
         super().__init__()
         self.app = app
         self.set_data(app)
         self._commands: CommandContainer = {}
+        self._extensions: t.Dict[str, Extension] = {}
         self.guild_ids = guild_ids or set()
+        self._listeners: t.MutableMapping[
+            EventCallback, CallbackT
+        ] = WeakValueDictionary()
         app.subscribe(StartedEvent, self._on_started)
         app.subscribe(InteractionCreateEvent, self._process_command_interaction)
+
+    def _wrap_event_callback(self, func: EventCallback[EventT]) -> CallbackT[EventT]:
+        async def callback(event: EventT) -> t.Any:
+            return await self._invoke_callback(func, event)
+
+        self._listeners[func] = callback
+        return callback
+
+    def listen(
+        self, event_type: t.Optional[t.Type[EventT_co]] = None
+    ) -> t.Callable[[EventCallback[EventT_co]], CallbackT[EventT_co]]:
+        def decorator(func: EventCallback[EventT_co]) -> CallbackT[EventT_co]:
+            return self.app.listen(event_type)(self._wrap_event_callback(func))
+
+        return decorator
+
+    def subscribe(
+        self,
+        callback: EventCallback[EventT_co],
+    ) -> None:
+        self.app.subscribe(callback.__etype__, self._wrap_event_callback(callback))
+
+    def unsubscribe(self, callback: EventCallback[EventT_co]) -> None:
+        self.app.unsubscribe(callback.__etype__, self._listeners.pop(callback))
 
     @property
     def commands(self) -> CommandContainer:
@@ -47,15 +85,18 @@ class GatewayCommandHandler(DataContainerMixin):
         self,
         name: str,
         description: str,
-        guild_ids: UndefinedOr[t.Set[Snowflake]] = UNDEFINED,
-    ) -> t.Callable[[CommandCallback], CommandCallback]:
-        def decorator(func: CommandCallback) -> CommandCallback:
+        guild_ids: UndefinedOr[t.Set[Snowflakeish]] = UNDEFINED,
+    ) -> t.Callable[[Callable], CommandCallback]:
+        def decorator(func: Callable) -> CommandCallback:
             self.add_command(func := command(name, description, guild_ids)(func))
             return func
 
         return decorator
 
     def add_command(self, func: CommandCallback, /) -> None:
+        if func.__name__ in self._commands:
+            raise RuntimeError()  # TODO: CommandExistsError
+
         self._commands[func.__name__] = func
 
     def remove_command(self, func_or_name: t.Union[CommandCallback, str]) -> None:
@@ -64,12 +105,45 @@ class GatewayCommandHandler(DataContainerMixin):
 
         del self._commands[func_or_name]
 
+    def _load_module(self, mod: Extension) -> None:
+        name = mod.__name__
+        try:
+            mod.__einit__(self)
+        except Exception as e:
+            unload_extension(name)
+            raise RuntimeError("{name}'s initializer has raised an error.") from e
+        else:
+            self._extensions[name] = mod
+
+    def _unload_module(self, mod: Extension) -> None:
+        name = mod.__name__
+        try:
+            mod.__edel__(self)
+        except Exception as e:
+            load_extension(name)
+            raise RuntimeError("{name}'s finalizer has raised an error.") from e
+        else:
+            del self._extensions[name]
+
+    def load_extension(self, name: str) -> None:
+        mod = load_extension(name)
+        self._load_module(mod)
+
+    def unload_extension(self, name: str) -> None:
+        mod = unload_extension(name)
+        self._unload_module(mod)
+
+    def reload_extension(self, name: str) -> None:
+        old, new = reload_extension(name)
+        self._unload_module(old)
+        self._load_module(new)
+
     async def _on_started(self, _: StartedEvent) -> None:
         return await self._sync()
 
     async def _sync(self) -> None:
         commands: t.List[CommandBuilder] = []
-        guild_commands: t.MutableMapping[Snowflake, t.List[CommandBuilder]] = {}
+        guild_commands: t.MutableMapping[Snowflakeish, t.List[CommandBuilder]] = {}
         for callback in self._commands.values():
             builder = get_command_builder(callback)
             if guild_ids := callback.__guild_ids__ | self.guild_ids:
@@ -117,7 +191,10 @@ class GatewayCommandHandler(DataContainerMixin):
 
         gen: t.Union[AsyncGeneratorType, GeneratorType] = await self._invoke_callback(
             cb,
-            {InteractionCreateEvent: event, CommandInteraction: event.interaction},
+            extra_env={
+                InteractionCreateEvent: event,
+                CommandInteraction: event.interaction,
+            },
             **options,
         )
 
@@ -131,7 +208,7 @@ class GatewayCommandHandler(DataContainerMixin):
         else:
             return
 
-        sent = None
+        sent: t.Any = None
 
         try:
             while 1:
@@ -147,7 +224,7 @@ class GatewayCommandHandler(DataContainerMixin):
                 elif inspect.iscoroutine(val):
                     sent = await val
                 else:
-                    sent = None
+                    sent = val
         except (StopIteration, StopAsyncIteration):
             pass
 

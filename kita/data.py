@@ -4,9 +4,8 @@ import inspect
 import typing as t
 
 from hikari.undefined import UNDEFINED, UndefinedOr
-from topgg.errors import TopGGException
 
-from kita.typedefs import ICommandCallback
+from kita.typedefs import SignatureAware
 
 T = t.TypeVar("T")
 DataContainerT = t.TypeVar("DataContainerT", bound="DataContainerMixin")
@@ -47,7 +46,7 @@ class DataContainerMixin:
     ) -> DataContainerT:
         type_ = type(data_)
         if not override and type_ in self._data:
-            raise TopGGException(f"{type_} already exists.")
+            raise RuntimeError(f"{type_} already exists.")
 
         # exclude the type itself and object
         for sup in type_.mro()[1:-1]:
@@ -74,7 +73,7 @@ class DataContainerMixin:
 
     async def _invoke_callback(
         self,
-        callback: ICommandCallback,
+        callback: SignatureAware,
         *args: t.Any,
         extra_env: UndefinedOr[t.MutableMapping[t.Type, t.Any]] = UNDEFINED,
         **kwargs: t.Any,
@@ -87,7 +86,9 @@ class DataContainerMixin:
         }
 
         for k, v in signatures.items():
-            signatures[k] = self._get_data(v.type, extra_env or EMPTY_DICT)
+            signatures[k] = self._get_data(
+                v.type, extra_env if extra_env is not UNDEFINED else EMPTY_DICT
+            )
 
         res = callback(*args, **{**signatures, **kwargs})
         if inspect.isawaitable(res):

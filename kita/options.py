@@ -1,41 +1,44 @@
 from __future__ import annotations
 
 import typing as t
+from inspect import Signature
 
 from hikari.channels import ChannelType
 from hikari.commands import CommandChoice, CommandOption, OptionType
 from hikari.undefined import UNDEFINED, UndefinedOr
 
-from kita.typedefs import ICommandCallback
-from kita.utils import ensure_signature
+from kita.typedefs import Callable, ICommandCallback
+from kita.utils import ensure_options, ensure_signature
 
-__all__ = ("option",)
+__all__ = ("with_option",)
 
 
-def option(
+def with_option(
     type_: OptionType,
     name: str,
     description: str,
-    required: UndefinedOr[bool] = UNDEFINED,
     choices: UndefinedOr[t.Sequence[CommandChoice]] = UNDEFINED,
     channel_types: UndefinedOr[t.Sequence[t.Union[ChannelType, int]]] = UNDEFINED,
-) -> t.Callable[[ICommandCallback], ICommandCallback]:
-    def decorator(func: ICommandCallback) -> ICommandCallback:
-        ensure_signature(func)
-        if name not in func.__code__.co_varnames:
-            return func
+) -> t.Callable[[Callable], ICommandCallback]:
+    def decorator(func: Callable) -> ICommandCallback:
+        cast_func = t.cast(ICommandCallback, func)
+        ensure_signature(cast_func)
+        ensure_options(cast_func)
+        if name not in cast_func.__code__.co_varnames:
+            return cast_func
 
-        func.options.insert(
+        cast_func.options.insert(
             0,
             CommandOption(
                 type=type_,
                 name=name,
                 description=description,
-                is_required=required if required is not UNDEFINED else True,
+                is_required=cast_func.__signature__.parameters[name].default
+                is Signature.empty,
                 choices=choices or None,
                 channel_types=channel_types or None,
             ),
         )
-        return func
+        return cast_func
 
     return decorator
