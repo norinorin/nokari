@@ -4,12 +4,7 @@ import typing as t
 from hikari.commands import CommandOption, OptionType
 from hikari.impl.special_endpoints import CommandBuilder
 
-from kita.typedefs import (
-    Callable,
-    ICommandCallback,
-    IGroupCommandCallback,
-    SignatureAware,
-)
+from kita.typedefs import ICommandCallback, IGroupCommandCallback, SignatureAware
 
 __all__ = ("get_command_builder", "ensure_signature", "ensure_options", "find")
 T = t.TypeVar("T")
