@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 import inspect
 import sys
-import typing as t
+from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple, Type, TypeVar, cast
 
 from hikari.events.base_events import Event
 from typing_extensions import TypeGuard
@@ -18,16 +18,16 @@ from kita.typedefs import (
 )
 from kita.utils import ensure_signature
 
-if t.TYPE_CHECKING:
+if TYPE_CHECKING:
     from hikari.api.event_manager import CallbackT, EventT_co
 
     from kita.command_handlers import GatewayCommandHandler
 
 __all__ = ("initializer", "finalizer", "listener")
-T = t.TypeVar("T")
+T = TypeVar("T")
 
 
-def _is_command(obj: t.Any) -> TypeGuard[CommandCallback]:
+def _is_command(obj: Any) -> TypeGuard[CommandCallback]:
     return (
         getattr(obj, "__is_command__", False)
         and hasattr(obj, "group")
@@ -35,7 +35,7 @@ def _is_command(obj: t.Any) -> TypeGuard[CommandCallback]:
     )
 
 
-def _is_listener(obj: t.Any) -> TypeGuard[EventCallback]:
+def _is_listener(obj: Any) -> TypeGuard[EventCallback]:
     return getattr(obj, "__is_listener__", False)
 
 
@@ -64,7 +64,7 @@ def _get_default_edel(_mod: Extension) -> ExtensionFinalizer:
 
 
 def load_extension(name: str) -> Extension:
-    mod = t.cast(Extension, importlib.import_module(name))
+    mod = cast(Extension, importlib.import_module(name))
 
     if not hasattr(mod, "__einit__"):
         mod.__einit__ = _get_default_einit(mod)
@@ -74,7 +74,7 @@ def load_extension(name: str) -> Extension:
 
 def unload_extension(name: str) -> Extension:
     try:
-        mod = t.cast(Extension, sys.modules.pop(name))
+        mod = cast(Extension, sys.modules.pop(name))
     except KeyError as e:
         raise RuntimeError("extension wasn't found.") from e
     else:
@@ -83,7 +83,7 @@ def unload_extension(name: str) -> Extension:
         return mod
 
 
-def reload_extension(name: str) -> t.Tuple[Extension, Extension]:
+def reload_extension(name: str) -> Tuple[Extension, Extension]:
     old = unload_extension(name)
     try:
         new = load_extension(name)
@@ -95,22 +95,22 @@ def reload_extension(name: str) -> t.Tuple[Extension, Extension]:
 
 
 def initializer(func: IExtensionCallback) -> ExtensionInitializer:
-    func = t.cast(ExtensionInitializer, func)
+    func = cast(ExtensionInitializer, func)
     func.__name__ = "__einit__"
     return func
 
 
 def finalizer(func: IExtensionCallback) -> ExtensionFinalizer:
-    func = t.cast(ExtensionFinalizer, func)
+    func = cast(ExtensionFinalizer, func)
     func.__name__ = "__edel__"
     return func
 
 
 def listener(
-    event: t.Optional[t.Type[EventT_co]] = None,
-) -> t.Callable[[CallbackT[EventT_co]], EventCallback[EventT_co]]:
+    event: Optional[Type[EventT_co]] = None,
+) -> Callable[[CallbackT[EventT_co]], EventCallback[EventT_co]]:
     def decorator(func: CallbackT[EventT_co]) -> EventCallback[EventT_co]:
-        cast_func = t.cast("EventCallback[EventT_co]", func)
+        cast_func = cast("EventCallback[EventT_co]", func)
         nonlocal event
         ensure_signature(cast_func)
         if event is None:
@@ -124,7 +124,7 @@ def listener(
                 )
 
             assert isinstance(annotation, type) and issubclass(annotation, Event)
-            event = t.cast("t.Type[EventT_co]", annotation)
+            event = cast("Type[EventT_co]", annotation)
 
         cast_func.__etype__ = event
         cast_func.__is_listener__ = True

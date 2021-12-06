@@ -1,25 +1,31 @@
 import inspect
-import typing as t
 from types import TracebackType
+from typing import Callable, Iterable, List, Optional, Tuple, Type, TypeVar, cast
 
 from hikari.commands import CommandOption, OptionType
 from hikari.impl.special_endpoints import CommandBuilder
 
 from kita.typedefs import ICommandCallback, IGroupCommandCallback, SignatureAware
 
-__all__ = ("get_command_builder", "ensure_signature", "ensure_options", "find")
-T = t.TypeVar("T")
+__all__ = (
+    "get_command_builder",
+    "ensure_signature",
+    "ensure_options",
+    "find",
+    "get_exc_info",
+)
+T = TypeVar("T")
 
 
-def get_options(callback: ICommandCallback) -> t.List[CommandOption]:
+def get_options(callback: ICommandCallback) -> List[CommandOption]:
     if not hasattr(callback, "__sub_commands__"):
         return callback.options
 
-    callback = t.cast(IGroupCommandCallback, callback)
+    callback = cast(IGroupCommandCallback, callback)
 
     return [
         CommandOption(
-            type=t.cast(OptionType, sub_command.__type__),
+            type=cast(OptionType, sub_command.__type__),
             name=sub_command.__name__,
             description=sub_command.__description__,
             options=get_options(sub_command),
@@ -46,7 +52,7 @@ def ensure_options(callback: ICommandCallback) -> None:
         callback.options = []
 
 
-def find(predicate: t.Callable[[T], bool], iterable: t.Iterable[T]) -> t.Optional[T]:
+def find(predicate: Callable[[T], bool], iterable: Iterable[T]) -> Optional[T]:
     for item in iterable:
         if predicate(item):
             return item
@@ -56,5 +62,5 @@ def find(predicate: t.Callable[[T], bool], iterable: t.Iterable[T]) -> t.Optiona
 
 def get_exc_info(
     exception: BaseException,
-) -> t.Tuple[t.Type[BaseException], BaseException, t.Optional[TracebackType]]:
+) -> Tuple[Type[BaseException], BaseException, Optional[TracebackType]]:
     return type(exception), exception, exception.__traceback__

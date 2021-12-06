@@ -1,14 +1,26 @@
 __all__ = ["data", "DataContainerMixin"]
 
 import inspect
-import typing as t
+from typing import (
+    Any,
+    Dict,
+    Generic,
+    MutableMapping,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
 
 from hikari.undefined import UNDEFINED, UndefinedOr
 
 from kita.typedefs import SignatureAware
 
-T = t.TypeVar("T")
-DataContainerT = t.TypeVar("DataContainerT", bound="DataContainerMixin")
+T = TypeVar("T")
+DataContainerT = TypeVar("DataContainerT", bound="DataContainerMixin")
 
 
 # this is meant to be a singleton,
@@ -20,29 +32,29 @@ class _UnsetType:
 
 
 _UNSET = _UnsetType()
-EMPTY_DICT: t.MutableMapping[t.Type, t.Any] = {}
+EMPTY_DICT: MutableMapping[Type, Any] = {}
 
 
-def data(type_: t.Type[T]) -> T:
-    return t.cast(T, Data(type_))
+def data(type_: Type[T]) -> T:
+    return cast(T, Data(type_))
 
 
-class Data(t.Generic[T]):
+class Data(Generic[T]):
     __slots__ = ("type",)
 
-    def __init__(self, type_: t.Type[T]) -> None:
-        self.type: t.Type[T] = type_
+    def __init__(self, type_: Type[T]) -> None:
+        self.type: Type[T] = type_
 
 
 class DataContainerMixin:
     __slots__ = ("_data", "_lookup_cache")
 
     def __init__(self) -> None:
-        self._data: t.Dict[t.Type, t.Any] = {type(self): self}
-        self._lookup_cache: t.Dict[t.Type, t.Any] = {}
+        self._data: Dict[Type, Any] = {type(self): self}
+        self._lookup_cache: Dict[Type, Any] = {}
 
     def set_data(
-        self: DataContainerT, data_: t.Any, *, override: bool = False
+        self: DataContainerT, data_: Any, *, override: bool = False
     ) -> DataContainerT:
         type_ = type(data_)
         if not override and type_ in self._data:
@@ -56,15 +68,15 @@ class DataContainerMixin:
         self._data[type_] = data_
         return self
 
-    @t.overload
-    def get_data(self, type_: t.Type[T]) -> t.Optional[T]:
+    @overload
+    def get_data(self, type_: Type[T]) -> Optional[T]:
         ...
 
-    @t.overload
-    def get_data(self, type_: t.Type[T], default: t.Any = None) -> t.Any:
+    @overload
+    def get_data(self, type_: Type[T], default: Any = None) -> Any:
         ...
 
-    def get_data(self, type_: t.Any, default: t.Any = None) -> t.Any:
+    def get_data(self, type_: Any, default: Any = None) -> Any:
         """Gets the injected data."""
         try:
             return self._get_data(type_, {})
@@ -74,11 +86,11 @@ class DataContainerMixin:
     async def _invoke_callback(
         self,
         callback: SignatureAware,
-        *args: t.Any,
-        extra_env: UndefinedOr[t.MutableMapping[t.Type, t.Any]] = UNDEFINED,
-        **kwargs: t.Any,
+        *args: Any,
+        extra_env: UndefinedOr[MutableMapping[Type, Any]] = UNDEFINED,
+        **kwargs: Any,
     ) -> T:
-        signatures: t.Dict[str, Data] = {
+        signatures: Dict[str, Data] = {
             k: v.default
             for k, v in callback.__signature__.parameters.items()
             if v.kind is inspect.Parameter.POSITIONAL_OR_KEYWORD
@@ -97,8 +109,8 @@ class DataContainerMixin:
         return res
 
     def _resolve_data(
-        self, type_: t.Type[T], env: t.MutableMapping[t.Type, t.Any]
-    ) -> t.Union[_UnsetType, t.Tuple[bool, T]]:
+        self, type_: Type[T], env: MutableMapping[Type, Any]
+    ) -> Union[_UnsetType, Tuple[bool, T]]:
         maybe_data = {**self._data, **env}.get(type_, _UNSET)
         if maybe_data is not _UNSET:
             return False, maybe_data
@@ -114,7 +126,7 @@ class DataContainerMixin:
 
         return _UNSET
 
-    def _get_data(self, type_: t.Type[T], env: t.MutableMapping[t.Type, t.Any]) -> T:
+    def _get_data(self, type_: Type[T], env: MutableMapping[Type, Any]) -> T:
         maybe_data = self._resolve_data(type_, env)
 
         if maybe_data is _UNSET:

@@ -2,8 +2,21 @@ from __future__ import annotations
 
 import inspect
 import logging
-import typing as t
 from types import AsyncGeneratorType, GeneratorType
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    MutableMapping,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 from weakref import WeakValueDictionary
 
 from hikari.api.special_endpoints import CommandBuilder
@@ -27,7 +40,7 @@ from kita.events import CommandCallEvent, CommandFailureEvent, CommandSuccessEve
 from kita.extensions import listener, load_extension, reload_extension, unload_extension
 from kita.responses import Response
 from kita.typedefs import (
-    Callable,
+    CallableProto,
     CommandCallback,
     CommandContainer,
     EventCallback,
@@ -37,7 +50,7 @@ from kita.typedefs import (
 )
 from kita.utils import get_command_builder
 
-if t.TYPE_CHECKING:
+if TYPE_CHECKING:
     from hikari.api.event_manager import CallbackT, EventT, EventT_co
 
 __all__ = ("GatewayCommandHandler",)
@@ -46,30 +59,30 @@ _LOGGER = logging.getLogger("kita.command_handler")
 
 class GatewayCommandHandler(DataContainerMixin):
     def __init__(
-        self, app: GatewayBot, guild_ids: t.Optional[t.Set[Snowflakeish]] = None
+        self, app: GatewayBot, guild_ids: Optional[Set[Snowflakeish]] = None
     ) -> None:
         super().__init__()
         self.app = app
         self.set_data(app)
         self._commands: CommandContainer = {}
-        self._extensions: t.Dict[str, Extension] = {}
+        self._extensions: Dict[str, Extension] = {}
         self.guild_ids = guild_ids or set()
-        self._listeners: t.MutableMapping[
+        self._listeners: MutableMapping[
             EventCallback, CallbackT
         ] = WeakValueDictionary()
         app.subscribe(StartedEvent, self._on_started)
         app.subscribe(InteractionCreateEvent, self._process_command_interaction)
 
     def _wrap_event_callback(self, func: EventCallback[EventT]) -> CallbackT[EventT]:
-        async def callback(event: EventT) -> t.Any:
+        async def callback(event: EventT) -> Any:
             return await self._invoke_callback(func, event)
 
         self._listeners[func] = callback
         return callback
 
     def listen(
-        self, event_type: t.Optional[t.Type[EventT_co]] = None
-    ) -> t.Callable[[CallbackT[EventT_co]], CallbackT[EventT_co]]:
+        self, event_type: Optional[Type[EventT_co]] = None
+    ) -> Callable[[CallbackT[EventT_co]], CallbackT[EventT_co]]:
         def decorator(func: CallbackT[EventT_co]) -> CallbackT[EventT_co]:
             return self.app.listen(event_type)(
                 self._wrap_event_callback(listener(event_type)(func))
@@ -94,9 +107,9 @@ class GatewayCommandHandler(DataContainerMixin):
         self,
         name: str,
         description: str,
-        guild_ids: UndefinedOr[t.Set[Snowflakeish]] = UNDEFINED,
-    ) -> t.Callable[[Callable], CommandCallback]:
-        def decorator(func: Callable) -> CommandCallback:
+        guild_ids: UndefinedOr[Set[Snowflakeish]] = UNDEFINED,
+    ) -> Callable[[CallableProto], CommandCallback]:
+        def decorator(func: CallableProto) -> CommandCallback:
             self.add_command(func := command(name, description, guild_ids)(func))
             return func
 
@@ -110,7 +123,7 @@ class GatewayCommandHandler(DataContainerMixin):
 
         self._commands[func.__name__] = func
 
-    def remove_command(self, func_or_name: t.Union[CommandCallback, str]) -> None:
+    def remove_command(self, func_or_name: Union[CommandCallback, str]) -> None:
         if not isinstance(func_or_name, str):
             func_or_name = func_or_name.__name__
 
@@ -153,8 +166,8 @@ class GatewayCommandHandler(DataContainerMixin):
         return await self._sync()
 
     async def _sync(self) -> None:
-        commands: t.List[CommandBuilder] = []
-        guild_commands: t.MutableMapping[Snowflakeish, t.List[CommandBuilder]] = {}
+        commands: List[CommandBuilder] = []
+        guild_commands: MutableMapping[Snowflakeish, List[CommandBuilder]] = {}
         for callback in self._commands.values():
             builder = get_command_builder(callback)
             if guild_ids := callback.__guild_ids__ | self.guild_ids:
@@ -173,12 +186,12 @@ class GatewayCommandHandler(DataContainerMixin):
 
     def _resolve_cb(
         self, interaction: CommandInteraction
-    ) -> t.Tuple[ICommandCallback, t.Dict[str, t.Any]]:
+    ) -> Tuple[ICommandCallback, Dict[str, Any]]:
         options = interaction.options
         cb: ICommandCallback = self._commands[interaction.command_name]
 
         while options and (option := options[0]).type in (1, 2):
-            cb = t.cast(IGroupCommandCallback, cb).__sub_commands__[option.name]
+            cb = cast(IGroupCommandCallback, cb).__sub_commands__[option.name]
             options = option.options
 
         _LOGGER.debug("Got the callback %s and options %s", cb.__name__, cb.options)
@@ -200,7 +213,7 @@ class GatewayCommandHandler(DataContainerMixin):
         except KeyError as err:
             raise RuntimeError("Callback wasn't found") from err
 
-        gen: t.Union[AsyncGeneratorType, GeneratorType] = await self._invoke_callback(
+        gen: Union[AsyncGeneratorType, GeneratorType] = await self._invoke_callback(
             cb,
             extra_env={
                 InteractionCreateEvent: event,
@@ -224,7 +237,7 @@ class GatewayCommandHandler(DataContainerMixin):
 
     @staticmethod
     async def _invoke_command(
-        gen: t.Union[AsyncGeneratorType, GeneratorType],
+        gen: Union[AsyncGeneratorType, GeneratorType],
         event: InteractionCreateEvent,
     ) -> None:
         if async_gen := inspect.isasyncgen(gen):
@@ -237,7 +250,7 @@ class GatewayCommandHandler(DataContainerMixin):
         else:
             return
 
-        sent: t.Any = None
+        sent: Any = None
 
         try:
             while 1:

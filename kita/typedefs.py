@@ -1,16 +1,31 @@
 from __future__ import annotations
 
 import inspect
-import typing as t
 from importlib.machinery import ModuleSpec
 from types import CodeType
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    MutableMapping,
+    MutableSequence,
+    Optional,
+    Protocol,
+    Set,
+    Type,
+    TypeVar,
+    Union,
+)
 
 from hikari.api.event_manager import EventT
 from hikari.commands import CommandOption, OptionType
 from hikari.snowflakes import Snowflakeish
 from hikari.undefined import UndefinedOr
 
-if t.TYPE_CHECKING:
+if TYPE_CHECKING:
     from importlib.abc import _LoaderProtocol
 
     from kita.command_handlers import GatewayCommandHandler
@@ -19,6 +34,7 @@ __all__ = (
     "CommandCallback",
     "CommandContainer",
     "OptionAware",
+    "CallableProto",
     "ICommandCallback",
     "IGroupCommandCallback",
     "SubCommandCallback",
@@ -30,111 +46,111 @@ __all__ = (
     "EventCallback",
     "SignatureAware",
 )
-T = t.TypeVar("T")
+T = TypeVar("T")
 
 
-class OptionAware(t.Protocol):
-    options: t.List[CommandOption]
+class OptionAware(Protocol):
+    options: List[CommandOption]
 
 
-class Callable(t.Protocol):
-    __call__: t.Callable[..., t.Any]
+class CallableProto(Protocol):
+    __call__: Callable[..., Any]
 
 
-class SignatureAware(Callable, t.Protocol):
+class SignatureAware(CallableProto, Protocol):
     __signature__: inspect.Signature
 
 
-class ICommandCallback(OptionAware, SignatureAware, t.Protocol):
+class ICommandCallback(OptionAware, SignatureAware, Protocol):
     __type__: UndefinedOr[OptionType]
     __name__: str
     __description__: str
     __code__: CodeType
     __module__: str
-    __is_command__: t.Literal[True]
+    __is_command__: Literal[True]
 
 
-class IGroupCommandCallback(ICommandCallback, t.Protocol):
-    __sub_commands__: t.MutableMapping[str, ICommandCallback]
+class IGroupCommandCallback(ICommandCallback, Protocol):
+    __sub_commands__: MutableMapping[str, ICommandCallback]
 
     @staticmethod
     def command(
         name: str, description: str
-    ) -> t.Callable[[Callable], SubCommandCallback]:
+    ) -> Callable[[CallableProto], SubCommandCallback]:
         ...
 
 
-class CommandCallback(IGroupCommandCallback, t.Protocol):
-    __guild_ids__: t.Set[Snowflakeish]
+class CommandCallback(IGroupCommandCallback, Protocol):
+    __guild_ids__: Set[Snowflakeish]
 
     @staticmethod
     def group(
         name: str, description: str
-    ) -> t.Callable[[Callable], SubCommandGroupCallback]:
+    ) -> Callable[[CallableProto], SubCommandGroupCallback]:
         ...
 
 
-class SubCommandCallback(ICommandCallback, t.Protocol):
+class SubCommandCallback(ICommandCallback, Protocol):
     ...
 
 
-class SubCommandGroupCallback(IGroupCommandCallback, t.Protocol):
-    __sub_commands__: t.MutableMapping[str, SubCommandCallback]
+class SubCommandGroupCallback(IGroupCommandCallback, Protocol):
+    __sub_commands__: MutableMapping[str, SubCommandCallback]
 
 
-CommandContainer = t.MutableMapping[str, CommandCallback]
+CommandContainer = MutableMapping[str, CommandCallback]
 
 
-class Extension(t.Protocol):
+class Extension(Protocol):
     __name__: str
-    __file__: t.Optional[str]
-    __dict__: t.Dict[str, t.Any]
-    __loader__: t.Optional[_LoaderProtocol]
-    __package__: t.Optional[str]
-    __path__: t.MutableSequence[str]
-    __spec__: t.Optional[ModuleSpec]
+    __file__: Optional[str]
+    __dict__: Dict[str, Any]
+    __loader__: Optional[_LoaderProtocol]
+    __package__: Optional[str]
+    __path__: MutableSequence[str]
+    __spec__: Optional[ModuleSpec]
     __einit__: ExtensionInitializer
     __edel__: ExtensionFinalizer
 
 
-class _ExtensionCallback(t.Protocol):
-    def __call__(self, handler: GatewayCommandHandler) -> t.Any:
+class _ExtensionCallback(Protocol):
+    def __call__(self, handler: GatewayCommandHandler) -> Any:
         ...
 
 
-class _ExtensionCallbackWithData(t.Protocol):
+class _ExtensionCallbackWithData(Protocol):
     def __call__(
-        self, handler: GatewayCommandHandler, *args: t.Any, **kwargs: t.Any
-    ) -> t.Any:
+        self, handler: GatewayCommandHandler, *args: Any, **kwargs: Any
+    ) -> Any:
         ...
 
 
-IExtensionCallback = t.Union[_ExtensionCallback, _ExtensionCallbackWithData]
+IExtensionCallback = Union[_ExtensionCallback, _ExtensionCallbackWithData]
 
 
-class ExtensionInitializer(t.Protocol):
-    __name__: t.Literal["__einit__"]
+class ExtensionInitializer(Protocol):
+    __name__: Literal["__einit__"]
     __call__: IExtensionCallback
 
 
-class ExtensionFinalizer(t.Protocol):
-    __name__: t.Literal["__edel__"]
+class ExtensionFinalizer(Protocol):
+    __name__: Literal["__edel__"]
     __call__: IExtensionCallback
 
 
-class _IEventCallback(SignatureAware, t.Protocol[EventT]):
-    __etype__: t.Type[EventT]
-    __is_listener__: t.Literal[True]
+class _IEventCallback(SignatureAware, Protocol[EventT]):
+    __etype__: Type[EventT]
+    __is_listener__: Literal[True]
 
 
-class _EventCallback(_IEventCallback[EventT], t.Protocol):
+class _EventCallback(_IEventCallback[EventT], Protocol):
     async def call(self, event: EventT) -> None:
         ...
 
 
-class _EventCallbackWithData(_IEventCallback[EventT], t.Protocol):
-    async def call(self, event: EventT, *args: t.Any, **kwargs: t.Any) -> None:
+class _EventCallbackWithData(_IEventCallback[EventT], Protocol):
+    async def call(self, event: EventT, *args: Any, **kwargs: Any) -> None:
         ...
 
 
-EventCallback = t.Union[_EventCallback[EventT], _EventCallbackWithData[EventT]]
+EventCallback = Union[_EventCallback[EventT], _EventCallbackWithData[EventT]]
