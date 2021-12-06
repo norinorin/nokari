@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import inspect
+import logging
 import sys
 from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple, Type, TypeVar, cast
 
@@ -25,6 +26,7 @@ if TYPE_CHECKING:
 
 __all__ = ("initializer", "finalizer", "listener")
 T = TypeVar("T")
+_LOGGER = logging.getLogger("kita.extensions")
 
 
 def _is_command(obj: Any) -> TypeGuard[CommandCallback]:
@@ -67,6 +69,9 @@ def load_extension(name: str) -> Extension:
     mod = cast(Extension, importlib.import_module(name))
 
     if not hasattr(mod, "__einit__"):
+        _LOGGER.debug(
+            "no initializer for %s was found, using the default one...", mod.__name__
+        )
         mod.__einit__ = _get_default_einit(mod)
 
     return mod
@@ -79,6 +84,9 @@ def unload_extension(name: str) -> Extension:
         raise RuntimeError("extension wasn't found.") from e
     else:
         if not hasattr(mod, "__edel__"):
+            _LOGGER.debug(
+                "no finalizer for %s was found, using the default one...", mod.__name__
+            )
             mod.__edel__ = _get_default_edel(mod)
         return mod
 
@@ -94,17 +102,30 @@ def reload_extension(name: str) -> Tuple[Extension, Extension]:
         return old, new
 
 
+def _get_module(func: IExtensionCallback) -> Optional[Extension]:
+    if func.__module__ != __name__ and (mod := inspect.getmodule(func)):
+        return cast(Extension, mod)
+
+    return None
+
+
 def initializer(func: IExtensionCallback) -> ExtensionInitializer:
     func = cast(ExtensionInitializer, func)
     func.__name__ = "__einit__"
-    func.__module__.__einit__ = func
+
+    if mod := _get_module(func):
+        mod.__einit__ = func
+
     return func
 
 
 def finalizer(func: IExtensionCallback) -> ExtensionFinalizer:
     func = cast(ExtensionFinalizer, func)
     func.__name__ = "__edel__"
-    func.__module__.__edel__ = func
+
+    if mod := _get_module(func):
+        mod.__edel__ = func
+
     return func
 
 
