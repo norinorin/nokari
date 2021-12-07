@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import inspect
 import logging
 from typing import (
@@ -30,10 +31,12 @@ from hikari.undefined import UNDEFINED, UndefinedOr
 from kita.commands import command
 from kita.data import DataContainerMixin
 from kita.errors import (
+    CheckError,
     CommandNameConflictError,
     CommandRuntimeError,
     ExtensionFinalizationError,
-    ExtensionInilizationError,
+    ExtensionInitializationError,
+    MissingCommandCallbackError,
 )
 from kita.events import CommandCallEvent, CommandFailureEvent, CommandSuccessEvent
 from kita.extensions import listener, load_extension, reload_extension, unload_extension
@@ -58,7 +61,10 @@ _LOGGER = logging.getLogger("kita.command_handler")
 
 class GatewayCommandHandler(DataContainerMixin):
     def __init__(
-        self, app: GatewayBot, guild_ids: Optional[Set[Snowflakeish]] = None
+        self,
+        app: GatewayBot,
+        guild_ids: Optional[Set[Snowflakeish]] = None,
+        owner_ids: Optional[Set[Snowflakeish]] = None,
     ) -> None:
         super().__init__()
         self.app = app
@@ -66,6 +72,7 @@ class GatewayCommandHandler(DataContainerMixin):
         self._commands: CommandContainer = {}
         self._extensions: Dict[str, Extension] = {}
         self.guild_ids = guild_ids or set()
+        self.owner_ids = owner_ids or set()
         self._listeners: MutableMapping[
             EventCallback, CallbackT
         ] = WeakValueDictionary()
@@ -134,7 +141,7 @@ class GatewayCommandHandler(DataContainerMixin):
             mod.__einit__(self)
         except Exception as e:
             unload_extension(name)
-            raise ExtensionInilizationError(e, mod) from e
+            raise ExtensionInitializationError(e, mod) from e
         else:
             self._extensions[name] = mod
 
@@ -162,7 +169,13 @@ class GatewayCommandHandler(DataContainerMixin):
         self._load_module(new)
 
     async def _on_started(self, _: StartedEvent) -> None:
-        return await self._sync()
+        app = await self.app.rest.fetch_application()
+        self.owner_ids.add(app.owner.id)
+
+        if app.team:
+            self.owner_ids |= set(app.team.members.keys())
+
+        await self._sync()
 
     async def _sync(self) -> None:
         commands: List[CommandBuilder] = []
@@ -209,21 +222,42 @@ class GatewayCommandHandler(DataContainerMixin):
 
         try:
             cb, options = self._resolve_cb(interaction)
-        except KeyError as err:
-            raise RuntimeError("Callback wasn't found") from err
-
-        gen: Any = await self._invoke_callback(
-            cb,
-            extra_env={
-                InteractionCreateEvent: event,
-                CommandInteraction: event.interaction,
-            },
-            **options,
-        )
+        except KeyError:
+            await self.app.dispatch(
+                CommandFailureEvent(
+                    self.app,
+                    self,
+                    event,
+                    None,
+                    MissingCommandCallbackError(
+                        f"couldn't find any implementation for {interaction.command_name!r}"
+                    ),
+                )
+            )
+            return
 
         await self.app.dispatch(CommandCallEvent(self.app, self, event, cb))
 
+        extra_env: MutableMapping[Type[Any], Any] = {
+            InteractionCreateEvent: event,
+            CommandInteraction: event.interaction,
+        }
+
         try:
+            if not all(
+                await asyncio.gather(
+                    *[
+                        self._invoke_callback(check, extra_env=extra_env)
+                        for check in cb.__checks__
+                    ]
+                )
+            ):
+                raise CheckError
+            gen: Any = await self._invoke_callback(
+                cb,
+                extra_env=extra_env,
+                **options,
+            )
             await self._consume_gen(gen, event)
         except Exception as e:
             await self.app.dispatch(

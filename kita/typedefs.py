@@ -53,6 +53,10 @@ class OptionAware(Protocol):
     options: List[CommandOption]
 
 
+class CallableT(Protocol[T]):
+    __call__: Callable[..., T]
+
+
 class CallableProto(Protocol):
     __call__: Callable[..., Any]
 
@@ -68,6 +72,7 @@ class ICommandCallback(OptionAware, SignatureAware, Protocol):
     __code__: CodeType
     __module__: str
     __is_command__: Literal[True]
+    __checks__: List[CallableProto]
 
 
 class IGroupCommandCallback(ICommandCallback, Protocol):
@@ -113,19 +118,19 @@ class Extension(Protocol):
     __edel__: ExtensionFinalizer
 
 
-class _ExtensionCallback(Protocol):
+class IExtensionCallback(Protocol):
     def __call__(self, handler: GatewayCommandHandler) -> Any:
         ...
 
 
-class _ExtensionCallbackWithData(Protocol):
-    def __call__(
-        self, handler: GatewayCommandHandler, *args: Any, **kwargs: Any
-    ) -> Any:
-        ...
+# class _ExtensionCallbackWithData(Protocol):
+#     def __call__(
+#         self, handler: GatewayCommandHandler, *args: Any, **kwargs: Any
+#     ) -> Any:
+#         ...
 
 
-IExtensionCallback = Union[_ExtensionCallback, _ExtensionCallbackWithData]
+# IExtensionCallback = Union[_ExtensionCallback, _ExtensionCallbackWithData]
 
 
 class ExtensionInitializer(Protocol):

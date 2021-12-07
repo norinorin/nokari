@@ -17,7 +17,8 @@ from typing import (
 
 from hikari.undefined import UNDEFINED, UndefinedOr
 
-from kita.typedefs import SignatureAware
+from kita.typedefs import CallableProto, CallableT
+from kita.utils import ensure_signature
 
 T_co = TypeVar("T_co", covariant=True)
 DataContainerT = TypeVar("DataContainerT", bound="DataContainerMixin")
@@ -85,11 +86,12 @@ class DataContainerMixin:
 
     async def _invoke_callback(
         self,
-        callback: SignatureAware,
+        callback: CallableT[T_co],
         *args: Any,
         extra_env: UndefinedOr[MutableMapping[Type, Any]] = UNDEFINED,
         **kwargs: Any,
     ) -> T_co:
+        callback = ensure_signature(callback)
         signatures: Dict[str, Data] = {
             k: v.default
             for k, v in callback.__signature__.parameters.items()

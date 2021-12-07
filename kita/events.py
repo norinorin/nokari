@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from attr import attrib, attrs
 from hikari.events.base_events import Event
@@ -45,7 +45,7 @@ class CommandFailureEvent(KitaEvent):
     app: RESTAware = attrib()
     handler: GatewayCommandHandler = attrib()
     event: InteractionCreateEvent = attrib()
-    command: ICommandCallback = attrib()
+    command: Optional[ICommandCallback] = attrib()
     exception: KitaError = attrib()
 
 

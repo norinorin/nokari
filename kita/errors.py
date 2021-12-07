@@ -1,9 +1,33 @@
-from kita.typedefs import Extension, ICommandCallback
+from abc import ABC, abstractmethod
+from typing import Sequence
 
-__all__ = ("KitaError", "CommandRuntimeError", "CommandNameConflictError")
+from hikari.permissions import Permissions
+
+from kita.typedefs import CallableProto, Extension, ICommandCallback
+
+__all__ = (
+    "KitaError",
+    "MissingCommandCallbackError",
+    "CommandRuntimeError",
+    "CommandNameConflictError",
+    "ExtensionError",
+    "ExtensionInitializationError",
+    "ExtensionFinalizationError",
+    "CheckError",
+    "CheckAnyError",
+    "MissingPermissionsError",
+    "MissingAnyPermissionsError",
+    "GuildOnlyError",
+    "DMOnlyError",
+    "OwnerOnlyError",
+)
 
 
 class KitaError(Exception):
+    ...
+
+
+class MissingCommandCallbackError(KitaError):
     ...
 
 
@@ -30,7 +54,7 @@ class ExtensionError(KitaError):
         self.extension = extension
 
 
-class ExtensionInilizationError(KitaError):
+class ExtensionInitializationError(KitaError):
     def __init__(self, exception: Exception, extension: Extension) -> None:
         super().__init__(
             f"extension {extension.__name__} failed to initialize:\n    {exception!r}"
@@ -46,3 +70,57 @@ class ExtensionFinalizationError(KitaError):
         )
         self.exception = exception
         self.extension = extension
+
+
+class CheckError(KitaError):
+    ...
+
+
+class CheckAnyError(KitaError):
+    def __init__(
+        self, predicates: Sequence[CallableProto], exceptions: Sequence[BaseException]
+    ) -> None:
+        super().__init__("all the predicates returned False or raised errors.")
+        self.predicates = predicates
+        self.exceptions = exceptions
+
+
+class PermissionError(KitaError, ABC):
+    @property
+    @abstractmethod
+    def perms(self) -> Permissions:
+        ...
+
+
+class MissingPermissionsError(PermissionError):
+    def __init__(self, perms: Permissions) -> None:
+        super().__init__(f"you're missing {perms} permission(s).")
+        self._perms = perms
+
+    @property
+    def perms(self) -> Permissions:
+        return self._perms
+
+
+class MissingAnyPermissionsError(PermissionError):
+    def __init__(self, perms: Permissions) -> None:
+        super().__init__(
+            f"you need to have at least one of the following permissions {perms}."
+        )
+        self._perms = perms
+
+    @property
+    def perms(self) -> Permissions:
+        return self._perms
+
+
+class GuildOnlyError(KitaError):
+    ...
+
+
+class DMOnlyError(KitaError):
+    ...
+
+
+class OwnerOnlyError(KitaError):
+    ...

@@ -5,7 +5,12 @@ from typing import Callable, Iterable, List, Optional, Tuple, Type, TypeVar, cas
 from hikari.commands import CommandOption, OptionType
 from hikari.impl.special_endpoints import CommandBuilder
 
-from kita.typedefs import ICommandCallback, IGroupCommandCallback, SignatureAware
+from kita.typedefs import (
+    CallableProto,
+    ICommandCallback,
+    IGroupCommandCallback,
+    SignatureAware,
+)
 
 __all__ = (
     "get_command_builder",
@@ -42,12 +47,23 @@ def get_command_builder(callback: ICommandCallback) -> CommandBuilder:
     return command
 
 
-def ensure_signature(callback: SignatureAware) -> None:
-    callback.__dict__.setdefault("__signature__", inspect.signature(callback))
+def ensure_signature(callback: CallableProto) -> SignatureAware:
+    callback = cast(SignatureAware, callback)
+    if not hasattr(callback, "__signature__"):
+        callback.__signature__ = inspect.signature(callback)
+    return callback
 
 
-def ensure_options(callback: ICommandCallback) -> None:
+def ensure_options(callback: CallableProto) -> ICommandCallback:
+    callback = cast(ICommandCallback, callback)
     callback.__dict__.setdefault("options", [])
+    return callback
+
+
+def ensure_checks(callback: CallableProto) -> ICommandCallback:
+    callback = cast(ICommandCallback, callback)
+    callback.__dict__.setdefault("__checks__", [])
+    return callback
 
 
 def find(predicate: Callable[[T], bool], iterable: Iterable[T]) -> Optional[T]:

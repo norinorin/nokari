@@ -13,7 +13,7 @@ from kita.typedefs import (
     SubCommandCallback,
     SubCommandGroupCallback,
 )
-from kita.utils import ensure_options, ensure_signature
+from kita.utils import ensure_checks, ensure_options, ensure_signature
 
 __all__ = ("command",)
 _CallbackT = TypeVar("_CallbackT", bound=ICommandCallback)
@@ -46,6 +46,7 @@ def _set_metadata(
     func.__is_command__ = True
     ensure_signature(func)
     ensure_options(func)
+    ensure_checks(func)
     return func
 
 
