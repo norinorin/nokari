@@ -65,7 +65,7 @@ class Bucket:
         return self.reset_at - monotonic()
 
     @property
-    def is_inactive(self) -> bool:
+    def is_expired(self) -> bool:
         return self.reset_at + EXPIRE_AFTER < monotonic()
 
     def invalidate(self) -> None:
@@ -129,7 +129,7 @@ class BucketManager:
                 return
 
             dead_buckets = [
-                bucket for bucket in self.buckets.values() if bucket.is_inactive
+                bucket for bucket in self.buckets.values() if bucket.is_expired
             ]
 
             for bucket in dead_buckets:
