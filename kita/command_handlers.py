@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import inspect
 import logging
-from types import AsyncGeneratorType, GeneratorType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -213,7 +212,7 @@ class GatewayCommandHandler(DataContainerMixin):
         except KeyError as err:
             raise RuntimeError("Callback wasn't found") from err
 
-        gen: Union[AsyncGeneratorType, GeneratorType] = await self._invoke_callback(
+        gen: Any = await self._invoke_callback(
             cb,
             extra_env={
                 InteractionCreateEvent: event,
@@ -225,7 +224,7 @@ class GatewayCommandHandler(DataContainerMixin):
         await self.app.dispatch(CommandCallEvent(self.app, self, event, cb))
 
         try:
-            await self._invoke_command(gen, event)
+            await self._consume_gen(gen, event)
         except Exception as e:
             await self.app.dispatch(
                 CommandFailureEvent(
@@ -236,8 +235,8 @@ class GatewayCommandHandler(DataContainerMixin):
             await self.app.dispatch(CommandSuccessEvent(self.app, self, event, cb))
 
     @staticmethod
-    async def _invoke_command(
-        gen: Union[AsyncGeneratorType, GeneratorType],
+    async def _consume_gen(
+        gen: Any,
         event: InteractionCreateEvent,
     ) -> None:
         if async_gen := inspect.isasyncgen(gen):

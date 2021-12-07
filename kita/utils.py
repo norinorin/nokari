@@ -43,21 +43,19 @@ def get_command_builder(callback: ICommandCallback) -> CommandBuilder:
 
 
 def ensure_signature(callback: SignatureAware) -> None:
-    if not hasattr(callback, "__signature__"):
-        callback.__signature__ = inspect.signature(callback)
+    callback.__dict__.setdefault("__signature__", inspect.signature(callback))
 
 
 def ensure_options(callback: ICommandCallback) -> None:
-    if not hasattr(callback, "options"):
-        callback.options = []
+    callback.__dict__.setdefault("options", [])
 
 
 def find(predicate: Callable[[T], bool], iterable: Iterable[T]) -> Optional[T]:
     for item in iterable:
         if predicate(item):
             return item
-    else:
-        return None
+
+    return None
 
 
 def get_exc_info(
