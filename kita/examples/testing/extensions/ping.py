@@ -8,7 +8,7 @@ from kita.data import data
 from kita.responses import Response, respond
 
 
-@command("ping", "Responds with pong!")
+@command("ping", "Responds with the latency!")
 def ping(
     app: GatewayBot = data(GatewayBot),
 ) -> Iterator[Response]:

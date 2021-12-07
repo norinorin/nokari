@@ -5,7 +5,8 @@ from hikari.impl.bot import GatewayBot
 
 from kita.command_handlers import GatewayCommandHandler
 from kita.data import data
-from kita.extensions import initializer, listener
+from kita.events import CommandCallEvent, CommandFailureEvent, CommandSuccessEvent
+from kita.extensions import listener
 
 _LOGGER = logging.getLogger("testing.extensions.meta")
 
@@ -24,7 +25,20 @@ async def on_started(
     _LOGGER.info("It's started! %s %d commands", app.get_me(), len(handler.commands))
 
 
-@initializer
-def ext_init(handler: GatewayCommandHandler) -> None:
-    handler.subscribe(on_started)
-    handler.subscribe(on_starting)
+@listener()
+async def on_command_error(event: CommandFailureEvent) -> None:
+    _LOGGER.error(
+        "%s command is failing due to:",
+        event.command.__name__,
+        exc_info=event.exception,
+    )
+
+
+@listener()
+async def on_command_call(event: CommandCallEvent) -> None:
+    _LOGGER.info("%s command is called!", event.command.__name__)
+
+
+@listener()
+async def on_command_success(event: CommandSuccessEvent) -> None:
+    _LOGGER.info("%s command invocation successfully completed", event.command.__name__)

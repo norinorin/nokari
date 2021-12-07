@@ -12,41 +12,41 @@ from kita.data import data
 from kita.options import with_option
 from kita.responses import edit, respond
 
-bot = hikari.GatewayBot("TOKEN", logs="DEBUG")
-handler = kita.GatewayCommandHandler(bot, guild_ids={726291069976969329})
+bot = hikari.GatewayBot(TOKEN, logs="DEBUG")
+handler = kita.GatewayCommandHandler(bot, guild_ids=GUILD_ID)
 
 
-@handler.command("base", "Base command")
-def base() -> None:
+@handler.command("sub", "Test command")
+def sub() -> None:
     ...
 
 
-@base.command("subcommand", "Test subcommand")
-def base_subcommand() -> t.Iterator[t.Any]:  # generator
+@sub.command("command", "Test subcommand")
+def sub_command() -> t.Iterator[t.Any]:  # generator
     yield respond(ResponseType.DEFERRED_MESSAGE_CREATE)
     yield asyncio.sleep(5)
     yield edit("test")
 
 
-@base.group("subgroup", "Test subcommand group")
-def base_subgroup() -> None:
+@sub.group("group", "Test subcommand group")
+def sub_group() -> None:
     ...
 
 
-@base_subgroup.command("subcommand", "Test subcommand of subcommand group")
+@sub_group.command("command", "Test subcommand of subcommand group")
 @with_option(OptionType.BOOLEAN, "boolean", description="Boolean")
 @with_option(OptionType.USER, "user", description="User")
-async def base_subgroup_subcommand(  # async function
+async def sub_group_command(  # async function
     boolean: bool,  # required
     user: t.Optional[Snowflake] = None,  # not required
     interaction: CommandInteraction = data(CommandInteraction),
 ) -> None:
     await interaction.create_initial_response(
-        ResponseType.MESSAGE_CREATE, f"{boolean}\n{user}"
+        ResponseType.MESSAGE_CREATE, f"{user}, {boolean}"
     )
 
 
-for name in "events", "ping":  # load extensions
+for name in "events", "ping", "checks":  # load extensions
     handler.load_extension(f"testing.extensions.{name}")
 
 bot.run()
