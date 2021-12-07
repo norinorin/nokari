@@ -48,7 +48,9 @@ def with_cooldown(
     def decorator(callback: CallableProto) -> ICommandCallback:
         callback = cast(ICommandCallback, callback)
         ensure_bucket_manager(callback)
-        callback.__bucket_manager__ = BucketManager(hash_getter, limit, period)
+        callback.__bucket_manager__ = BucketManager(
+            callback.__name__, hash_getter, limit, period
+        )
         return callback
 
     return decorator

@@ -71,11 +71,19 @@ class Bucket:
     def invalidate(self) -> None:
         del self.manager.buckets[self.hash]
 
+    def __repr__(self) -> str:
+        return (
+            f"<Bucket {self.manager.name!r} "
+            f"limit={self.limit} period={self.period} "
+            f"tokens={self.tokens} next_window={self.next_window}>"
+        )
+
 
 class BucketManager:
-    __slots__ = ("buckets", "hash_getter", "period", "limit", "gc_task")
+    __slots__ = ("name", "buckets", "hash_getter", "period", "limit", "gc_task")
 
-    def __init__(self, hash_getter: HashGetter, limit: int, period: float):
+    def __init__(self, name: str, hash_getter: HashGetter, limit: int, period: float):
+        self.name = name
         self.buckets: Dict[Snowflakeish, Bucket] = {}
         self.hash_getter = hash_getter
         self.limit = limit
@@ -105,11 +113,18 @@ class BucketManager:
         self.gc_task = None
 
     async def _do_gc(self) -> None:
+        _LOGGER.debug("started running gc (%s bucket manager)", self.name)
         while 1:
+            # runs periodically every `EXPIRE_AFTER` seconds
+            await asyncio.sleep(EXPIRE_AFTER)
+
             if not self.buckets:
                 # if there's no bucket yet or all the buckets have been dead
                 # the task shall stop.
-                _LOGGER.debug("no buckets were found, stopping the task...")
+                _LOGGER.debug(
+                    "no buckets were found, stopping the task... (%s bucket manager)",
+                    self.name,
+                )
                 self.close()
                 return
 
@@ -120,10 +135,11 @@ class BucketManager:
             for bucket in dead_buckets:
                 bucket.invalidate()
 
-            _LOGGER.debug("%d buckets were invalidated", len(dead_buckets))
-
-            # runs periodically every `EXPIRE_AFTER` seconds
-            await asyncio.sleep(EXPIRE_AFTER)
+            _LOGGER.debug(
+                "%d buckets were invalidated (%s bucket manager)",
+                len(dead_buckets),
+                self.name,
+            )
 
     @property
     def is_running(self) -> bool:

@@ -209,7 +209,6 @@ class GatewayCommandHandler(DataContainerMixin):
             cb = cast(IGroupCommandCallback, cb).__sub_commands__[option.name]
             options = option.options
 
-        _LOGGER.debug("Got the callback %s and options %s", cb.__name__, cb.options)
         return cb, {o.name: o.value for o in options or []}
 
     async def _process_command_interaction(self, event: InteractionCreateEvent) -> None:
@@ -298,8 +297,6 @@ class GatewayCommandHandler(DataContainerMixin):
 
                 if async_gen:
                     val = await val
-
-                _LOGGER.debug("Got %s from generator", val)
 
                 if isinstance(val, Response):
                     sent = await val.execute(event)
