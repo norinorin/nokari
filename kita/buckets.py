@@ -113,10 +113,9 @@ class BucketManager:
                 self.close()
                 return
 
-            dead_buckets = []
-            for bucket in iter(self.buckets.values()):
-                if bucket.is_inactive:
-                    dead_buckets.append(bucket)
+            dead_buckets = [
+                bucket for bucket in self.buckets.values() if bucket.is_inactive
+            ]
 
             for bucket in dead_buckets:
                 bucket.invalidate()
