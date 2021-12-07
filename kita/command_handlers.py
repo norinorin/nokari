@@ -28,14 +28,17 @@ from hikari.interactions.command_interactions import CommandInteraction
 from hikari.snowflakes import Snowflakeish
 from hikari.undefined import UNDEFINED, UndefinedOr
 
+from kita.buckets import EmptyBucketError
 from kita.commands import command
 from kita.data import DataContainerMixin
 from kita.errors import (
     CheckError,
+    CommandInCooldownError,
     CommandNameConflictError,
     CommandRuntimeError,
     ExtensionFinalizationError,
     ExtensionInitializationError,
+    KitaError,
     MissingCommandCallbackError,
 )
 from kita.events import CommandCallEvent, CommandFailureEvent, CommandSuccessEvent
@@ -218,23 +221,31 @@ class GatewayCommandHandler(DataContainerMixin):
 
         assert isinstance(interaction, CommandInteraction)
 
-        _LOGGER.debug("Received options: %s", interaction.options)
-
         try:
             cb, options = self._resolve_cb(interaction)
         except KeyError:
-            await self.app.dispatch(
-                CommandFailureEvent(
-                    self.app,
-                    self,
-                    event,
-                    None,
-                    MissingCommandCallbackError(
-                        f"couldn't find any implementation for {interaction.command_name!r}"
-                    ),
-                )
+            await self._dispatch_command_failure(
+                event,
+                None,
+                MissingCommandCallbackError(
+                    f"couldn't find any implementation for {interaction.command_name!r}"
+                ),
             )
             return
+
+        if bucket_manager := cb.__bucket_manager__:
+            try:
+                bucket_manager.get_bucket(event).acquire()
+            except EmptyBucketError as exc:
+                await self._dispatch_command_failure(
+                    event,
+                    cb,
+                    CommandInCooldownError(
+                        f"you're in cooldown, please try again in {exc.retry_after} seconds.",
+                        retry_after=exc.retry_after,
+                    ),
+                )
+                return
 
         await self.app.dispatch(CommandCallEvent(self.app, self, event, cb))
 
@@ -260,11 +271,7 @@ class GatewayCommandHandler(DataContainerMixin):
             )
             await self._consume_gen(gen, event)
         except Exception as e:
-            await self.app.dispatch(
-                CommandFailureEvent(
-                    self.app, self, event, cb, CommandRuntimeError(e, cb)
-                )
-            )
+            await self._dispatch_command_failure(event, cb, CommandRuntimeError(e, cb))
         else:
             await self.app.dispatch(CommandSuccessEvent(self.app, self, event, cb))
 
@@ -302,6 +309,14 @@ class GatewayCommandHandler(DataContainerMixin):
                     sent = val
         except (StopIteration, StopAsyncIteration):
             pass
+
+    async def _dispatch_command_failure(
+        self,
+        event: InteractionCreateEvent,
+        cb: Optional[ICommandCallback],
+        exc: KitaError,
+    ) -> None:
+        await self.app.dispatch(CommandFailureEvent(self.app, self, event, cb, exc))
 
 
 class RestCommandHandler:

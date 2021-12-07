@@ -22,12 +22,14 @@ from typing import (
 
 from hikari.api.event_manager import EventT
 from hikari.commands import CommandOption, OptionType
+from hikari.events.interaction_events import InteractionCreateEvent
 from hikari.snowflakes import Snowflakeish
 from hikari.undefined import UndefinedOr
 
 if TYPE_CHECKING:
     from importlib.abc import _LoaderProtocol
 
+    from kita.buckets import BucketManager
     from kita.command_handlers import GatewayCommandHandler
 
 __all__ = (
@@ -73,6 +75,7 @@ class ICommandCallback(OptionAware, SignatureAware, Protocol):
     __module__: str
     __is_command__: Literal[True]
     __checks__: List[CallableProto]
+    __bucket_manager__: Optional[BucketManager]
 
 
 class IGroupCommandCallback(ICommandCallback, Protocol):
@@ -123,16 +126,6 @@ class IExtensionCallback(Protocol):
         ...
 
 
-# class _ExtensionCallbackWithData(Protocol):
-#     def __call__(
-#         self, handler: GatewayCommandHandler, *args: Any, **kwargs: Any
-#     ) -> Any:
-#         ...
-
-
-# IExtensionCallback = Union[_ExtensionCallback, _ExtensionCallbackWithData]
-
-
 class ExtensionInitializer(Protocol):
     __name__: Literal["__einit__"]
     __call__: IExtensionCallback
@@ -159,3 +152,4 @@ class _EventCallbackWithData(_IEventCallback[EventT], Protocol):
 
 
 EventCallback = Union[_EventCallback[EventT], _EventCallbackWithData[EventT]]
+HashGetter = Callable[[InteractionCreateEvent], Snowflakeish]

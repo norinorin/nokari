@@ -16,6 +16,7 @@ __all__ = (
     "get_command_builder",
     "ensure_signature",
     "ensure_options",
+    "ensure_bucket_manager",
     "find",
     "get_exc_info",
 )
@@ -63,6 +64,13 @@ def ensure_options(callback: CallableProto) -> ICommandCallback:
 def ensure_checks(callback: CallableProto) -> ICommandCallback:
     callback = cast(ICommandCallback, callback)
     callback.__dict__.setdefault("__checks__", [])
+    return callback
+
+
+def ensure_bucket_manager(callback: Callable) -> ICommandCallback:
+    callback = cast(ICommandCallback, callback)
+    if not hasattr(callback, "__bucket_manager__"):
+        callback.__bucket_manager__ = None
     return callback
 
 

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Sequence
+from typing import Any, Sequence
 
 from hikari.permissions import Permissions
 
@@ -124,3 +124,9 @@ class DMOnlyError(KitaError):
 
 class OwnerOnlyError(KitaError):
     ...
+
+
+class CommandInCooldownError(KitaError):
+    def __init__(self, *args: Any, retry_after: float) -> None:
+        super().__init__(*args)
+        self.retry_after = retry_after
