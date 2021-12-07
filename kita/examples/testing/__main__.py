@@ -12,8 +12,8 @@ from kita.data import data
 from kita.options import with_option
 from kita.responses import edit, respond
 
-bot = hikari.GatewayBot(TOKEN, logs="DEBUG")
-handler = kita.GatewayCommandHandler(bot, guild_ids=GUILD_ID)
+bot = hikari.GatewayBot("TOKEN", logs="DEBUG")
+handler = kita.GatewayCommandHandler(bot, guild_ids={1234})
 
 
 @handler.command("sub", "Test command")

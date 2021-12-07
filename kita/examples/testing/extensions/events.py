@@ -29,7 +29,7 @@ async def on_started(
 async def on_command_error(event: CommandFailureEvent) -> None:
     _LOGGER.error(
         "%s command is failing due to:",
-        event.command.__name__,
+        event.command and event.command.__name__,
         exc_info=event.exception,
     )
 
