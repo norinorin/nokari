@@ -1,5 +1,3 @@
-__all__ = ["data", "DataContainerMixin"]
-
 import inspect
 from typing import (
     Any,
@@ -17,9 +15,10 @@ from typing import (
 
 from hikari.undefined import UNDEFINED, UndefinedOr
 
-from kita.typedefs import CallableProto, CallableT
+from kita.typedefs import CallableT
 from kita.utils import ensure_signature
 
+__all__ = ("data", "DataContainerMixin")
 T_co = TypeVar("T_co", covariant=True)
 DataContainerT = TypeVar("DataContainerT", bound="DataContainerMixin")
 

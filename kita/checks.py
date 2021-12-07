@@ -59,8 +59,8 @@ def with_check_any(
                     return True
             except Exception as exc:
                 exceptions.append(exc)
-        else:
-            raise CheckAnyError(predicates, exceptions)
+
+        raise CheckAnyError(predicates, exceptions)
 
     return with_check(_inner)
 

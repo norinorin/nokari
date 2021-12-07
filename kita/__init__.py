@@ -2,6 +2,7 @@ __author__ = "Norizon"
 __version__ = "SNAPSHOT"
 __license__ = "MPL-2.0"
 
+from kita.checks import *
 from kita.command_handlers import *
 from kita.commands import *
 from kita.data import *
