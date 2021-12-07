@@ -11,4 +11,5 @@ from kita.responses import Response, respond
 @with_cooldown(user_hash_getter, 1, 3)
 def cooldown() -> Iterator[Response]:
     bm = cooldown.__bucket_manager__
+    assert bm is not None
     yield respond(ResponseType.MESSAGE_CREATE, f"{bm.buckets}, {bm.is_running}")
