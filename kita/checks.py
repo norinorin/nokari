@@ -1,4 +1,4 @@
-from typing import Any, Callable, MutableMapping, Type, cast
+from typing import Any, Callable, Literal, MutableMapping, Type, cast
 
 from hikari.events.interaction_events import InteractionCreateEvent
 from hikari.interactions.command_interactions import CommandInteraction
@@ -47,7 +47,7 @@ def with_check_any(
         handler: GatewayCommandHandler = data(GatewayCommandHandler),
         event: InteractionCreateEvent = data(InteractionCreateEvent),
         interaction: CommandInteraction = data(CommandInteraction),
-    ) -> bool:
+    ) -> Literal[True]:
         exceptions = []
         extra_env: MutableMapping[Type[Any], Any] = {
             InteractionCreateEvent: event,
@@ -65,13 +65,17 @@ def with_check_any(
     return with_check(_inner)
 
 
-def guild_only(interaction: CommandInteraction = data(CommandInteraction)) -> bool:
+def guild_only(
+    interaction: CommandInteraction = data(CommandInteraction),
+) -> Literal[True]:
     if interaction.guild_id is None:
         raise GuildOnlyError(f"command {interaction.command_name!r} is guild only.")
     return True
 
 
-def dm_only(interaction: CommandInteraction = data(CommandInteraction)) -> bool:
+def dm_only(
+    interaction: CommandInteraction = data(CommandInteraction),
+) -> Literal[True]:
     if interaction.guild_id is not None:
         raise DMOnlyError(f"command {interaction.command_name!r} is dm only.")
     return True
@@ -80,14 +84,16 @@ def dm_only(interaction: CommandInteraction = data(CommandInteraction)) -> bool:
 def owner_only(
     interaction: CommandInteraction = data(CommandInteraction),
     handler: GatewayCommandHandler = data(GatewayCommandHandler),
-) -> bool:
+) -> Literal[True]:
     if interaction.user.id not in handler.owner_ids:
         raise OwnerOnlyError("command {interaction.command_name!r} is owner only.")
     return True
 
 
 def has_all_permissions(perms: Permissions) -> CallableProto:
-    def inner(interaction: CommandInteraction = data(CommandInteraction)) -> bool:
+    def inner(
+        interaction: CommandInteraction = data(CommandInteraction),
+    ) -> Literal[True]:
         if not (member := interaction.member) or (member.permissions & perms) != perms:
             raise MissingPermissionsError(perms)
         return True
@@ -96,7 +102,9 @@ def has_all_permissions(perms: Permissions) -> CallableProto:
 
 
 def has_any_permissions(perms: Permissions) -> CallableProto:
-    def inner(interaction: CommandInteraction = data(CommandInteraction)) -> bool:
+    def inner(
+        interaction: CommandInteraction = data(CommandInteraction),
+    ) -> Literal[True]:
         if not ((member := interaction.member) and member.permissions & perms):
             raise MissingAnyPermissionsError(perms)
         return True
