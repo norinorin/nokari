@@ -2,6 +2,7 @@ import asyncio
 import typing as t
 
 import hikari
+import psutil
 from hikari.commands import OptionType
 from hikari.interactions.base_interactions import ResponseType
 from hikari.interactions.command_interactions import CommandInteraction
@@ -13,7 +14,7 @@ from kita.options import with_option
 from kita.responses import edit, respond
 
 bot = hikari.GatewayBot("TOKEN", logs="DEBUG")
-handler = kita.GatewayCommandHandler(bot, guild_ids={1234})
+handler = kita.GatewayCommandHandler(bot, guild_ids={1234}).set_data(psutil.Process())
 
 
 @handler.command("sub", "Test command")
@@ -46,7 +47,7 @@ async def sub_group_command(  # async function
     )
 
 
-for name in "events", "ping", "checks":  # load extensions
+for name in "events", "common", "checks", "cooldowns":  # load extensions
     handler.load_extension(f"testing.extensions.{name}")
 
 bot.run()
