@@ -55,13 +55,13 @@ class Context:
 
     async def _resolve_ret_val(self, obj: Any) -> Any:
         if isinstance(obj, Response):
-            sent = await obj.execute(self)
+            obj = await obj.execute(self)
         elif inspect.iscoroutine(obj):
-            sent = await obj
+            obj = await obj
         else:
-            sent = obj
+            obj = obj
 
-        return sent
+        return obj
 
     async def _consume_gen(self, gen: Any) -> None:
         if async_gen := inspect.isasyncgen(gen):
