@@ -117,8 +117,8 @@ class Extension(Protocol):
     __package__: Optional[str]
     __path__: MutableSequence[str]
     __spec__: Optional[ModuleSpec]
-    __einit__: ExtensionInitializer
-    __edel__: ExtensionFinalizer
+    __einit__: Optional[ExtensionInitializer]
+    __edel__: Optional[ExtensionFinalizer]
 
 
 class IExtensionCallback(Protocol):

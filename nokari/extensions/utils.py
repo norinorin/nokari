@@ -505,8 +505,6 @@ def extension_initializer(handler: GatewayCommandHandler) -> None:
     assert isinstance(handler.app, Nokari)
     core = ReminderCore(handler.app)
     handler.set_data(core)
-    handler.add_command(reminder)
-    handler.subscribe(on_reminder)
     if not handler.get_data(Pool):
         raise RuntimeError("No pool was found")
 
@@ -516,8 +514,6 @@ def extension_initializer(handler: GatewayCommandHandler) -> None:
 @finalizer
 def extension_finalizer(handler: GatewayCommandHandler) -> None:
     core = handler._data.pop(ReminderCore)
-    handler.remove_command(reminder)
-    handler.unsubscribe(on_reminder)
     if core.task:
         core.task.cancel()
         core.task = None

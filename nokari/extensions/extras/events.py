@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from functools import partial
 from typing import Any
 
@@ -13,14 +12,11 @@ from hikari.traits import RESTAware
 
 from kita.command_handlers import GatewayCommandHandler
 from kita.data import data
-from kita.events import CommandCallEvent
-from kita.extensions import finalizer, initializer, listener
+from kita.extensions import initializer, listener
 from nokari import core
 from nokari.core.bot import Nokari
 from nokari.core.constants import GUILD_LOGS_WEBHOOK_URL
 from nokari.utils import plural
-
-_LOGGER = logging.getLogger("nokari.extensions.extras.events")
 
 
 async def handle_ping(event: GuildMessageCreateEvent) -> None:
@@ -38,11 +34,6 @@ async def handle_ping(event: GuildMessageCreateEvent) -> None:
 @listener()
 async def on_message(event: GuildMessageCreateEvent) -> None:
     await handle_ping(event)
-
-
-@listener()
-async def on_command_call(event: CommandCallEvent):
-    _LOGGER.info("n_message %d", event.context.n_message)
 
 
 class WebhookExecutor:
@@ -103,14 +94,3 @@ if GUILD_LOGS_WEBHOOK_URL:
 def extension_initializer(handler: GatewayCommandHandler) -> None:
     if GUILD_LOGS_WEBHOOK_URL:
         handler.set_data(WebhookExecutor(handler.app, GUILD_LOGS_WEBHOOK_URL))
-
-    for g in globals().values():
-        if hasattr(g, "__is_listener__"):
-            handler.subscribe(g)
-
-
-@finalizer
-def extension_finalizer(handler: GatewayCommandHandler) -> None:
-    for g in globals().values():
-        if hasattr(g, "__is_listener__"):
-            handler.unsubscribe(g)

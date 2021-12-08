@@ -8,6 +8,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Mapping,
     Optional,
     Tuple,
     Type,
@@ -51,38 +52,27 @@ def _is_listener(obj: Any) -> TypeGuard[EventCallback]:
     return getattr(obj, "__is_listener__", False)
 
 
-def _get_default_einit(_mod: Extension) -> ExtensionInitializer:
-    @initializer
-    def _default_einit(handler: GatewayCommandHandler) -> None:
-        for g in _mod.__dict__.values():
-            if _is_command(g):
-                handler.add_command(g)
-            elif _is_listener(g):
-                handler.subscribe(g)
-
-    return _default_einit
+def load_components(handler: GatewayCommandHandler, mod: Extension) -> None:
+    for g in mod.__dict__.values():
+        if _is_command(g):
+            handler.add_command(g)
+        elif _is_listener(g):
+            handler.subscribe(g)
 
 
-def _get_default_edel(_mod: Extension) -> ExtensionFinalizer:
-    @finalizer
-    def _default_edel(handler: GatewayCommandHandler) -> None:
-        for g in _mod.__dict__.values():
-            if _is_command(g):
-                handler.remove_command(g)
-            elif _is_listener(g):
-                handler.unsubscribe(g)
-
-    return _default_edel
+def unload_components(handler: GatewayCommandHandler, mod: Extension) -> None:
+    for g in mod.__dict__.values():
+        if _is_command(g):
+            handler.remove_command(g)
+        elif _is_listener(g):
+            handler.unsubscribe(g)
 
 
 def load_extension(name: str) -> Extension:
     mod = cast(Extension, importlib.import_module(name))
 
     if not hasattr(mod, "__einit__"):
-        _LOGGER.debug(
-            "no initializer for %s was found, using the default one...", mod.__name__
-        )
-        mod.__einit__ = _get_default_einit(mod)
+        mod.__einit__ = None
 
     return mod
 
@@ -94,10 +84,7 @@ def unload_extension(name: str) -> Extension:
         raise RuntimeError("extension wasn't found.") from e
     else:
         if not hasattr(mod, "__edel__"):
-            _LOGGER.debug(
-                "no finalizer for %s was found, using the default one...", mod.__name__
-            )
-            mod.__edel__ = _get_default_edel(mod)
+            mod.__edel__ = None
         return mod
 
 

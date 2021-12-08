@@ -185,14 +185,8 @@ async def source(ctx: Context = data(Context), obj: Optional[str] = None) -> Non
 @initializer
 def extension_initializer(handler: GatewayCommandHandler) -> None:
     handler.set_data(psutil.Process())
-    handler.add_command(ping)
-    handler.add_command(stats)
-    handler.add_command(source)
 
 
 @finalizer
 def extension_finalizer(handler: GatewayCommandHandler) -> None:
     handler._data.pop(psutil.Process)
-    handler.remove_command(ping)
-    handler.remove_command(stats)
-    handler.remove_command(source)

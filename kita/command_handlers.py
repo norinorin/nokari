@@ -42,7 +42,14 @@ from kita.errors import (
     MissingCommandCallbackError,
 )
 from kita.events import CommandCallEvent, CommandFailureEvent, CommandSuccessEvent
-from kita.extensions import listener, load_extension, reload_extension, unload_extension
+from kita.extensions import (
+    listener,
+    load_components,
+    load_extension,
+    reload_extension,
+    unload_components,
+    unload_extension,
+)
 from kita.typedefs import (
     CallableProto,
     CommandCallback,
@@ -169,22 +176,24 @@ class GatewayCommandHandler(DataContainerMixin):
     def _load_module(self, mod: Extension) -> None:
         name = mod.__name__
         try:
-            mod.__einit__(self)
+            mod.__einit__ and mod.__einit__(self)
         except Exception as e:
             unload_extension(name)
             raise ExtensionInitializationError(e, mod) from e
         else:
             self._extensions[name] = mod
+            load_components(self, mod)
 
     def _unload_module(self, mod: Extension) -> None:
         name = mod.__name__
         try:
-            mod.__edel__(self)
+            mod.__edel__ and mod.__edel__(self)
         except Exception as e:
             load_extension(name)
             raise ExtensionFinalizationError(e, mod) from e
         else:
             del self._extensions[name]
+            unload_components(self, mod)
 
     def load_extension(self, name: str) -> None:
         mod = load_extension(name)
