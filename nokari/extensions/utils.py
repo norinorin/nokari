@@ -223,7 +223,7 @@ async def reminder_set(
     pre = ""
 
     if interval:
-        reminder_id += f" with interval {human_timedelta(timedelta(seconds=cast(float, interval)))}"
+        reminder_id += f" with interval {human_timedelta(timedelta(seconds=cast(float, interval_sec)))}"
     elif daily:
         fmt = "t"
         pre = "at "
