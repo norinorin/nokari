@@ -2,6 +2,7 @@ import logging
 
 from hikari.events.lifetime_events import StartedEvent, StartingEvent
 from hikari.impl.bot import GatewayBot
+from hikari.interactions.base_interactions import ResponseType
 
 from kita.command_handlers import GatewayCommandHandler
 from kita.data import data
@@ -27,18 +28,25 @@ async def on_started(
 
 @listener()
 async def on_command_error(event: CommandFailureEvent) -> None:
+    ctx = event.context
+    command_name = ctx.command and ctx.command.__name__
+    await ctx.respond(f"{command_name} raised an error:\n{event.exception}")
     _LOGGER.error(
         "%s command is failing due to:",
-        event.command and event.command.__name__,
+        command_name,
         exc_info=event.exception,
     )
 
 
 @listener()
 async def on_command_call(event: CommandCallEvent) -> None:
-    _LOGGER.info("%s command is called!", event.command.__name__)
+    assert event.context.command is not None
+    _LOGGER.info("%s command is called!", event.context.command.__name__)
 
 
 @listener()
 async def on_command_success(event: CommandSuccessEvent) -> None:
-    _LOGGER.info("%s command invocation successfully completed", event.command.__name__)
+    assert event.context.command is not None
+    _LOGGER.info(
+        "%s command invocation successfully completed", event.context.command.__name__
+    )

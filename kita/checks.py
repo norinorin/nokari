@@ -5,6 +5,7 @@ from hikari.interactions.command_interactions import CommandInteraction
 from hikari.permissions import Permissions
 
 from kita.command_handlers import GatewayCommandHandler
+from kita.contexts import Context
 from kita.data import data
 from kita.errors import (
     CheckAnyError,
@@ -44,18 +45,17 @@ def with_check_any(
     *predicates: CallableProto,
 ) -> Callable[[CallableProto], ICommandCallback]:
     async def _inner(
-        handler: GatewayCommandHandler = data(GatewayCommandHandler),
-        event: InteractionCreateEvent = data(InteractionCreateEvent),
-        interaction: CommandInteraction = data(CommandInteraction),
+        ctx: Context = data(Context),
     ) -> Literal[True]:
         exceptions = []
         extra_env: MutableMapping[Type[Any], Any] = {
-            InteractionCreateEvent: event,
-            CommandInteraction: interaction,
+            InteractionCreateEvent: ctx.event,
+            CommandInteraction: ctx.interaction,
+            type(ctx): ctx,
         }
         for predicate in predicates:
             try:
-                if await handler._invoke_callback(predicate, extra_env=extra_env):
+                if await ctx.handler._invoke_callback(predicate, extra_env=extra_env):
                     return True
             except Exception as exc:
                 exceptions.append(exc)

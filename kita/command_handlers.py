@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import inspect
 import logging
 from typing import (
     TYPE_CHECKING,
@@ -30,6 +29,7 @@ from hikari.undefined import UNDEFINED, UndefinedOr
 
 from kita.buckets import EmptyBucketError
 from kita.commands import command
+from kita.contexts import Context
 from kita.data import DataContainerMixin
 from kita.errors import (
     CheckError,
@@ -43,7 +43,6 @@ from kita.errors import (
 )
 from kita.events import CommandCallEvent, CommandFailureEvent, CommandSuccessEvent
 from kita.extensions import listener, load_extension, reload_extension, unload_extension
-from kita.responses import Response
 from kita.typedefs import (
     CallableProto,
     CommandCallback,
@@ -63,11 +62,22 @@ _LOGGER = logging.getLogger("kita.command_handler")
 
 
 class GatewayCommandHandler(DataContainerMixin):
+    __slots__ = (
+        "app",
+        "guild_ids",
+        "owner_ids",
+        "context_type",
+        "_commands",
+        "_extensions",
+        "_listeners",
+    )
+
     def __init__(
         self,
         app: GatewayBot,
         guild_ids: Optional[Set[Snowflakeish]] = None,
         owner_ids: Optional[Set[Snowflakeish]] = None,
+        context_type: Type[Context] = Context,
     ) -> None:
         super().__init__()
         self.app = app
@@ -79,6 +89,7 @@ class GatewayCommandHandler(DataContainerMixin):
         self._listeners: MutableMapping[
             EventCallback, CallbackT
         ] = WeakValueDictionary()
+        self.context_type = context_type
         app.subscribe(StartedEvent, self._on_started)
         app.subscribe(InteractionCreateEvent, self._process_command_interaction)
 
@@ -220,25 +231,27 @@ class GatewayCommandHandler(DataContainerMixin):
 
         assert isinstance(interaction, CommandInteraction)
 
+        ctx = Context(event, self)
+
         try:
             cb, options = self._resolve_cb(interaction)
         except KeyError:
             await self._dispatch_command_failure(
-                event,
-                None,
+                ctx,
                 MissingCommandCallbackError(
                     f"couldn't find any implementation for {interaction.command_name!r}"
                 ),
             )
             return
 
+        ctx.set_command(cb)
+
         if bucket_manager := cb.__bucket_manager__:
             try:
                 bucket_manager.get_bucket(event).acquire()
             except EmptyBucketError as exc:
                 await self._dispatch_command_failure(
-                    event,
-                    cb,
+                    ctx,
                     CommandInCooldownError(
                         f"you're in cooldown, please try again in {exc.retry_after} seconds.",
                         retry_after=exc.retry_after,
@@ -246,11 +259,12 @@ class GatewayCommandHandler(DataContainerMixin):
                 )
                 return
 
-        await self.app.dispatch(CommandCallEvent(self.app, self, event, cb))
+        await self.app.dispatch(CommandCallEvent(self.app, ctx))
 
         extra_env: MutableMapping[Type[Any], Any] = {
             InteractionCreateEvent: event,
             CommandInteraction: event.interaction,
+            self.context_type: ctx,
         }
 
         try:
@@ -268,52 +282,18 @@ class GatewayCommandHandler(DataContainerMixin):
                 extra_env=extra_env,
                 **options,
             )
-            await self._consume_gen(gen, event)
+            await ctx._consume_gen(gen)
         except Exception as e:
-            await self._dispatch_command_failure(event, cb, CommandRuntimeError(e, cb))
+            await self._dispatch_command_failure(ctx, CommandRuntimeError(e, cb))
         else:
-            await self.app.dispatch(CommandSuccessEvent(self.app, self, event, cb))
-
-    @staticmethod
-    async def _consume_gen(
-        gen: Any,
-        event: InteractionCreateEvent,
-    ) -> None:
-        if async_gen := inspect.isasyncgen(gen):
-            send = gen.asend
-        elif inspect.isgenerator(gen):
-            send = gen.send
-        elif inspect.iscoroutine(gen):
-            await gen
-            return
-        else:
-            return
-
-        sent: Any = None
-
-        try:
-            while 1:
-                val = send(sent)
-
-                if async_gen:
-                    val = await val
-
-                if isinstance(val, Response):
-                    sent = await val.execute(event)
-                elif inspect.iscoroutine(val):
-                    sent = await val
-                else:
-                    sent = val
-        except (StopIteration, StopAsyncIteration):
-            pass
+            await self.app.dispatch(CommandSuccessEvent(self.app, ctx))
 
     async def _dispatch_command_failure(
         self,
-        event: InteractionCreateEvent,
-        cb: Optional[ICommandCallback],
+        ctx: Context,
         exc: KitaError,
     ) -> None:
-        await self.app.dispatch(CommandFailureEvent(self.app, self, event, cb, exc))
+        await self.app.dispatch(CommandFailureEvent(self.app, ctx, exc))
 
 
 class RestCommandHandler:

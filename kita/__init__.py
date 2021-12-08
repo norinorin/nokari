@@ -6,6 +6,7 @@ from kita.buckets import *
 from kita.checks import *
 from kita.command_handlers import *
 from kita.commands import *
+from kita.contexts import *
 from kita.cooldowns import *
 from kita.data import *
 from kita.errors import *
