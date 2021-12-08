@@ -150,14 +150,21 @@ class GatewayCommandHandler(DataContainerMixin):
         del self._commands[func_or_name]
 
     def get_command(self, name: str) -> Optional[ICommandCallback]:
-        if not (base := self.commands.get(name)):
+        ret: Optional[ICommandCallback]
+        names = name.split()
+        if not (ret := self.commands.get(names.pop(0))):
             return None
 
-        for name in name.split()[1:]:
-            if not (base := getattr(base, "__sub_commands__", {}).get(name)):
+        while names:
+            if not (
+                ret := cast(
+                    MutableMapping[str, ICommandCallback],
+                    getattr(ret, "__sub_commands__", {}),
+                ).get(names.pop(0))
+            ):
                 return None
 
-        return cast(ICommandCallback, base)
+        return ret
 
     def _load_module(self, mod: Extension) -> None:
         name = mod.__name__

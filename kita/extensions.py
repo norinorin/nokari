@@ -154,13 +154,9 @@ def listener(
                     "please either provide the event type or annotate the event parameter."
                 )
 
-            if not (
-                isinstance(param.annotation, type)
-                and issubclass(param.annotation, Event)
-            ):
+            annotation = param.annotation
+            if not (isinstance(annotation, type) and issubclass(annotation, Event)):
                 annotation = get_type_hints(func)[param.name]
-            else:
-                annotation = param.annotation
             event = cast("Type[EventT_co]", annotation)
 
         cast_func.__etype__ = event
