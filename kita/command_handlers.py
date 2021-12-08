@@ -284,7 +284,9 @@ class GatewayCommandHandler(DataContainerMixin):
             )
             await ctx._consume_gen(gen)
         except Exception as e:
-            await self._dispatch_command_failure(ctx, CommandRuntimeError(e, cb))
+            await self._dispatch_command_failure(
+                ctx, e if isinstance(e, KitaError) else CommandRuntimeError(e, cb)
+            )
         else:
             await self.app.dispatch(CommandSuccessEvent(self.app, ctx))
 
