@@ -60,6 +60,10 @@ class Context:
         if isinstance(obj, Response):
             obj = await obj.execute(self)
 
+        if inspect.isasyncgen(obj) or inspect.isgenerator(obj):
+            await self._consume_gen(obj)
+            return None
+
         return obj
 
     async def _consume_gen(self, gen: Any) -> None:

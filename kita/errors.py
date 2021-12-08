@@ -20,6 +20,7 @@ __all__ = (
     "GuildOnlyError",
     "DMOnlyError",
     "OwnerOnlyError",
+    "CommandOnCooldownError",
 )
 
 
@@ -126,7 +127,7 @@ class OwnerOnlyError(KitaError):
     ...
 
 
-class CommandInCooldownError(KitaError):
+class CommandOnCooldownError(KitaError):
     def __init__(self, *args: Any, retry_after: float) -> None:
         super().__init__(*args)
         self.retry_after = retry_after

@@ -33,8 +33,8 @@ from kita.contexts import Context
 from kita.data import DataContainerMixin
 from kita.errors import (
     CheckError,
-    CommandInCooldownError,
     CommandNameConflictError,
+    CommandOnCooldownError,
     CommandRuntimeError,
     ExtensionFinalizationError,
     ExtensionInitializationError,
@@ -252,7 +252,7 @@ class GatewayCommandHandler(DataContainerMixin):
             except EmptyBucketError as exc:
                 await self._dispatch_command_failure(
                     ctx,
-                    CommandInCooldownError(
+                    CommandOnCooldownError(
                         f"you're in cooldown, please try again in {exc.retry_after} seconds.",
                         retry_after=exc.retry_after,
                     ),
