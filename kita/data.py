@@ -123,7 +123,7 @@ class DataContainerMixin:
         for subclass in type_.__subclasses__():
             maybe_data = self._resolve_data(subclass, env)
             if maybe_data is not _UNSET:
-                return True, maybe_data[1]
+                return not subclass in env, maybe_data[1]
 
         return _UNSET
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-import importlib
 import logging
 import os
 import shutil
@@ -15,37 +14,33 @@ from contextlib import suppress
 import aiohttp
 import asyncpg
 import hikari
-import lightbulb
 import topgg
+from hikari.commands import OptionType
 from hikari.events.interaction_events import InteractionCreateEvent
+from hikari.impl.bot import GatewayBot
 from hikari.interactions.base_interactions import ResponseType
 from hikari.interactions.component_interactions import ComponentInteraction
 from hikari.messages import ButtonStyle
 from hikari.snowflakes import Snowflake
-from lightbulb import checks
 from lru import LRU  # pylint: disable=no-name-in-module
 
-from nokari.core import commands, constants
+from kita.checks import owner_only, with_check
+from kita.command_handlers import GatewayCommandHandler
+from kita.commands import command
+from kita.data import data
+from kita.errors import KitaError
+from kita.options import with_option
+from nokari.core import constants
 from nokari.core.cache import Cache
-from nokari.core.context import PrefixContext
+from nokari.core.context import Context
 from nokari.core.entity_factory import EntityFactory
 from nokari.utils import db, human_timedelta
 
 if typing.TYPE_CHECKING:
     from nokari.utils.paginator import Paginator
 
-__all__: typing.Final[typing.List[str]] = ["Nokari"]
+__all__ = ("Nokari",)
 _LOGGER = logging.getLogger("nokari.core.bot")
-
-
-def _get_prefixes(bot: lightbulb.Bot, message: hikari.Message) -> typing.List[str]:
-    if not hasattr(bot, "prefixes"):
-        return bot.default_prefixes
-
-    prefixes = bot.prefixes
-    return prefixes.get(message.guild_id, bot.default_prefixes) + prefixes.get(
-        message.author.id, []
-    )
 
 
 class Messageable(typing.Protocol):
@@ -53,7 +48,7 @@ class Messageable(typing.Protocol):
     send: typing.Callable[..., typing.Coroutine[None, None, hikari.Message]]
 
 
-class Nokari(lightbulb.BotApp):
+class Nokari(GatewayBot):
     """The custom command handler class."""
 
     # pylint: disable=too-many-instance-attributes
@@ -72,9 +67,6 @@ class Nokari(lightbulb.BotApp):
             | hikari.Intents.GUILD_MEMBERS
             | hikari.Intents.GUILD_MESSAGE_REACTIONS
             | hikari.Intents.GUILD_PRESENCES,
-            case_insensitive_prefix_commands=True,
-            prefix=lightbulb.when_mentioned_or(_get_prefixes),
-            owner_ids=[265080794911866881],
             logs=constants.LOG_LEVEL,
         )
 
@@ -93,15 +85,13 @@ class Nokari(lightbulb.BotApp):
         # A mapping from user ids to their sync ids
         self._sync_ids: typing.Dict[Snowflake, str] = {}
 
-        # Responses cache
-        self._resp_cache = LRU(1024)
+        # Command handler
+        self.handler = GatewayCommandHandler(
+            self, constants.GUILD_IDS, context_type=Context
+        )
 
         # Non-modular commands
-        _ = [
-            self.command(g)
-            for g in globals().values()
-            if isinstance(g, lightbulb.commands.CommandLike)
-        ]
+        self.handler.add_command(extension)
 
         # Set Launch time
         self.launch_time: datetime.datetime | None = None
@@ -158,15 +148,13 @@ class Nokari(lightbulb.BotApp):
 
     async def on_starting(self, _: hikari.StartingEvent) -> None:
         await self.create_pool()
-        self._load_extensions()
+        self.load_extensions()
 
     async def on_started(self, _: hikari.StartedEvent) -> None:
         self.launch_time = datetime.datetime.now(datetime.timezone.utc)
 
         if sys.argv[-1] == "init":
             await db.create_tables(self.pool)
-
-        await self._load_prefixes()
 
         with suppress(FileNotFoundError):
             with open("tmp/restarting", "r", encoding="utf-8") as fp:
@@ -203,11 +191,6 @@ class Nokari(lightbulb.BotApp):
         return self.rest._get_live_attributes().client_session
 
     @property
-    def responses_cache(self) -> LRU:
-        """Returns a mapping from message IDs to its response message IDs."""
-        return self._resp_cache
-
-    @property
     def pool(self) -> asyncpg.Pool | None:
         return getattr(self, "_pool", None)
 
@@ -215,20 +198,7 @@ class Nokari(lightbulb.BotApp):
         """Creates a connection pool."""
         if pool := await db.create_pool():
             self._pool = pool
-
-    async def _load_prefixes(self) -> None:
-        if self.pool:
-            self.prefixes = {
-                record["hash"]: record["prefixes"]
-                for record in await self.pool.fetch("SELECT * FROM prefixes")
-            }
-
-    def get_prefix_context(
-        self,
-        event: hikari.MessageCreateEvent,
-        cls: typing.Type[lightbulb.context.prefix.PrefixContext] = PrefixContext,
-    ) -> typing.Awaitable[typing.Optional[lightbulb.context.prefix.PrefixContext]]:
-        return super().get_prefix_context(event, cls=cls)
+            self.handler.set_data(pool)
 
     @property
     def raw_extensions(self) -> typing.Iterator[str]:
@@ -261,17 +231,13 @@ class Nokari(lightbulb.BotApp):
             else "Not available."
         )
 
-    def _load_extensions(self) -> None:
-        """Loads all the plugins."""
+    def load_extensions(self) -> None:
+        """Loads all the extensions."""
         for extension in self.raw_extensions:
             try:
-                self.load_extensions(extension)
-            except lightbulb.errors.ExtensionMissingLoad:
-                _LOGGER.error("%s is missing load function", extension)
-            except lightbulb.errors.ExtensionAlreadyLoaded:
-                pass
-            except lightbulb.errors.LightbulbError as _e:
-                _LOGGER.error("%s failed to load", exc_info=_e)
+                self.handler.load_extension(extension)
+            except Exception as _e:
+                _LOGGER.error("%s failed to load", extension, exc_info=_e)
 
     # pylint: disable=lost-exception
     async def prompt(
@@ -283,10 +249,9 @@ class Nokari(lightbulb.BotApp):
         timeout: float = 60.0,
         delete_after: bool = False,
     ) -> bool:
-        if isinstance(messageable, PrefixContext):
+        color = self.default_color
+        if isinstance(messageable, Context):
             color = messageable.color
-        else:
-            color = self.default_color
 
         embed = hikari.Embed(description=message, color=color)
         component = (
@@ -344,73 +309,28 @@ class Nokari(lightbulb.BotApp):
         """Temp fix until lightbub updates."""
         return self.get_me()
 
-    def add_plugin(
-        self,
-        plugin: lightbulb.Plugin | typing.Type[lightbulb.Plugin],
-        requires_db: bool = False,
-    ) -> None:
-        if requires_db and self.pool is None:
-            if (name := getattr(plugin, "name", None)) is None:
-                name = plugin.__class__.name  # type: ignore
 
-            _LOGGER.warning("Not loading %s plugin as it requires DB", name)
-            return None
-
-        return super().add_plugin(plugin)
+@command("extension", "Extension utilities.")
+def extension() -> None:
+    ...
 
 
-@commands.add_checks(checks.owner_only)
-@commands.consume_rest_option("plugins", "The plugins to reload.", default="*")
-@commands.command("reload", "Reloads plugins.")
-@commands.implements(lightbulb.commands.PrefixCommandGroup)
-async def reload_plugin(ctx: PrefixContext) -> None:
-    await ctx.execute_extensions(ctx.bot.reload_extensions, ctx.options.plugins)
+@extension.command("reload", "Reloads extensions.")
+@with_check(owner_only)
+@with_option(OptionType.STRING, "extensions", "The extensions to reload.")
+async def reload_plugin(ctx: Context = data(Context), extensions="*") -> None:
+    await ctx.execute_extensions(ctx.handler.reload_extension, extensions)
 
 
-@lightbulb.add_checks(checks.owner_only)
-@commands.consume_rest_option("plugins", "The plugins to unload.", default="*")
-@commands.command("unload", "Unloads plugins.")
-@commands.implements(lightbulb.commands.PrefixCommandGroup)
-async def unload_plugin(ctx: PrefixContext) -> None:
-    await ctx.execute_extensions(ctx.bot.unload_extensions, ctx.options.plugins)
+@extension.command("unload", "Unloads extensions.")
+@with_check(owner_only)
+@with_option(OptionType.STRING, "extensions", "The extensions to unload.")
+async def unload_plugin(ctx: Context = data(Context), extensions="*") -> None:
+    await ctx.execute_extensions(ctx.handler.unload_extension, extensions)
 
 
-@lightbulb.add_checks(checks.owner_only)
-@commands.consume_rest_option("plugins", "The plugins to load.", default="*")
-@commands.command("load", "Loads plugins.")
-@commands.implements(lightbulb.commands.PrefixCommandGroup)
-async def load_plugin(ctx: PrefixContext) -> None:
-    await ctx.execute_extensions(ctx.bot.load_extensions, ctx.options.plugins)
-
-
-@reload_plugin.child
-@lightbulb.add_checks(checks.owner_only)
-@commands.consume_rest_option("modules", "Modules to reload.")
-@commands.command("module", "Reloads modules.")
-@commands.implements(lightbulb.commands.PrefixSubCommand)
-async def reload_module(ctx: PrefixContext) -> None:
-    """Hot-reload modules."""
-    modules = set(ctx.options.modules.split())
-    failed = set()
-    parents = set()
-    for mod in modules:
-        parents.add(".".join(mod.split(".")[:-1]))
-        try:
-            module = sys.modules[mod]
-            importlib.reload(module)
-        except Exception as e:  # pylint: disable=broad-except
-            _LOGGER.error("Failed to reload %s", mod, exc_info=e)
-            failed.add((mod, e.__class__.__name__))
-
-    for parent in parents:
-        parent_split = parent.split(".")
-        for idx in reversed(range(1, len(parent_split) + 1)):
-            try:
-                module = sys.modules[".".join(parent_split[:idx])]
-                importlib.reload(module)
-            except Exception as e:  # pylint: disable=broad-except
-                _LOGGER.error("Failed to reload parent %s", parent, exc_info=e)
-
-    loaded = "\n".join(f"+ {i}" for i in modules ^ {x[0] for x in failed})
-    failed = "\n".join(f"- {m} {e}" for m, e in failed)
-    await ctx.respond(f"```diff\n{loaded}\n{failed}```")
+@extension.command("load", "Loads extensions.")
+@with_check(owner_only)
+@with_option(OptionType.STRING, "extensions", "The extensions to load.")
+async def load_plugin(ctx: Context = data(Context), extensions="*") -> None:
+    await ctx.execute_extensions(ctx.handler.load_extension, extension)

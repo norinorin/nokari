@@ -1,29 +1,26 @@
 from __future__ import annotations
 
-from contextlib import suppress
+import logging
 from functools import partial
+from typing import Any
 
-import lightbulb
-from hikari import (
-    Embed,
-    GuildMessageCreateEvent,
-    GuildMessageDeleteEvent,
-    GuildMessageUpdateEvent,
-)
+from hikari import Embed
 from hikari.colors import Color
 from hikari.events.guild_events import GuildJoinEvent, GuildLeaveEvent
+from hikari.events.message_events import GuildMessageCreateEvent
 from hikari.guilds import GatewayGuild
-from lightbulb import errors
+from hikari.traits import RESTAware
 
+from kita.command_handlers import GatewayCommandHandler
+from kita.data import data
+from kita.events import CommandCallEvent
+from kita.extensions import finalizer, initializer, listener
 from nokari import core
-from nokari.core.constants import GUILD_LOGS_WEBHOOK_URL, POSTGRESQL_DSN
+from nokari.core.bot import Nokari
+from nokari.core.constants import GUILD_LOGS_WEBHOOK_URL
 from nokari.utils import plural
 
-if not POSTGRESQL_DSN:
-    from nokari.extensions.config import format_prefixes
-
-
-events = core.Plugin("Events", None, True, hidden=True)
+_LOGGER = logging.getLogger("nokari.extensions.extras.events")
 
 
 async def handle_ping(event: GuildMessageCreateEvent) -> None:
@@ -35,111 +32,85 @@ async def handle_ping(event: GuildMessageCreateEvent) -> None:
     ):
         return
 
-    cmd = event.app.get_prefix_command("prefix")
-    ctx = core.PrefixContext(event.app, event, cmd, "prefix", "")
-    ctx._parser = lightbulb.utils.Parser(ctx, "")
-
-    with suppress(errors.CommandIsOnCooldown):
-        return await cmd.invoke(ctx)
+    await event.message.respond("Please use the slash commands instead.")
 
 
-@events.listener(GuildMessageCreateEvent)
+@listener()
 async def on_message(event: GuildMessageCreateEvent) -> None:
     await handle_ping(event)
 
 
-@events.listener(GuildMessageUpdateEvent)
-async def on_message_edit(event: GuildMessageUpdateEvent) -> None:
-    assert isinstance(event.app, core.Nokari)
-    if (
-        event.is_bot is True
-        or (message := event.app.cache.get_message(event.message_id)) is None
-        or event.old_message is None
-    ):
-        return
-
-    # prevent embed from re-invoking commands
-    if event.old_message.content == message.content:
-        return
-
-    message_create_event = (
-        GuildMessageCreateEvent(  # pylint: disable=abstract-class-instantiated
-            message=message, shard=event.shard
-        )
-    )
-    await event.app.handle_messsage_create_for_prefix_commands(message_create_event)
-    await handle_ping(message_create_event)
+@listener()
+async def on_command_call(event: CommandCallEvent):
+    _LOGGER.info("n_message %d", event.context.n_message)
 
 
-@events.listener(GuildMessageDeleteEvent)
-async def on_message_delete(event: GuildMessageDeleteEvent) -> None:
-    assert isinstance(event.app, core.Nokari)
-    if (
-        resp := event.app.cache.get_message(
-            event.app.responses_cache.pop(event.message_id, 0)
-        )
-    ) is None:
-        return
-
-    await resp.delete()
-
-
-async def execute_guild_webhook(
-    guild: GatewayGuild | None, color: Color, suffix: str
-) -> None:
-    embed = Embed(
-        title=guild.name if guild else "Unknown guild",
-        description=f"I'm now in {plural(len(events.bot.cache.get_guilds_view())):server,}",
-        color=color,
-    )
-
-    if guild:
-        (
-            embed.add_field(
-                "Owner:",
-                str(
-                    guild.get_member(guild.owner_id)
-                    or await events.bot.rest.fetch_user(guild.owner_id)
-                ),
-            )
-            .add_field("Member count:", str(guild.member_count or 0))
-            .add_field("ID:", str(guild.id))
-        )
-
-    await events.d.execute_webhook(
-        embed=embed, username=f"{events.bot.get_me()} {suffix}"
-    )
-
-
-async def on_guild_join(event: GuildJoinEvent) -> None:
-    await execute_guild_webhook(event.guild, Color.of("#00FF00"), "(+)")
-
-
-async def on_guild_leave(event: GuildLeaveEvent) -> None:
-    await execute_guild_webhook(event.old_guild, Color.of("#FF0000"), "(-)")
-
-
-OPTIONAL_EVENTS = (
-    (GuildJoinEvent, on_guild_join),
-    (GuildLeaveEvent, on_guild_leave),
-)
-
-
-def load(bot: core.Nokari) -> None:
-    bot.add_plugin(events)
-    if GUILD_LOGS_WEBHOOK_URL:
+class WebhookExecutor:
+    def __init__(self, app: RESTAware, webhook_url: str) -> None:
         webhook_id, webhook_token = GUILD_LOGS_WEBHOOK_URL.strip("/").split("/")[-2:]
-        events.d.execute_webhook = partial(
-            bot.rest.execute_webhook, int(webhook_id), webhook_token
+        self.webhook_token = partial(
+            app.rest.execute_webhook, int(webhook_id), webhook_token
         )
 
-        for event_type, callback in OPTIONAL_EVENTS:
-            bot.subscribe(event_type, callback)
+    def __call__(self, *args, **kwargs) -> Any:
+        return self.webhook_token(*args, **kwargs)
 
 
-def unload(bot: core.Nokari) -> None:
-    bot.remove_plugin("Events")
+if GUILD_LOGS_WEBHOOK_URL:
+
+    async def execute_guild_webhook(
+        executor: WebhookExecutor,
+        app: Nokari,
+        guild: GatewayGuild | None,
+        color: Color,
+        suffix: str,
+    ) -> None:
+        embed = Embed(
+            title=guild.name if guild else "Unknown guild",
+            description=f"I'm now in {plural(len(app.cache.get_guilds_view())):server,}",
+            color=color,
+        )
+
+        if guild:
+            (
+                embed.add_field(
+                    "Owner:",
+                    str(
+                        guild.get_member(guild.owner_id)
+                        or await app.rest.fetch_user(guild.owner_id)
+                    ),
+                )
+                .add_field("Member count:", str(guild.member_count or 0))
+                .add_field("ID:", str(guild.id))
+            )
+
+        await executor(embed=embed, username=f"{app.get_me()} {suffix}")
+
+    @listener()
+    async def on_guild_join(
+        event: GuildJoinEvent, executor: WebhookExecutor = data(WebhookExecutor)
+    ) -> None:
+        await executor(event.guild, Color.of("#00FF00"), "(+)")
+
+    @listener()
+    async def on_guild_leave(
+        event: GuildLeaveEvent, executor: WebhookExecutor = data(WebhookExecutor)
+    ) -> None:
+        await executor(event.old_guild, Color.of("#FF0000"), "(-)")
+
+
+@initializer
+def extension_initializer(handler: GatewayCommandHandler) -> None:
     if GUILD_LOGS_WEBHOOK_URL:
-        # TODO: remove_hook
-        for event_type, callback in OPTIONAL_EVENTS:
-            bot.unsubscribe(event_type, callback)
+        handler.set_data(WebhookExecutor(handler.app, GUILD_LOGS_WEBHOOK_URL))
+
+    for g in globals().values():
+        if hasattr(g, "__is_listener__"):
+            handler.subscribe(g)
+
+
+@finalizer
+def extension_finalizer(handler: GatewayCommandHandler) -> None:
+    for g in globals().values():
+        if hasattr(g, "__is_listener__"):
+            handler.unsubscribe(g)

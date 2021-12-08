@@ -5,10 +5,13 @@ import typing
 from hikari import Snowflake, presences, snowflakes, undefined
 from hikari.impl.entity_factory import EntityFactoryImpl
 from hikari.internal import data_binding
-from lightbulb.utils import find
+
+from kita.utils import find
 
 if typing.TYPE_CHECKING:
     from nokari.core.bot import Nokari
+
+__all__ = ("EntityFactory",)
 
 
 class EntityFactory(EntityFactoryImpl):
@@ -22,8 +25,8 @@ class EntityFactory(EntityFactoryImpl):
     ) -> presences.MemberPresence:
         user_id = Snowflake(payload["user"]["id"])
         if spotify := find(
-            payload["activities"],
             lambda x: x.get("name") == "Spotify" and "sync_id" in x,
+            payload["activities"],
         ):
             self._app._sync_ids[user_id] = spotify["sync_id"]
         else:

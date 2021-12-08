@@ -28,7 +28,7 @@ def edit(*args: Any, **kwargs: Any) -> Response:
 
 
 def _ensure_args(args: Tuple[Any, ...]) -> Tuple[Any, ...]:
-    if not isinstance(args[0], ResponseType):
+    if not (args and isinstance(args[0], ResponseType)):
         args = (ResponseType.MESSAGE_CREATE, *args)
 
     return args

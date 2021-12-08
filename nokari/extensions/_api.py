@@ -21,7 +21,6 @@ from nokari.utils import (
     plural,
 )
 from nokari.utils.formatter import discord_timestamp
-from nokari.utils.parser import ArgumentParser
 from nokari.utils.spotify import (
     Album,
     Artist,
@@ -30,17 +29,6 @@ from nokari.utils.spotify import (
     Track,
 )
 
-api = core.Plugin("API", None, True)
-SPOTIFY_PARSER: ArgumentParser = (
-    utils.ArgumentParser()
-    .style("--style", "-s", argmax=1, default="2")
-    .hidden("--hidden", "-h", argmax=0)
-    .card("--card", "-c", argmax=0)
-    .time("--time", "-t", argmax=0)
-    .color("--color", "--colour", "-cl", argmax=1)
-    .member("--member", "-m", argmax=0)
-    .album("--album", "-a", argmax=0)
-)
 SPOTIFY_VARS: typing.Tuple[str, str] = (
     "SPOTIPY_CLIENT_ID",
     "SPOTIPY_CLIENT_SECRET",
@@ -49,7 +37,6 @@ SPOTIFY_VARS: typing.Tuple[str, str] = (
 
 async def send_spotify_card(
     ctx: Context,
-    args: types.SimpleNamespace,
     *,
     data: typing.Union[hikari.Member, Track],
 ) -> None:

@@ -4,7 +4,17 @@ import importlib
 import inspect
 import logging
 import sys
-from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple, Type, TypeVar, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    cast,
+    get_type_hints,
+)
 
 from hikari.events.base_events import Event
 from typing_extensions import TypeGuard
@@ -138,15 +148,19 @@ def listener(
         ensure_signature(cast_func)
         if event is None:
             if (
-                annotation := next(
-                    iter(cast_func.__signature__.parameters.values())
-                ).annotation
+                param := next(iter(cast_func.__signature__.parameters.values()))
             ) is inspect.Signature.empty:
                 raise RuntimeError(
                     "please either provide the event type or annotate the event parameter."
                 )
 
-            assert isinstance(annotation, type) and issubclass(annotation, Event)
+            if not (
+                isinstance(param.annotation, type)
+                and issubclass(param.annotation, Event)
+            ):
+                annotation = get_type_hints(func)[param.name]
+            else:
+                annotation = param.annotation
             event = cast("Type[EventT_co]", annotation)
 
         cast_func.__etype__ = event

@@ -26,7 +26,7 @@ T = TypeVar("T")
 
 
 def get_options(callback: ICommandCallback) -> List[CommandOption]:
-    if not hasattr(callback, "__sub_commands__"):
+    if not getattr(callback, "__sub_commands__", None):
         return callback.options
 
     callback = cast(IGroupCommandCallback, callback)

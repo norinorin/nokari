@@ -133,7 +133,7 @@ class Paginator:
             Union[snowflakes.SnowflakeishSequence[hikari.PartialRole], bool]
         ] = undefined.UNDEFINED
 
-        self.component = ctx.bot.rest.build_action_row()
+        self.component = ctx.app.rest.build_action_row()
 
     @property
     def is_paginated(self) -> bool:
@@ -240,11 +240,8 @@ class Paginator:
         options = await self.kwargs
         options.pop("response_type", None)
 
-        if interaction := self.ctx.interaction:
-            self.message = interaction.message
-            await interaction.edit_initial_response(**options)
-        else:
-            self.message = await (await self.ctx.respond(**options)).message()
+        await self.ctx.respond(**options)
+        self.message = await self.ctx.interaction.fetch_initial_response()
 
         if not self.is_paginated:
             self.clean_up()
@@ -273,7 +270,7 @@ class Paginator:
         This method will return a message if return_message was set to True.
         """
 
-        paginators = self.ctx.bot.paginators
+        paginators = self.ctx.app.paginators
 
         if paginator := paginators.get(self.ctx.event.message.id):
             await paginator.stop(False)
@@ -285,13 +282,13 @@ class Paginator:
             raise RuntimeError("timeout can't be greater than 15 minutes.")
 
         message_check = message_check or (
-            lambda x: x.author_id == self.ctx.author.id
+            lambda x: x.author_id == self.ctx.interaction.user.id
             and x.channel_id == self.ctx.channel_id
         )
 
         interaction_check = interaction_check or (
             lambda x: isinstance(x.interaction, ComponentInteraction)
-            and x.interaction.user.id == self.ctx.author.id
+            and x.interaction.user.id == self.ctx.interaction.user.id
             and x.interaction.message.id == self.message.id
             and x.interaction.custom_id in self._buttons
         )
@@ -299,7 +296,7 @@ class Paginator:
         while True:
             try:
                 events = [
-                    self.ctx.bot.wait_for(
+                    self.ctx.app.wait_for(
                         hikari.InteractionCreateEvent,
                         timeout=timeout,
                         predicate=interaction_check,
@@ -308,7 +305,7 @@ class Paginator:
 
                 if return_message:
                     events.append(
-                        self.ctx.bot.wait_for(
+                        self.ctx.app.wait_for(
                             hikari.GuildMessageCreateEvent,
                             timeout=message_timeout,
                             predicate=message_check,

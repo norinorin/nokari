@@ -149,6 +149,16 @@ class GatewayCommandHandler(DataContainerMixin):
 
         del self._commands[func_or_name]
 
+    def get_command(self, name: str) -> Optional[ICommandCallback]:
+        if not (base := self.commands.get(name)):
+            return None
+
+        for name in name.split()[1:]:
+            if not (base := getattr(base, "__sub_commands__", {}).get(name)):
+                return None
+
+        return cast(ICommandCallback, base)
+
     def _load_module(self, mod: Extension) -> None:
         name = mod.__name__
         try:
@@ -231,7 +241,7 @@ class GatewayCommandHandler(DataContainerMixin):
 
         assert isinstance(interaction, CommandInteraction)
 
-        ctx = Context(event, self)
+        ctx = self.context_type(event, self)
 
         try:
             cb, options = self._resolve_cb(interaction)

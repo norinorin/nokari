@@ -7,15 +7,14 @@ from typing import (
     Iterator,
     List,
     Literal,
+    Optional,
     Protocol,
     Sequence,
     TypeVar,
     overload,
 )
 
-from lightbulb import utils
-
-from nokari.utils.view import StringView
+from kita import find
 
 __all__: Final[List[str]] = ["chunk", "simple_chunk", "chunk_from_list"]
 T = TypeVar("T")
@@ -35,6 +34,52 @@ class Indexable(Iterable[T], Protocol[T]):
         ...
 
 
+class _StringView:
+    __slots__ = ("_idx", "buffer", "n", "prev")
+
+    def __init__(self, buffer: str):
+        self._idx = 0
+        self.buffer = buffer
+        self.n = len(buffer)
+        self.prev = 0
+
+    @property
+    def is_eof(self) -> bool:
+        return self.idx >= self.n
+
+    @property
+    def idx(self) -> int:
+        return self._idx
+
+    @idx.setter
+    def idx(self, val: int) -> None:
+        self.prev = self._idx
+        self._idx = val
+
+    def undo(self) -> None:
+        self.idx = self.prev
+        return None
+
+    def skip_ws(self) -> None:
+        prev = self.idx
+        if (char := self.get_current()) is not None and not char.isspace():
+            return None
+        while (char := self.get_char()) is not None and char.isspace():
+            pass
+        self.prev = prev
+
+    def get_char(self) -> Optional[str]:
+        self.idx += 1
+        return self.get_current()
+
+    def get_current(self) -> Optional[str]:
+        return None if self.is_eof else self.buffer[self.idx]
+
+    def read(self, n: int) -> str:
+        self.idx += n
+        return self.buffer[self.prev : self.idx]
+
+
 def chunk(text: str, length: int) -> Iterator[str]:
     """
     Chunks the text. This is useful for getting pages
@@ -42,16 +87,13 @@ def chunk(text: str, length: int) -> Iterator[str]:
 
     This will yield the chunked text split by whitespaces if applicable.
     """
-    view = StringView(text)
+    view = _StringView(text)
 
-    while not view.eof:
+    while not view.is_eof:
         view.skip_ws()
         sliced = view.read(length)
 
-        if (
-            not (space := utils.find(string.whitespace, lambda x: x in sliced))
-            or view.eof
-        ):
+        if not (space := find(lambda x: x in sliced, string.whitespace)) or view.is_eof:
             if sliced:
                 yield sliced
             continue
@@ -59,7 +101,7 @@ def chunk(text: str, length: int) -> Iterator[str]:
         view.undo()
 
         if sub := view.read(
-            text.rfind(space, view.index, view.index + length + 1) - view.index
+            text.rfind(space, view.idx, view.idx + length + 1) - view.idx
         ):
             yield sub
 

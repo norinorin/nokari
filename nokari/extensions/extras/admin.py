@@ -7,25 +7,29 @@ import subprocess
 import sys
 import time
 import traceback
-import typing
 from contextlib import redirect_stdout, suppress
 from inspect import getsource
 from io import StringIO
 from types import TracebackType
+from typing import Iterator, List, Optional, Tuple, Type, Union
 
-from lightbulb import checks, plugins
+from hikari.commands import OptionType
+from hikari.interactions.command_interactions import CommandInteraction
+from hikari.messages import Message
 
-from nokari import core, utils
+from kita.checks import owner_only, with_check
+from kita.commands import command
+from kita.data import data
+from kita.options import with_option
+from kita.responses import Response, respond
+from nokari import utils
 from nokari.core import Context
 from nokari.extensions.extras._eval_globals import *  # pylint: disable=wildcard-import,unused-wildcard-import
 
 ZWS_ACUTE = "\u200b`"
-admin = core.Plugin("Admin", hidden=True)
 
 
-def insert_returns(
-    body: typing.Union[typing.List[ast.AST], typing.List[ast.stmt]]
-) -> None:
+def insert_returns(body: Union[List[ast.AST], List[ast.stmt]]) -> None:
     """A static method that prepends a return statement at the last expression."""
 
     if not body:
@@ -46,7 +50,7 @@ def insert_returns(
         insert_returns(body[-1].body)
 
 
-def clean_code(code: str) -> typing.Tuple[typing.List[str], ast.AST, bool, str]:
+def clean_code(code: str) -> Tuple[List[str], ast.AST, bool, str]:
     """Cleans the codeblock and removes the no-return flag."""
     code = code.lstrip("`")
     if code.startswith("py\n"):
@@ -76,12 +80,12 @@ def clean_code(code: str) -> typing.Tuple[typing.List[str], ast.AST, bool, str]:
 
 
 def format_exc(
-    exc_info: typing.Tuple[
-        typing.Optional[typing.Type[BaseException]],
-        typing.Optional[BaseException],
-        typing.Optional[TracebackType],
+    exc_info: Tuple[
+        Optional[Type[BaseException]],
+        Optional[BaseException],
+        Optional[TracebackType],
     ],
-    raw_lines: typing.List[str],
+    raw_lines: List[str],
     filename: str,
 ) -> str:
     """
@@ -106,7 +110,7 @@ def get_eval_pages(
     hide_retval: bool,
     measured_time: str,
     max_char: int,
-) -> typing.Optional[typing.List[str]]:
+) -> Optional[List[str]]:
     fmt_output = f"Standard Output: ```py\n{output} ```\n" if output else ""
     fmt_output += f"Standard Error: ```py\n{error} ```\n" if error else ""
 
@@ -150,17 +154,15 @@ def get_eval_pages(
 
 
 # pylint: disable=exec-used,lost-exception,broad-except
-@admin.command
-@core.add_checks(checks.owner_only)
-@core.consume_rest_option("command", "The commands to evaluate.")
-@core.command("eval", "Evaluates Python script.")
-@core.implements(lightbulb.commands.PrefixCommand)
-async def _eval(ctx: Context) -> None:
+@command("eval", "Evaluates Python script.")
+@with_check(owner_only)
+@with_option(OptionType.STRING, "command", "The command to evaluate.")
+async def _eval(command: str, ctx: Context = data(Context)) -> None:
     """Evaluates Python script."""
     env = {
         "sauce": getsource,
         "ctx": ctx,
-        "bot": ctx.bot,
+        "bot": ctx.app,
         "reload": importlib.reload,
         "s_dir": lambda x, y: [i for i in dir(x) if y.lower() in i],
         **globals(),
@@ -178,7 +180,7 @@ async def _eval(ctx: Context) -> None:
     raw_lines = None
 
     try:
-        raw_lines, parsed, status, fn_name = clean_code(ctx.options.command)
+        raw_lines, parsed, status, fn_name = clean_code(command)
         exec(compile(parsed, filename=filename, mode="exec"), env)
         with redirect_stdout(stdout):
             t0 = time.monotonic()
@@ -207,20 +209,18 @@ async def _eval(ctx: Context) -> None:
         await utils.Paginator.default(ctx, pages=pages).start()
 
 
-async def run_command_in_shell(command: str) -> typing.List[str]:
+async def run_command_in_shell(command: str) -> List[str]:
     process = await asyncio.create_subprocess_shell(
         command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
     return [output.decode() for output in await process.communicate()]
 
 
-@admin.command
-@core.add_checks(checks.owner_only)
-@core.consume_rest_option("command", "Commands to execute in shell.")
-@core.command("shell", "Execute a command in shell.")
-@core.implements(lightbulb.commands.PrefixCommand)
-async def shell(ctx: Context) -> None:
-    stdout, stderr = await run_command_in_shell(ctx.options.command)
+@command("shell", "Execute a command in shell.")
+@with_check(owner_only)
+@with_option(OptionType.STRING, "command", "Commands to execute in shell.")
+async def shell(command: str, ctx: Context = data(Context)) -> None:
+    stdout, stderr = await run_command_in_shell(command)
     output = f"Stdout:\n{stdout}\n" if stdout else ""
     if stderr:
         output += f"Stderr:\n{stderr}"
@@ -232,21 +232,16 @@ async def shell(ctx: Context) -> None:
     ).start()
 
 
-@admin.command
-@core.add_checks(checks.owner_only)
-@core.command("restart", "Restart the bot.")
-@core.implements(lightbulb.commands.PrefixCommand)
-async def restart(ctx: Context) -> None:
+@command("restart", "Restart the bot.")
+@with_check(owner_only)
+def restart(
+    interaction: CommandInteraction = data(CommandInteraction),
+) -> Iterator[Response]:
     """Just to check whether or not the -OO flag was present."""
 
-    if (
-        not (content := ctx.event.message.content)
-        or content[len(ctx.prefix) :] != "restart"
-    ):
-        # Temp replacement for allow_extra_arguments=False
-        return
+    yield respond("Restarting...")
 
-    msg = await (await ctx.respond("Restarting...")).message()
+    msg: Message = yield interaction.fetch_initial_response()
 
     with suppress(FileExistsError):
         os.mkdir("tmp")
@@ -254,20 +249,11 @@ async def restart(ctx: Context) -> None:
     with open("tmp/restarting", "w", encoding="utf-8") as fp:
         fp.write(f"{msg.channel_id}-{msg.id}")
 
-    doc = restart.callback.__doc__
     os.execv(
         sys.executable,
         [
             sys.executable,
-            *(() if __debug__ else ("-OO",) if not doc else ("-O",)),
+            *(() if __debug__ else ("-OO",) if not restart.__doc__ else ("-O",)),
             *sys.argv,
         ],
     )
-
-
-def load(bot: core.Nokari) -> None:
-    bot.add_plugin(admin)
-
-
-def unload(bot: core.Nokari) -> None:
-    bot.remove_plugin("Admin")

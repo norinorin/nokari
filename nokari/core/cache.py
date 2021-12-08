@@ -6,14 +6,13 @@ import weakref
 from hikari import ActivityType, guilds, messages, presences, snowflakes, users
 from hikari.impl.cache import CacheImpl
 from hikari.internal import cache
-from lightbulb import utils
 
-from nokari.utils import converters
+from kita.utils import get
 
 if typing.TYPE_CHECKING:
     from nokari.core.bot import Nokari
 
-__all__: typing.Final[typing.List[str]] = ["Cache"]
+__all__ = ("Cache",)
 
 
 class Cache(CacheImpl):
@@ -50,7 +49,7 @@ class Cache(CacheImpl):
 
     def set_presence(self, presence: presences.MemberPresence, /) -> None:
         if (
-            spotify := utils.get(
+            spotify := get(
                 presence.activities, name="Spotify", type=ActivityType.LISTENING
             )
         ) is None:
@@ -80,15 +79,6 @@ class Cache(CacheImpl):
         finally:
             self._garbage_collect_presence(snowflakes.Snowflake(user))
 
-    def update_member(
-        self, member: guilds.Member, /
-    ) -> typing.Tuple[typing.Optional[guilds.Member], typing.Optional[guilds.Member]]:
-        key = f"{member.guild_id}:{member.id}"
-        if key in converters._member_cache:
-            converters._member_cache[key] = member
-
-        return super().update_member(member)
-
     def _garbage_collect_member(
         self,
         guild_record: cache.GuildRecord,
@@ -105,18 +95,6 @@ class Cache(CacheImpl):
             self._garbage_collect_presence(
                 snowflakes.Snowflake(member.object.user.object)
             )
-
-    def delete_member(
-        self,
-        guild: snowflakes.SnowflakeishOr[guilds.PartialGuild],
-        user: snowflakes.SnowflakeishOr[users.PartialUser],
-        /,
-    ) -> typing.Optional[guilds.Member]:
-        converters._member_cache.pop(
-            f"{snowflakes.Snowflake(guild)}:{snowflakes.Snowflake(user)}", None
-        )
-
-        return super().delete_member(guild, user)
 
     def _set_member(
         self, member: guilds.Member, /, *, is_reference: bool = True

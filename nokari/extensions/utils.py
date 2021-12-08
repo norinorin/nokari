@@ -3,28 +3,36 @@
 import asyncio
 import logging
 import textwrap
-import typing
 from contextlib import suppress
 from datetime import datetime, timedelta, timezone
 from itertools import zip_longest
+from typing import Any, AsyncIterator, Coroutine, Final, List, Optional, Tuple, cast
 
-import asyncpg
 import hikari
-import lightbulb
+from asyncpg import Pool
+from asyncpg.exceptions import PostgresConnectionError
+from hikari.commands import OptionType
+from hikari.interactions.command_interactions import CommandInteraction
+from hikari.messages import Message
 from hikari.snowflakes import Snowflake
 from tabulate import tabulate
 
-from nokari import core
-from nokari.core.context import Context
+from kita.command_handlers import GatewayCommandHandler
+from kita.commands import command
+from kita.contexts import Context
+from kita.data import data
+from kita.extensions import finalizer, initializer, listener
+from kita.options import with_option
+from kita.responses import Response, edit, respond
+from nokari.core.bot import Nokari
 from nokari.utils import db, plural, timers
 from nokari.utils.chunker import chunk, simple_chunk
-from nokari.utils.converters import TimeConverter
+from nokari.utils.converters import parse_time
 from nokari.utils.formatter import discord_timestamp, escape_markdown, human_timedelta
 from nokari.utils.paginator import Paginator
-from nokari.utils.parser import ArgumentParser
 
-MAX_DAYS: typing.Final[int] = 40
-RETRY_IN: typing.Final[int] = 86400
+MAX_DAYS: Final[int] = 40
+RETRY_IN: Final[int] = 86400
 _LOGGER = logging.getLogger("nokari.plugins.utils")
 
 
@@ -45,197 +53,194 @@ class Reminders(db.Table):
     interval: db.Column[Snowflake]  # BIGINT
 
 
-utils = core.Plugin("Utils", None, True)
-utils.d.event = asyncio.Event()
-REMIND_PARSER = (
-    ArgumentParser()
-    .interval("--interval", "-i", argmax=0, default=False)
-    .daily("--daily", "-d", argmax=0, default=False)
-)
+class ReminderCore:
+    def __init__(self, app: Nokari):
+        self.app = app
+        self.event = asyncio.Event()
+        self.task = None
+        self.current_timer = None
 
+    @property
+    def pool(self) -> Optional[Pool]:
+        return self.app.pool
 
-async def get_active_timer() -> typing.Optional[timers.Timer]:
-    query = "SELECT * FROM reminders WHERE expires_at < (CURRENT_TIMESTAMP + $1::interval) ORDER BY expires_at LIMIT 1;"
-    record = await utils.bot.pool.fetchrow(query, timedelta(days=MAX_DAYS))
-    return record and timers.Timer(record)
+    def refresh_task(self) -> None:
+        if self.task:
+            self.task.cancel()
 
+        self.task = asyncio.create_task(self.dispatch_timers())
 
-async def wait_for_active_timers() -> timers.Timer:
-    timer = await get_active_timer()
-    if timer is not None:
-        utils.d.event.set()
+    async def get_active_timer(self) -> Optional[timers.Timer]:
+        query = "SELECT * FROM reminders WHERE expires_at < (CURRENT_TIMESTAMP + $1::interval) ORDER BY expires_at LIMIT 1;"
+        record = await self.pool.fetchrow(query, timedelta(days=MAX_DAYS))
+        return record and timers.Timer(record)
+
+    async def wait_for_active_timers(self) -> timers.Timer:
+        timer = await self.get_active_timer()
+        if timer is not None:
+            self.event.set()
+            return timer
+
+        self.event.clear()
+        self.current_timer = None
+
+        with suppress(asyncio.TimeoutError):
+            await asyncio.wait_for(self.event.wait(), timeout=RETRY_IN)
+
+        return await self.wait_for_active_timers()
+
+    async def call_timer(self, timer: timers.Timer) -> None:
+        args = [timer.id]
+
+        _LOGGER.debug("Dispatching timer with interval %s", timer.interval)
+
+        if timer.interval:
+            query = "UPDATE reminders SET expires_at = CURRENT_TIMESTAMP + $2 * interval '1 sec' WHERE id=$1"
+            args.append(timer.interval)
+        else:
+            query = "DELETE FROM reminders WHERE id=$1;"
+
+        await self.pool.execute(query, *args)
+        self.app.dispatch(timer.event(app=self.app, timer=timer))
+
+    async def dispatch_timers(self) -> None:
+        try:
+            while not self.app.is_alive:
+                # dirty solution
+                await asyncio.sleep(0.5)
+            while self.app.is_alive:
+                timer = self.current_timer = await self.wait_for_active_timers()
+
+                if timer.expires_at >= (now := datetime.now(timezone.utc)):
+                    await asyncio.sleep((timer.expires_at - now).total_seconds())
+
+                await self.call_timer(timer)
+        except (OSError, PostgresConnectionError):
+            self.refresh_task()
+
+    async def short_timer_optimisation(
+        self, seconds: float, timer: timers.Timer
+    ) -> None:
+        await asyncio.sleep(seconds)
+        self.app.dispatch(timer.event(app=self.app, timer=timer))
+
+    async def create_timer(self, *args: Any, **kwargs: Any) -> timers.Timer:
+        event, when, *args = args
+
+        now = kwargs.pop("created_at", datetime.now(timezone.utc))
+        interval = kwargs.pop("interval", None)
+
+        timer = timers.Timer.temporary(
+            event=event,
+            args=args,
+            kwargs=kwargs,
+            expires_at=when,
+            created_at=now,
+            interval=interval,
+        )
+        delta = (when - now).total_seconds()
+
+        # Only optimise non-interval short timers
+        if delta <= 60 and not interval:
+            asyncio.create_task(self.short_timer_optimisation(delta, timer))
+            return timer
+
+        query = """INSERT INTO reminders (event, extra, expires_at, created_at, interval)
+                    VALUES ($1, $2::jsonb, $3, $4, $5)
+                    RETURNING id;
+                """
+
+        row = await self.app.pool.fetchrow(
+            query, event, {"args": args, "kwargs": kwargs}, when, now, interval
+        )
+        timer.id = row[0]
+
+        if delta <= (86400 * MAX_DAYS):
+            self.event.set()
+
+        if self.current_timer and when < self.current_timer.expires_at:
+            self.refresh_task()
+
         return timer
 
-    utils.d.event.clear()
-    utils.d_current_timer = None
+    async def verify_timer_integrity(self, id_: Optional[int] = None) -> None:
+        if id_ and (not self.current_timer or self.current_timer.id != id_):
+            return
 
-    with suppress(asyncio.TimeoutError):
-        await asyncio.wait_for(utils.d.event.wait(), timeout=RETRY_IN)
-
-    return await wait_for_active_timers()
+        self.refresh_task()
 
 
-async def call_timer(timer: timers.Timer) -> None:
-    args = [timer.id]
-
-    _LOGGER.debug("Dispatching timer with interval %s", timer.interval)
-
-    if timer.interval:
-        query = "UPDATE reminders SET expires_at = CURRENT_TIMESTAMP + $2 * interval '1 sec' WHERE id=$1"
-        args.append(timer.interval)
-    else:
-        query = "DELETE FROM reminders WHERE id=$1;"
-
-    await utils.bot.pool.execute(query, *args)
-    utils.bot.dispatch(timer.event(app=utils.bot, timer=timer))
+@command("reminder", "Reminder commands.")
+def reminder() -> None:
+    ...
 
 
-async def dispatch_timers() -> None:
-    try:
-        while not utils.bot.is_alive:
-            # dirty solution
-            await asyncio.sleep(0.5)
-        while utils.bot.is_alive:
-            timer = utils.d._current_timer = await wait_for_active_timers()
-
-            if timer.expires_at >= (now := datetime.now(timezone.utc)):
-                await asyncio.sleep((timer.expires_at - now).total_seconds())
-
-            await call_timer(timer)
-    except (OSError, asyncpg.PostgresConnectionError):
-        utils.d._task.cancel()
-        utils.d._task = asyncio.create_task(dispatch_timers())
-
-
-async def short_timer_optimisation(seconds: float, timer: timers.Timer) -> None:
-    await asyncio.sleep(seconds)
-    utils.bot.dispatch(timer.event(app=utils.bot, timer=timer))
-
-
-async def create_timer(*args: typing.Any, **kwargs: typing.Any) -> timers.Timer:
-    event, when, *args = args
-
-    now = kwargs.pop("created_at", datetime.now(timezone.utc))
-    interval = kwargs.pop("interval", 0)
-
-    timer = timers.Timer.temporary(
-        event=event,
-        args=args,
-        kwargs=kwargs,
-        expires_at=when,
-        created_at=now,
-        interval=interval,
-    )
-    delta = (when - now).total_seconds()
-
-    # Only optimise non-interval short timers
-    if delta <= 60 and not interval:
-        asyncio.create_task(short_timer_optimisation(delta, timer))
-        return timer
-
-    query = """INSERT INTO reminders (event, extra, expires_at, created_at, interval)
-                VALUES ($1, $2::jsonb, $3, $4, $5)
-                RETURNING id;
-            """
-
-    row = await utils.bot.pool.fetchrow(
-        query, event, {"args": args, "kwargs": kwargs}, when, now, interval
-    )
-    timer.id = row[0]
-
-    if delta <= (86400 * MAX_DAYS):
-        utils.d.event.set()
-
-    if utils.d._current_timer and when < utils.d._current_timer.expires_at:
-        utils.d._task.cancel()
-        utils.d._task = asyncio.create_task(dispatch_timers())
-
-    return timer
-
-
-async def verify_timer_integrity(id_: typing.Optional[int] = None) -> None:
-    if id_ and (not utils.d._current_timer or utils.d._current_timer.id != id_):
+@reminder.command("set", "Set a reminder.")
+@with_option(OptionType.STRING, "when", "Human readable time offset.")
+@with_option(OptionType.STRING, "thing", "Thing to remind.")
+@with_option(OptionType.STRING, "interval", "The interval for continuous reminder.")
+@with_option(OptionType.BOOLEAN, "daily", "Shortcut for 1 day interval.")
+async def reminder_set(
+    when: str,
+    interval: Optional[str] = None,
+    daily: bool = False,
+    thing: str = "...",
+    interaction: CommandInteraction = data(CommandInteraction),
+    core: ReminderCore = data(ReminderCore),
+) -> AsyncIterator[Response]:
+    if interval and daily:
+        yield respond("You can't specify both interval and daily flags.")
         return
 
-    utils.d._task.cancel()
-    utils.d._task = asyncio.create_task(dispatch_timers())
+    now = interaction.created_at
 
+    interval_sec = None
 
-@utils.command
-@core.consume_rest_option("when", "The time for the bot to remind you.")
-@core.command("remind", "Create a reminder.", signature="<when[, message]>")
-@core.implements(lightbulb.commands.PrefixCommandGroup)
-async def remind(ctx: Context) -> None:
-    """
-    You can pass a human readable time. The argument order doesn't really matter here,
-    but you can't pass the time in between the reminder message. The time should be in UTC.
+    if interval:
+        interval_sec = (parse_time(now, interval) - now).total_seconds()
 
-    Examples: - `n!remind me in a week do something`;
-    - `n!remind me at 2pm do something`;
-    - `n!remind do something 3h`;
-    - `n!remind me in 4 hours do something -i`;
-    - `n!remind --daily 4am do something.`.
+    elif daily:
+        interval_sec = 86400.0
 
-    Flags:
-    -i, --interval: continuously remind you at set interval;
-    -d, --daily: same as interval with 24 hours period.
-    """
-    parsed = REMIND_PARSER.parse(None, ctx.options.when)
-    dt, rem = await TimeConverter(ctx).convert(parsed.remainder)
+    dt = parse_time(now, when)
 
-    if parsed.interval and parsed.daily:
-        raise ValueError("You can't specify both interval and daily flags.")
+    yield respond("Setting the timer...")
 
-    interval = None
+    message = await interaction.fetch_initial_response()
 
-    if parsed.interval:
-        if (temp := (dt - ctx.event.message.created_at).total_seconds()) < 300:
-            raise ValueError("Interval can't be below 5 minutes.")
-
-        interval = temp
-
-    elif parsed.daily:
-        interval = 86400
-
-    rem = rem or "a."
-
-    timer = await create_timer(
+    timer = await core.create_timer(
         "Reminder",
         dt,
-        ctx.get_channel().id,
-        ctx.author.id,
-        rem,
-        created_at=ctx.event.message.created_at,
-        message_id=ctx.event.message.id,
-        interval=interval,
+        interaction.channel_id,
+        interaction.user.id,
+        thing,
+        created_at=now,
+        message_id=message.id,
+        interval=interval_sec,
     )
     reminder_id = f" Reminder ID: {timer.id}" if timer.id else ""
     fmt = "R"
     pre = ""
 
-    if parsed.interval:
-        reminder_id += f" with interval {human_timedelta(timedelta(seconds=typing.cast(float, interval)))}"
-    elif parsed.daily:
+    if interval:
+        reminder_id += f" with interval {human_timedelta(timedelta(seconds=cast(float, interval)))}"
+    elif daily:
         fmt = "t"
         pre = "at "
         reminder_id = f" Daily{reminder_id}"
 
-    await ctx.respond(
-        f"{ctx.author.mention},{reminder_id} {pre}"
-        f"{discord_timestamp(timer.expires_at, fmt=fmt)}: {rem}"
-        f"{'.'*(not rem.endswith('.'))}",
-        user_mentions=[ctx.author],
+    yield edit(
+        f"{interaction.user.mention},{reminder_id} {pre}"
+        f"{discord_timestamp(timer.expires_at, fmt=fmt)}: {thing}"
+        f"{'.'*(not thing.endswith('.'))}",  # why do I even care?
+        user_mentions=[interaction.user],
     )
 
 
-@remind.child
-@core.command("list", "Shows your current active reminders.")
-@core.implements(lightbulb.commands.PrefixSubCommand)
-async def remind_list(ctx: Context) -> None:
-    """
-    Shows your current active remainders.
-    """
-
+@reminder.command("list", "List your active reminders.")
+def reminder_list(
+    ctx: Context = data(Context), pool: Pool = data(Pool)
+) -> Coroutine[Any, Any, Optional[Message]]:
     def get_embed(
         description: str,
         reminders: int,
@@ -245,27 +250,27 @@ async def remind_list(ctx: Context) -> None:
     ) -> hikari.Embed:
         zws = "\u200b"
         embed = hikari.Embed(
-            title=f"{ctx.author}'s reminders:",
+            title=f"{ctx.interaction.user}'s reminders:",
             description=f"```{syntax}\n{description.replace('`', zws+'`')}```",
             color=ctx.color,
         ).set_footer(
-            text=f"{ctx.author} has {plural(reminders):reminder} | Page {page}/{pages}"
+            text=f"{ctx.interaction.user} has {plural(reminders):reminder} | Page {page}/{pages}"
         )
 
         return embed
 
-    async def get_page(pag: Paginator) -> typing.Tuple[hikari.Embed, int]:
+    async def get_page(pag: Paginator) -> Tuple[hikari.Embed, int]:
         query = """SELECT id, expires_at, extra #>> '{args,2}'
                 FROM reminders
                 WHERE event = 'Reminder'
                 AND extra #>> '{args,1}' = $1
                 ORDER BY expires_at
                 """
-        records = await ctx.bot.pool.fetch(query, str(ctx.author.id))
+        records = await pool.fetch(query, str(ctx.interaction.user.id))
         if not records:
             return get_embed("There is nothing here yet ._.", 0, 1, 1, "prolog"), 1
 
-        table: typing.List[str] = sum(
+        table: List[str] = sum(
             [
                 list(
                     zip_longest(
@@ -299,11 +304,12 @@ async def remind_list(ctx: Context) -> None:
 
         return embed, max_
 
-    await Paginator.default(ctx, callback=get_page).start()
+    return Paginator.default(ctx, callback=get_page).start()
 
 
-@utils.listener(ReminderTimerEvent)
+@listener()
 async def on_reminder(event: ReminderTimerEvent) -> None:
+    assert isinstance(event.app, Nokari)
     channel_id, author_id, message = event.timer.args
 
     channel = (
@@ -342,41 +348,34 @@ async def on_reminder(event: ReminderTimerEvent) -> None:
     )
 
 
-@utils.command
-@core.command("reminders", "A convenient shortcut for the `remind list` command.")
-@core.implements(lightbulb.commands.PrefixCommand)
-async def _reminders(ctx: Context) -> None:
-    """
-    A convenient shortcut for the `remind list` command.
-    """
-    cmd = ctx.bot.get_prefix_command("remind list")
-    assert cmd is not None
-    await cmd.invoke(ctx)
+@command("reminders", "A convenient shortcut for the `remind list` command.")
+def reminders(ctx: Context = data(Context)) -> Coroutine[Any, Any, Optional[Message]]:
+    return reminder_list(ctx)
 
 
-@remind.child
-@core.command("clear", "Clear all your active reminders.")
-@core.implements(lightbulb.commands.PrefixSubCommand)
-async def remind_clear(ctx: Context) -> None:
-    """
-    This will cancel all the reminders you've set up, note that there's no undo!
-    """
+@reminder.command("clear", "Clear all your active reminders.")
+async def reminder_clear(
+    ctx: Context = data(Context),
+    pool: Pool = data(Pool),
+    core: ReminderCore = data(ReminderCore),
+) -> None:
     query = """SELECT id
                 FROM reminders
                 WHERE event = 'Reminder'
                 AND extra #>> '{args,1}' = $1
             """
 
-    author_id = str(ctx.author.id)
-    records = await ctx.bot.pool.fetch(query, author_id)
+    author_id = str(ctx.interaction.user.id)
+    records = await pool.fetch(query, author_id)
     if not records:
         await ctx.respond("You haven't set any reminder, mate :flushed:")
         return None
 
-    confirm = await ctx.bot.prompt(
+    assert isinstance(ctx.app, Nokari)
+    confirm = await ctx.app.prompt(
         ctx,
         f"You're about to delete {plural(len(records)):reminder}",
-        author_id=ctx.author.id,
+        author_id=ctx.interaction.user.id,
         delete_after=False,
     )
 
@@ -384,44 +383,22 @@ async def remind_clear(ctx: Context) -> None:
         await ctx.respond("Aborted!")
         return None
 
-    await verify_timer_integrity()
+    await core.verify_timer_integrity()
 
     query = (
         "DELETE FROM reminders WHERE event = 'Reminder' AND extra #>> '{args,1}' = $1"
     )
-    await ctx.bot.pool.execute(query, author_id)
+    await pool.execute(query, author_id)
     await ctx.respond(f"Your {plural(len(records)):reminder} has been deleted.")
 
 
 # pylint: disable=too-many-locals
-@remind.child
-@core.consume_rest_option("id", "The ID of the reminder to look up.")
-@core.command("info", "View detailed info of a reminder", signature="<ID>")
-@core.implements(lightbulb.commands.PrefixSubCommand)
-async def remind_info(ctx: Context) -> None:
-    """
-    View detailed info of a reminder.
-
-    The raw flag will escape the markdown, this is useful if you want to
-    edit the message.
-
-    Example: `n!remind info 378 --raw`
-
-    Flags:
-    -r, --raw: escape the markdown in the message.
-    """
-    parsed = (
-        ArgumentParser()
-        .raw("--raw", "-r", argmax=0, default=False)
-        .parse(None, ctx.options.id)
-    )
-
-    if not parsed.remainder:
-        await ctx.respond("Please specify the ID of the reminder.")
-        return
-
-    parsed.remainder = int(parsed.remainder)
-
+@reminder.command("info", "View detailed info of your reminder.")
+@with_option(OptionType.INTEGER, "id", "The ID of the reminder to look up.")
+@with_option(OptionType.BOOLEAN, "raw", "Escape the markdown in the message.")
+async def reminder_info(
+    id: int, ctx: Context = data(Context), raw: bool = False, pool: Pool = data(Pool)
+) -> None:
     query = """SELECT created_at, expires_at, extra, interval
                 FROM reminders
                 WHERE event = 'Reminder'
@@ -429,17 +406,17 @@ async def remind_info(ctx: Context) -> None:
                 AND id = $2
             """
 
-    record = await ctx.bot.pool.fetchrow(query, str(ctx.author.id), parsed.remainder)
+    record = await pool.fetchrow(query, str(ctx.interaction.user.id), id)
     if not record:
-        await ctx.respond(f"You have no reminder with ID: {parsed.remainder}.")
+        await ctx.respond(f"You have no reminder with ID: {id}.")
         return
 
     interval = record["interval"]
     extra = record["extra"]
     channel_id, author_id, message = extra["args"]
-    converter = escape_markdown if parsed.raw else lambda s: s
+    converter = escape_markdown if raw else lambda s: s
     embed = (
-        hikari.Embed(title=f"Reminder no. {parsed.remainder}")
+        hikari.Embed(title=f"Reminder no. {id}")
         .add_field(name="Message:", value=converter(message))
         .add_field(
             name="Created on:",
@@ -465,9 +442,9 @@ async def remind_info(ctx: Context) -> None:
         )
 
     channel = (
-        ctx.bot.cache.get_guild_channel(channel_id)
-        or ctx.bot.cache.get_user(author_id)
-        or await ctx.bot.rest.fetch_user(author_id)
+        ctx.app.cache.get_guild_channel(channel_id)
+        or ctx.app.cache.get_user(author_id)
+        or await ctx.app.rest.fetch_user(author_id)
     )
 
     has_guild = hasattr(channel, "guild_id")
@@ -480,41 +457,37 @@ async def remind_info(ctx: Context) -> None:
     await ctx.respond(embed=embed)
 
 
-@remind.child
-@core.greedy_option("ids", "The IDs of the reminder to delete", int)
-@core.command(
-    "delete",
-    "Deletes your reminder(s)",
-    signature="<ID...>",
-    aliases=["cancel", "remove"],
+@reminder.command("delete", "Deletes your reminder(s")
+@with_option(
+    OptionType.STRING,
+    "ids",
+    "The ID(s) of the reminder to delete, separate with a space.",
 )
-async def remind_delete(ctx: Context) -> None:
-    """
-    This command can be greedy and take more than 1 ID.
-    Example: `n!remind delete 243 244` with 243 and 244 as the IDs.
-    """
-    if not ctx.options.ids:
-        await ctx.respond("Please specify the ID(s) of the reminder.")
-        return
-
-    author_id = str(ctx.author.id)
+async def reminder_delete(
+    ids: str,
+    ctx: Context = data(Context),
+    pool: Pool = data(Pool),
+    core: ReminderCore = data(ReminderCore),
+) -> None:
+    author_id = str(ctx.interaction.user.id)
     deletes = []
-    for identifier in ctx.options.ids:
+    cast_ids: List[int] = [int(id) for id in ids.split(" ")]
+    for identifier in cast_ids:
         query = """DELETE FROM reminders
                     WHERE event = 'Reminder'
                     AND id = $1
                     AND extra #>> '{args,1}' = $2;
                 """
-        deleted = await ctx.bot.pool.execute(query, identifier, author_id)
+        deleted = await pool.execute(query, identifier, author_id)
 
         if deleted != "DELETE 0":
-            await ctx.verify_timer_integrity(identifier)
+            await core.verify_timer_integrity(identifier)
             deletes.append(identifier)
 
     if not deletes:
         await ctx.respond(
             f"Are you sure you have "
-            f"{'reminders with those IDs' if len(ctx.options.ids) > 1 else 'reminder with that ID'}?"
+            f"{'reminders with those IDs' if len(cast_ids) > 1 else 'reminder with that ID'}?"
         )
         return
 
@@ -527,44 +500,24 @@ async def remind_delete(ctx: Context) -> None:
     )
 
 
-@remind.child
-@core.consume_rest_option("message", "The new message.")
-@core.option("id", "The ID of the reminder.", int)
-@core.command(
-    "edit", "Edit the message of your reminder.", signature="<ID> <new message>"
-)
-@core.implements(lightbulb.commands.PrefixSubCommand)
-async def remind_edit(ctx: Context) -> None:
-    """
-    You can edit the message of the reminder in case you wanna add something.
-    Note that it will replace the message instead of appending it.
-    """
-    query = """UPDATE reminders
-                SET extra = jsonb_set(extra, '{args,2}', $1)
-                WHERE id = $2
-                AND extra #>> '{args,1}' = $3
-            """
-    updated = await ctx.bot.pool.execute(
-        query, ctx.options.message, ctx.options.id, str(ctx.author.id)
-    )
+@initializer
+def extension_initializer(handler: GatewayCommandHandler) -> None:
+    assert isinstance(handler.app, Nokari)
+    core = ReminderCore(handler.app)
+    handler.set_data(core)
+    handler.add_command(reminder)
+    handler.subscribe(on_reminder)
+    if not handler.get_data(Pool):
+        raise RuntimeError("No pool was found")
 
-    if updated == "UPDATE 0":
-        await ctx.respond("Hmm... there's no reminder with given ID.")
-        return
-
-    if utils.d._current_timer and utils.d._current_timer.id == ctx.options.id:
-        utils.d._current_timer.args[2] = ctx.options.message  # type: ignore
-
-    await ctx.respond(f"Alright, it's now set to {ctx.options.message}.")
+    core.refresh_task()
 
 
-def load(bot: core.Nokari) -> None:
-    bot.add_plugin(utils, requires_db=True)
-    if bot.pool:
-        utils.d._task = asyncio.create_task(dispatch_timers())
-
-
-def unload(bot: core.Nokari) -> None:
-    bot.remove_plugin("Utils")
-    with suppress(AttributeError):
-        utils.d._task.cancel()  # TODO: remove_hook
+@finalizer
+def extension_finalizer(handler: GatewayCommandHandler) -> None:
+    core = handler._data.pop(ReminderCore)
+    handler.remove_command(reminder)
+    handler.unsubscribe(on_reminder)
+    if core.task:
+        core.task.cancel()
+        core.task = None

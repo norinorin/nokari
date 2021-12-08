@@ -2,28 +2,27 @@ import logging
 import typing
 
 import hikari
-import lightbulb
-from lightbulb import plugins, utils
+from hikari.interactions.command_interactions import CommandInteraction
 
-# TODO: UnclosedQuotes
-from lightbulb.errors import (
-    BotMissingRequiredPermission,
-    CheckFailure,
-    CommandInvocationError,
-    CommandIsOnCooldown,
-    ConverterFailure,
-    MissingRequiredPermission,
-    NotEnoughArguments,
+from kita.errors import (
+    CheckAnyError,
+    CheckError,
+    CommandOnCooldownError,
+    CommandRuntimeError,
+    KitaError,
+    MissingAnyPermissionsError,
+    MissingCommandCallbackError,
+    MissingPermissionsError,
 )
-
-from nokari import core
+from kita.events import CommandFailureEvent
+from kita.extensions import listener
+from kita.utils import find
 from nokari.core import Context
-from nokari.utils.view import CommandSyntaxError
 
 _ErrorHandlerT = typing.TypeVar(
     "_ErrorHandlerT",
     bound=typing.Callable[
-        [Context, lightbulb.errors.LightbulbError, hikari.Embed],
+        [Context, KitaError, hikari.Embed],
         typing.Literal[None],
     ],
 )
@@ -42,18 +41,18 @@ def handle(
     return decorator
 
 
-errors = core.Plugin("Errors", hidden=True)
 handlers: typing.Dict[str, _ErrorHandlerT] = {}
 
 
-@errors.listener(lightbulb.PrefixCommandErrorEvent)
-async def on_error(event: lightbulb.PrefixCommandErrorEvent) -> None:
+@listener()
+async def on_error(event: CommandFailureEvent) -> None:
     """A listener that handles command errors."""
     embed = hikari.Embed()
-    author = event.context.event.message.author
+    interaction = event.context.event.interaction
+    assert isinstance(interaction, CommandInteraction)
     embed.set_author(
-        name=str(author),
-        icon=author.avatar_url or author.default_avatar_url,
+        name=str(interaction.user),
+        icon=interaction.user.avatar_url or interaction.user.default_avatar_url,
     )
     error = event.exception
     class_t = error if hasattr(error, "__mro__") else error.__class__
@@ -62,9 +61,9 @@ async def on_error(event: lightbulb.PrefixCommandErrorEvent) -> None:
         handlers.get(
             parent  # pylint: disable=used-before-assignment
             if (
-                parent := utils.find(
-                    class_t.__mro__,
+                parent := find(
                     lambda cls: cls in handlers,
+                    class_t.__mro__,
                 )
             )
             else None
@@ -77,99 +76,62 @@ async def on_error(event: lightbulb.PrefixCommandErrorEvent) -> None:
     if embed.description:
         await event.context.respond(embed=embed)
 
-    if isinstance(
-        error, lightbulb.errors.CommandNotFound
-    ) and event.context.event.message.content.startswith(error.invoked_with):
-        # might not be the best thing to do
-        # but since the context will be None if the command wasn't found
-        # we'll just assume if the prefix was the same as the command name
-        # then it's an empty prefix
-        return
-
     _LOGGER.error(
         "Ignoring exception in command %s",
-        event.context.command and event.context.command.name,
+        event.context.command and event.context.command.__name__,
         exc_info=error,
     )
 
 
-@handle(NotEnoughArguments)
-def handle_not_enough_arguments(
-    ctx: Context,
-    _error: lightbulb.errors.NotEnoughArguments,
-    embed: hikari.Embed,
-) -> None:
-    """Handles NotEnoughArguments error."""
-    embed.description = "Please pass in the required argument."
-    embed.add_field(
-        name="Usage:",
-        value=f"`{ctx.prefix}{ctx.command.signature}`",
-    )
-
-
-@handle(CommandIsOnCooldown)
-def handle_command_is_on_cooldown(
+@handle(CommandOnCooldownError)
+def handle_command_on_cooldown(
     _ctx: Context,
-    error: lightbulb.errors.CommandIsOnCooldown,
+    error: CommandOnCooldownError,
     embed: hikari.Embed,
 ) -> None:
-    """Handles CommandIsOnCooldown error."""
     embed.description = "You're on cooldown"
     embed.set_footer(text=f"Please try again in {round(error.retry_in, 2)} seconds.")
 
 
-@handle(CommandInvocationError)
+@handle(CommandRuntimeError)
 def handle_command_invocation_error(
-    ctx: Context,
-    error: lightbulb.errors.CommandInvocationError,
+    _ctx: Context,
+    error: CommandRuntimeError,
     embed: hikari.Embed,
 ) -> None:
-    """Handles CommandInvocationError error."""
-    embed.description = str(error.original)
+    embed.description = str(error.exception)
 
 
-@handle(MissingRequiredPermission)
+@handle(MissingPermissionsError)
 def handle_missing_required_permission(
     _ctx: Context,
-    error: lightbulb.errors.MissingRequiredPermission,
+    error: MissingPermissionsError,
     embed: hikari.Embed,
 ) -> None:
-    """Handles MissingRequiredPermissions error."""
-    perms = ", ".join(
-        i.replace("_", " ").lower() for i in str(error.permissions).split("|")
-    )
-    plural = f"permission{'s' * (len(error.permissions) > 1)}"
+    perms = ", ".join(i.replace("_", " ").lower() for i in str(error.perms).split("|"))
+    plural = f"permission{'s' * (len(error.perms) > 1)}"
     embed.description = f"You're missing {perms} {plural} to invoke this command."
 
 
-@handle(BotMissingRequiredPermission)
-def handle_bot_missing_required_permission(
+@handle(MissingAnyPermissionsError)
+def handle_missing_required_permission(
     _ctx: Context,
-    error: lightbulb.errors.BotMissingRequiredPermission,
+    error: MissingAnyPermissionsError,
     embed: hikari.Embed,
 ) -> None:
-    """Handles BotMissingPermission error."""
-    perms = ", ".join(
-        i.replace("_", " ").lower() for i in str(error.permissions).split("|")
-    )
+    perms = ", ".join(i.replace("_", " ").lower() for i in str(error.perms).split("|"))
     embed.description = (
-        f"I'm missing {perms} permission{'s' * (len(error.permissions) > 1)}."
+        f"You need to have one of the following perms: {perms} to invoke this command."
     )
 
 
-@handle(
-    ConverterFailure,
-    CheckFailure,
-    CommandSyntaxError,
-    # UnclosedQuotes,
-)
+@handle(CheckError, MissingCommandCallbackError, CheckAnyError)
 def handle_converter_failure(
     _ctx: Context,
-    error: lightbulb.errors.ConverterFailure,
+    error: KitaError,
     embed: hikari.Embed,
 ) -> None:
-    """Handles ConverterFailure error."""
-    embed.description = error.text
+    embed.description = str(error)
 
 
 # Prevent size change while iterating.
@@ -179,11 +141,3 @@ for obj in globals().values():
     if hasattr(obj, "__errors__"):
         for err_t in obj.__errors__:
             handlers[err_t] = obj
-
-
-def load(bot: core.Nokari) -> None:
-    bot.add_plugin(errors)
-
-
-def unload(bot: core.Nokari) -> None:
-    bot.remove_plugin("Errors")

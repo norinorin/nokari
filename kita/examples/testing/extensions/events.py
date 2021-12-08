@@ -2,7 +2,6 @@ import logging
 
 from hikari.events.lifetime_events import StartedEvent, StartingEvent
 from hikari.impl.bot import GatewayBot
-from hikari.interactions.base_interactions import ResponseType
 
 from kita.command_handlers import GatewayCommandHandler
 from kita.data import data

@@ -3,40 +3,51 @@ import os
 import sys
 import time
 from collections import Counter
+from typing import Iterator, Optional, cast
 
 import hikari
-import lightbulb
 import psutil
+from hikari.commands import OptionType
 
-from nokari import core
+from kita.command_handlers import GatewayCommandHandler
+from kita.commands import command
+from kita.cooldowns import user_hash_getter, with_cooldown
+from kita.data import data
+from kita.extensions import finalizer, initializer
+from kita.options import with_option
+from kita.responses import Response, edit, respond
 from nokari.core import Context
+from nokari.core.bot import Nokari
 from nokari.extensions.extras.admin import run_command_in_shell
-from nokari.utils import converters, human_timedelta, paginator, parser, plural, spotify
-
-meta = core.Plugin("Meta")
-PROCESS = psutil.Process()
+from nokari.utils import converters, human_timedelta, paginator, plural, spotify
 
 
 # pylint: disable=too-many-locals
-def get_info(ctx: core.Context, embed: hikari.Embed, owner: bool = False) -> None:
-    """Modifies the embed to contain the statistics."""
+def get_info(
+    ctx: Context,
+    app: Nokari,
+    embed: hikari.Embed,
+    process: psutil.Process,
+    owner: bool = False,
+) -> None:
+    """Modify the embed to contain the statistics."""
     total_members = sum(
-        [g.member_count for g in ctx.bot.cache.get_available_guilds_view().values()]
+        [g.member_count for g in app.cache.get_available_guilds_view().values()]
     )
     channels = (
         "\n".join(
             f"{v} {str(k).split('_', 2)[-1].lower()}"
             for k, v in Counter(
-                [c.type for c in ctx.bot.cache.get_guild_channels_view().values()]
+                [c.type for c in app.cache.get_guild_channels_view().values()]
             ).items()
         )
         or "No cached channels..."
     )
-    presences = sum([len(i) for i in ctx.bot.cache.get_presences_view().values()])
+    presences = sum([len(i) for i in app.cache.get_presences_view().values()])
     counter = Counter(
         [
             m.is_bot
-            for mapping in ctx.bot.cache.get_members_view().values()
+            for mapping in app.cache.get_members_view().values()
             for m in mapping.values()
         ]
     )
@@ -46,13 +57,13 @@ def get_info(ctx: core.Context, embed: hikari.Embed, owner: bool = False) -> Non
         append_suffix=False,
         brief=True,
     )
-    total_servers = len(ctx.bot.cache.get_available_guilds_view()) + len(
-        ctx.bot.cache.get_unavailable_guilds_view()
+    total_servers = len(app.cache.get_available_guilds_view()) + len(
+        ctx.app.cache.get_unavailable_guilds_view()
     )
     (
         embed.add_field(
             name="Uptime:",
-            value=f"Bot: {ctx.bot.brief_uptime}\nServer: {boot_time}",
+            value=f"Bot: {ctx.app.brief_uptime}\nServer: {boot_time}",
             inline=True,
         )
         .add_field(name="Channels:", value=channels, inline=True)
@@ -66,19 +77,18 @@ def get_info(ctx: core.Context, embed: hikari.Embed, owner: bool = False) -> Non
             value=(
                 f"{human:,}h & {bots:,}b out of {total_members:,}\n"
                 f"{plural(presences):presence,} "
-                f"({len(ctx.bot.cache._presences_garbage):,} unique)\n"
-                f"{plural(len(converters._member_cache)):converted member,}"
+                f"({len(app.cache._presences_garbage):,} unique)\n"
             ),
             inline=True,
         )
         .add_field(
             name="CPU:",
-            value=f"{round(PROCESS.cpu_percent()/psutil.cpu_count(), 2)}%",
+            value=f"{round(process.cpu_percent()/psutil.cpu_count(), 2)}%",
             inline=True,
         )
     )
 
-    memory_full_info = PROCESS.memory_full_info()
+    memory_full_info = process.memory_full_info()
     if not owner:
         name = "Memory:"
         value = f"{round(memory_full_info.uss / 1_024 ** 2, 2)}MiB"
@@ -99,70 +109,63 @@ def _format_latency(latency: float) -> str:
     return f"{emoji} `{latency} ms`"
 
 
-@meta.command
-@core.add_cooldown(10, 1, lightbulb.cooldowns.UserBucket)
-@core.command("ping", "Displays the latencies.", aliases=["pong", "latency"])
-@core.implements(lightbulb.commands.PrefixCommand)
-async def ping(ctx: Context) -> None:
+@command("ping", "Respond with the heartbeat latency.")
+@with_cooldown(user_hash_getter, 1, 10)
+def ping(ctx: Context = data(Context)) -> Iterator[Response]:
+    me = ctx.app.get_me()
+    assert me is not None
     embed = (
         hikari.Embed()
-        .set_author(name="Ping", icon=ctx.bot.get_me().avatar_url)
-        .add_field("WS heartbeat latency", _format_latency(ctx.bot.heartbeat_latency))
+        .set_author(name="Ping", icon=me.avatar_url)
+        .add_field("WS heartbeat latency", _format_latency(ctx.app.heartbeat_latency))
     )
 
     t0 = time.perf_counter()
-    resp = await (await ctx.respond(embed=embed)).message()
+    yield respond(embed=embed)
     rest_latency = time.perf_counter() - t0
     embed.add_field("REST latency", _format_latency(rest_latency))
-    await resp.edit(embed=embed)
+    yield edit(embed=embed)
 
 
-@meta.command
-@core.add_cooldown(10, 1, lightbulb.cooldowns.UserBucket)
-@core.option("flags", "", default="")
-@core.command("stats", "Displays the statistic of the bot.")
-@core.implements(lightbulb.commands.PrefixCommand)
-async def stats(ctx: Context) -> None:
-    """Displays the statistic of the bot."""
+@command("stats", "Display the statistic of the bot.")
+@with_cooldown(user_hash_getter, 1, 10)
+def stats(
+    ctx: Context = data(Context), process: psutil.Process = data(psutil.Process)
+) -> Iterator[Response]:
     embed = hikari.Embed(title="Stats")
     get_info(
         ctx,
+        cast(Nokari, ctx.app),
         embed,
-        owner="d" in ctx.options.flags.lower() and ctx.author.id in ctx.bot.owner_ids,
+        process,
+        owner=ctx.interaction.user.id in ctx.handler.owner_ids,
     )
-    await ctx.respond(embed=embed)
+    yield respond(embed=embed)
 
 
-@meta.command
-@core.add_cooldown(2, 1, lightbulb.cooldowns.UserBucket)
-@core.option("object", "The object query.", default=None)
-@core.command("source", "Returns the link to the source code.")
-@core.implements(lightbulb.commands.PrefixCommand)
-async def source(ctx: Context) -> None:
-    """
-    Returns the link to the specified object if exists.
-    """
+@command("source", "Return the link to the source code.")
+@with_cooldown(user_hash_getter, 3, 5)
+@with_option(OptionType.STRING, "obj", "The object to lookup.")
+async def source(ctx: Context = data(Context), obj: Optional[str] = None) -> None:
     base_url = "https://github.com/norinorin/nokari"
 
-    if ctx.options.object is None:
+    if obj is None:
         await ctx.respond(base_url)
         return
 
     obj_map = {
-        "help": ctx.bot.help_command.__class__,
-        "bot": ctx.bot.__class__,
+        "bot": ctx.app.__class__,
         "context": ctx.__class__,
-        "cache": ctx.bot.cache.__class__,
+        "cache": ctx.app.cache.__class__,
         "spotify": spotify.SpotifyClient,
         "paginator": paginator.Paginator,
-        "parser": parser.ArgumentParser,
     }
 
     aliases = {"sp": "spotify", "ctx": "context"}
 
-    obj = ctx.options.object.lower()
+    obj = obj.lower()
 
-    maybe_command = obj_map.get(aliases.get(obj, obj), ctx.bot.get_prefix_command(obj))
+    maybe_command = obj_map.get(aliases.get(obj, obj), ctx.handler.get_command(obj))
     if maybe_command is None:
         await ctx.respond("Couldn't find anything...")
         return
@@ -179,9 +182,17 @@ async def source(ctx: Context) -> None:
     await ctx.respond(f"<{base_url}/blob/{commit_hash}/{blob}{hash_jump}>")
 
 
-def load(bot: core.Nokari) -> None:
-    bot.add_plugin(meta)
+@initializer
+def extension_initializer(handler: GatewayCommandHandler) -> None:
+    handler.set_data(psutil.Process())
+    handler.add_command(ping)
+    handler.add_command(stats)
+    handler.add_command(source)
 
 
-def unload(bot: core.Nokari) -> None:
-    bot.remove_plugin("Meta")
+@finalizer
+def extension_finalizer(handler: GatewayCommandHandler) -> None:
+    handler._data.pop(psutil.Process)
+    handler.remove_command(ping)
+    handler.remove_command(stats)
+    handler.remove_command(source)

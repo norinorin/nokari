@@ -13,9 +13,9 @@ from io import BytesIO
 import hikari
 import numpy
 from colorthief import ColorThief
-from lightbulb import utils
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
+from kita.utils import find
 from nokari.utils import caches
 from nokari.utils.algorithm import get_alt_color, get_luminance
 from nokari.utils.formatter import get_timestamp as format_time
@@ -731,11 +731,11 @@ class SpotifyClient:
             raise exc
 
         if (
-            act := utils.find(
-                presence.activities,
+            act := find(
                 lambda x: x.name
                 and x.name == "Spotify"
                 and x.type is hikari.ActivityType.LISTENING,
+                presence.activities,
             )
         ) is None and raise_if_none:
             raise exc
@@ -892,9 +892,11 @@ class SpotifyClient:
                 shorten(f"{idx}. {format.format(item=item)}"), str(idx - 1)
             ).add_to_menu()
 
-        respond = await (
-            await ctx.respond(content=title[not seq], component=menu.add_to_container())
-        ).message()
+        respond = await ctx.respond(
+            content=title[not seq], component=menu.add_to_container()
+        )
+        if not respond:
+            respond = await ctx.interaction.fetch_initial_response()
 
         with suppress(asyncio.TimeoutError):
             event = await self.bot.wait_for(
@@ -903,7 +905,7 @@ class SpotifyClient:
                     e.interaction, hikari.ComponentInteraction
                 )
                 and e.interaction.message.id == respond.id
-                and e.interaction.user.id == ctx.author.id
+                and e.interaction.user.id == ctx.interaction.user.id
                 and e.interaction.channel_id == ctx.channel_id
                 and e.interaction.custom_id == custom_id,
                 timeout=60,
