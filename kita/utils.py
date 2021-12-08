@@ -1,6 +1,7 @@
 import inspect
+from operator import attrgetter
 from types import TracebackType
-from typing import Callable, Iterable, List, Optional, Tuple, Type, TypeVar, cast
+from typing import Any, Callable, Iterable, List, Optional, Tuple, Type, TypeVar, cast
 
 from hikari.commands import CommandOption, OptionType
 from hikari.impl.special_endpoints import CommandBuilder
@@ -18,6 +19,7 @@ __all__ = (
     "ensure_options",
     "ensure_bucket_manager",
     "find",
+    "get",
     "get_exc_info",
 )
 T = TypeVar("T")
@@ -77,6 +79,18 @@ def ensure_bucket_manager(callback: Callable) -> ICommandCallback:
 def find(predicate: Callable[[T], bool], iterable: Iterable[T]) -> Optional[T]:
     for item in iterable:
         if predicate(item):
+            return item
+
+    return None
+
+
+def get(iterable: Iterable[T], **attrs: Any) -> Optional[T]:
+    _attrgetter = attrgetter
+    _all = all
+    getters = [(_attrgetter(attr), value) for attr, value in attrs.items()]
+
+    for item in iterable:
+        if _all(getter(item) == value for getter, value in getters):
             return item
 
     return None
