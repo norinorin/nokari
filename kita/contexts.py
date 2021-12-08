@@ -54,12 +54,11 @@ class Context:
         return edit(*args, **kwargs).execute(self)
 
     async def _resolve_ret_val(self, obj: Any) -> Any:
+        if inspect.iscoroutine(obj):
+            obj = await obj
+
         if isinstance(obj, Response):
             obj = await obj.execute(self)
-        elif inspect.iscoroutine(obj):
-            obj = await obj
-        else:
-            obj = obj
 
         return obj
 
