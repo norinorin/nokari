@@ -3,6 +3,7 @@ import typing
 
 import hikari
 from hikari.interactions.command_interactions import CommandInteraction
+from hikari.messages import MessageFlag
 
 from kita.errors import (
     CheckAnyError,
@@ -74,7 +75,7 @@ async def on_error(event: CommandFailureEvent) -> None:
         func(event.context, error, embed)
 
     if embed.description:
-        await event.context.respond(embed=embed)
+        await event.context.respond(embed=embed, flags=MessageFlag.EPHEMERAL)
 
     _LOGGER.error(
         "Ignoring exception in command %s",
@@ -90,7 +91,7 @@ def handle_command_on_cooldown(
     embed: hikari.Embed,
 ) -> None:
     embed.description = "You're on cooldown"
-    embed.set_footer(text=f"Please try again in {round(error.retry_in, 2)} seconds.")
+    embed.set_footer(text=f"Please try again in {round(error.retry_after, 2)} seconds.")
 
 
 @handle(CommandRuntimeError)
