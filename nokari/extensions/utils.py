@@ -20,6 +20,7 @@ from tabulate import tabulate
 from kita.command_handlers import GatewayCommandHandler
 from kita.commands import command
 from kita.contexts import Context
+from kita.cooldowns import user_hash_getter, with_cooldown
 from kita.data import data
 from kita.extensions import finalizer, initializer, listener
 from kita.options import with_option
@@ -180,6 +181,7 @@ def reminder() -> None:
 @with_option(OptionType.STRING, "thing", "Thing to remind.")
 @with_option(OptionType.STRING, "interval", "The interval for continuous reminder.")
 @with_option(OptionType.BOOLEAN, "daily", "Shortcut for 1 day interval.")
+@with_cooldown(user_hash_getter, 2, 5)
 async def reminder_set(
     when: str,
     interval: Optional[str] = None,
@@ -238,6 +240,7 @@ async def reminder_set(
 
 
 @reminder.command("list", "List your active reminders.")
+@with_cooldown(user_hash_getter, 1, 5)
 def reminder_list(
     ctx: Context = data(Context), pool: Pool = data(Pool)
 ) -> Coroutine[Any, Any, Optional[Message]]:
@@ -349,11 +352,15 @@ async def on_reminder(event: ReminderTimerEvent) -> None:
 
 
 @command("reminders", "A convenient shortcut for the `remind list` command.")
-def reminders(ctx: Context = data(Context)) -> Coroutine[Any, Any, Optional[Message]]:
-    return reminder_list(ctx)
+@with_cooldown(reminder_list)
+def reminders(
+    ctx: Context = data(Context), pool: Pool = data(Pool)
+) -> Coroutine[Any, Any, Optional[Message]]:
+    return reminder_list(ctx, pool)
 
 
 @reminder.command("clear", "Clear all your active reminders.")
+@with_cooldown(user_hash_getter, 2, 5)
 async def reminder_clear(
     ctx: Context = data(Context),
     pool: Pool = data(Pool),
@@ -396,6 +403,7 @@ async def reminder_clear(
 @reminder.command("info", "View detailed info of your reminder.")
 @with_option(OptionType.INTEGER, "id", "The ID of the reminder to look up.")
 @with_option(OptionType.BOOLEAN, "raw", "Escape the markdown in the message.")
+@with_cooldown(user_hash_getter, 2, 5)
 async def reminder_info(
     id: int, ctx: Context = data(Context), raw: bool = False, pool: Pool = data(Pool)
 ) -> None:
@@ -463,6 +471,7 @@ async def reminder_info(
     "ids",
     "The ID(s) of the reminder to delete, separate with a space.",
 )
+@with_cooldown(user_hash_getter, 2, 5)
 async def reminder_delete(
     ids: str,
     ctx: Context = data(Context),

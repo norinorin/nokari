@@ -5,9 +5,12 @@ from typing import Any, Callable, Iterable, List, Optional, Tuple, Type, TypeVar
 
 from hikari.commands import CommandOption, OptionType
 from hikari.impl.special_endpoints import CommandBuilder
+from typing_extensions import TypeGuard
 
 from kita.typedefs import (
     CallableProto,
+    CommandCallback,
+    EventCallback,
     ICommandCallback,
     IGroupCommandCallback,
     SignatureAware,
@@ -100,3 +103,15 @@ def get_exc_info(
     exception: BaseException,
 ) -> Tuple[Type[BaseException], BaseException, Optional[TracebackType]]:
     return type(exception), exception, exception.__traceback__
+
+
+def is_command(obj: Any) -> TypeGuard[ICommandCallback]:
+    return getattr(obj, "__is_command__", False)
+
+
+def is_command_parent(obj: Any) -> TypeGuard[CommandCallback]:
+    return is_command(obj) and hasattr(obj, "group") and hasattr(obj, "command")
+
+
+def is_listener(obj: Any) -> TypeGuard[EventCallback]:
+    return getattr(obj, "__is_listener__", False)

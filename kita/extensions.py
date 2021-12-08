@@ -6,9 +6,7 @@ import logging
 import sys
 from typing import (
     TYPE_CHECKING,
-    Any,
     Callable,
-    Mapping,
     Optional,
     Tuple,
     Type,
@@ -18,17 +16,15 @@ from typing import (
 )
 
 from hikari.events.base_events import Event
-from typing_extensions import TypeGuard
 
 from kita.typedefs import (
-    CommandCallback,
     EventCallback,
     Extension,
     ExtensionFinalizer,
     ExtensionInitializer,
     IExtensionCallback,
 )
-from kita.utils import ensure_signature
+from kita.utils import ensure_signature, is_command_parent, is_listener
 
 if TYPE_CHECKING:
     from hikari.api.event_manager import CallbackT, EventT_co
@@ -40,31 +36,19 @@ T = TypeVar("T")
 _LOGGER = logging.getLogger("kita.extensions")
 
 
-def _is_command(obj: Any) -> TypeGuard[CommandCallback]:
-    return (
-        getattr(obj, "__is_command__", False)
-        and hasattr(obj, "group")
-        and hasattr(obj, "command")
-    )
-
-
-def _is_listener(obj: Any) -> TypeGuard[EventCallback]:
-    return getattr(obj, "__is_listener__", False)
-
-
 def load_components(handler: GatewayCommandHandler, mod: Extension) -> None:
     for g in mod.__dict__.values():
-        if _is_command(g):
+        if is_command_parent(g):
             handler.add_command(g)
-        elif _is_listener(g):
+        elif is_listener(g):
             handler.subscribe(g)
 
 
 def unload_components(handler: GatewayCommandHandler, mod: Extension) -> None:
     for g in mod.__dict__.values():
-        if _is_command(g):
+        if is_command_parent(g):
             handler.remove_command(g)
-        elif _is_listener(g):
+        elif is_listener(g):
             handler.unsubscribe(g)
 
 
