@@ -252,6 +252,9 @@ class Nokari(GatewayBot):
         color = self.default_color
         if isinstance(messageable, Context):
             color = messageable.color
+            send = messageable.respond
+        else:
+            send = getattr(messageable, "channel", messageable).send
 
         embed = hikari.Embed(description=message, color=color)
         component = (
@@ -264,8 +267,9 @@ class Nokari(GatewayBot):
             .add_to_container()
         )
 
-        messageable = getattr(messageable, "channel", messageable)
-        msg = await messageable.send(embed=embed, component=component)
+        if not (msg := await send(embed=embed, component=component)):
+            assert isinstance(messageable, Context)
+            msg = await messageable.interaction.fetch_initial_response()
 
         confirm = False
 
