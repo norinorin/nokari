@@ -56,12 +56,16 @@ class Response:
         interaction = ctx.interaction
         res: Optional[Message] = None
         if self.type == DEFER:
+            if ctx.deferring:
+                return None
+
             await interaction.create_initial_response(
                 ResponseType.DEFERRED_MESSAGE_CREATE
             )
-            ctx.n_message += 1
             ctx.deferring = True
-        elif self.type == CREATE:
+            return None
+
+        if self.type == CREATE:
             if ctx.deferring:
                 self.type = EDIT
                 return await self.execute(ctx)
@@ -78,7 +82,7 @@ class Response:
             if ctx.deferring:
                 ctx.deferring = False
 
-            if ctx.n_message == 1:
+            if ctx.n_message < 2:
                 res = await interaction.edit_initial_response(*args, **kwargs)
             else:
                 assert ctx.last_message is not None  # can't be None

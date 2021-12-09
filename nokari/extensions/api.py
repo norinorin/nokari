@@ -304,9 +304,12 @@ if HAS_SPOTIFY_VARS:
         ctx: Context = data(Context),
         spotify_client: SpotifyClient = data(SpotifyClient),
         album: str = "",
-    ) -> None:
+    ) -> Any:
+        yield defer()
+
         if not album:
-            return await spotify_track(ctx, spotify_client, album=True)
+            yield spotify_track(ctx, spotify_client, album=True)
+            return
 
         if not (spotify_album := await spotify_client.get_item(ctx, album, Album)):
             return
@@ -455,6 +458,8 @@ def rtfd_hikari(
     if not obj:
         return respond(f"{HIKARI_BASE_URL}/hikari")
 
+    yield defer()
+
     if not objects.objects:
         yield objects.init_cache(ctx.app)
 
@@ -481,7 +486,7 @@ def rtfd_hikari(
             )
         )
 
-    return paginator.start()
+    yield paginator.start()
 
 
 @initializer

@@ -2,6 +2,7 @@ import logging
 from typing import Any, Callable, Dict, Type, TypeVar
 
 import hikari
+from black import traceback
 from hikari.interactions.command_interactions import CommandInteraction
 from hikari.messages import MessageFlag
 
@@ -18,7 +19,7 @@ from kita.errors import (
 )
 from kita.events import CommandFailureEvent
 from kita.extensions import listener
-from kita.utils import find
+from kita.utils import find, get_exc_info
 
 _ExcT = TypeVar("_ExcT", bound=Exception)
 
@@ -78,9 +79,9 @@ async def on_error(event: CommandFailureEvent) -> None:
         await event.context.respond(embed=embed, flags=MessageFlag.EPHEMERAL)
 
     _LOGGER.error(
-        "Ignoring exception in command %s",
+        "Ignoring exception in command %s:\n%s",
         event.context.command and event.context.command.__name__,
-        exc_info=error,
+        "".join(traceback.format_exception(*(get_exc_info(error)))),
     )
 
 

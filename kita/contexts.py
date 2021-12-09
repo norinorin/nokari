@@ -34,7 +34,7 @@ class Context:
         self.handler = handler
         self.last_message: Optional[Message] = None
         self.command: Optional[ICommandCallback] = None
-        self.deferring = True
+        self.deferring = False
 
     def set_command(self: ContextT, command: ICommandCallback) -> ContextT:
         self.command = command
