@@ -132,7 +132,7 @@ def ping(ctx: Context = data(Context)) -> Iterator[Response]:
 @with_cooldown(user_hash_getter, 1, 10)
 def stats(
     ctx: Context = data(Context), process: psutil.Process = data(psutil.Process)
-) -> Iterator[Response]:
+) -> Response:
     embed = hikari.Embed(title="Stats")
     get_info(
         ctx,
@@ -141,7 +141,7 @@ def stats(
         process,
         owner=ctx.interaction.user.id in ctx.handler.owner_ids,
     )
-    yield respond(embed=embed)
+    return respond(embed=embed)
 
 
 @command("source", "Return the link to the source code.")

@@ -68,6 +68,8 @@ class Response:
         if self.type == CREATE:
             if ctx.deferring:
                 self.type = EDIT
+                self.kwargs.pop("flags", None)
+                self.kwargs.pop("tts", None)
                 return await self.execute(ctx)
 
             if not ctx.n_message:  # initial

@@ -1,8 +1,8 @@
 import logging
+import traceback
 from typing import Any, Callable, Dict, Type, TypeVar
 
 import hikari
-from black import traceback
 from hikari.interactions.command_interactions import CommandInteraction
 from hikari.messages import MessageFlag
 
@@ -57,7 +57,6 @@ async def on_error(event: CommandFailureEvent) -> None:
     )
     error = event.exception
     class_t = error if isinstance(error, type) else error.__class__
-    class_t = getattr(class_t, "__cause__", None) or class_t
     func = handlers.get(
         class_t,
         handlers.get(
@@ -71,6 +70,8 @@ async def on_error(event: CommandFailureEvent) -> None:
             else None
         ),
     )
+
+    _LOGGER.debug("Got %s to handle %s", func, class_t)
 
     if func:
         func(event.context, error, embed)
@@ -128,7 +129,7 @@ def handle_missing_any_required_permission(
 
 
 @handle(CheckError, MissingCommandCallbackError, CheckAnyError)
-def handle_converter_failure(
+def handle_general_error(
     ctx: Context,
     error: KitaError,
     embed: hikari.Embed,

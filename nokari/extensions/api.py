@@ -448,7 +448,7 @@ def rtfd() -> None:
     "hikari", "Return jump links to the specified object in Hikari docs page."
 )
 @with_cooldown(user_hash_getter, 1, 2)
-@with_option(OptionType.STRING, "object", "Hikari object to lookup.")
+@with_option(OptionType.STRING, "obj", "Hikari object to lookup.")
 def rtfd_hikari(
     ctx: Context = data(Context),
     objects: HikariObjects = data(HikariObjects),
@@ -456,7 +456,8 @@ def rtfd_hikari(
 ) -> Iterator[Any]:
 
     if not obj:
-        return respond(f"{HIKARI_BASE_URL}/hikari")
+        yield respond(f"{HIKARI_BASE_URL}/hikari")
+        return
 
     yield defer()
 
