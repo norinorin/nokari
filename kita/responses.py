@@ -63,10 +63,13 @@ class Response:
                 ResponseType.DEFERRED_MESSAGE_CREATE
             )
             ctx.deferring = True
+            ctx.n_message += 1
             return None
 
         if self.type == CREATE:
             if ctx.deferring:
+                # this is useful if you're not sure
+                # whether or not it's deferring.
                 self.type = EDIT
                 return await self.execute(ctx)
 
@@ -81,12 +84,10 @@ class Response:
         elif self.type == EDIT:
             if ctx.deferring:
                 ctx.deferring = False
-                # this is useful if you're not sure
-                # whether or not it's deferring.
                 self.kwargs.pop("flags", None)
                 self.kwargs.pop("tts", None)
 
-            if ctx.n_message < 2:
+            if ctx.n_message == 1:
                 res = await interaction.edit_initial_response(*args, **kwargs)
             else:
                 assert ctx.last_message is not None  # can't be None
