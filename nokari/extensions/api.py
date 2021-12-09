@@ -459,9 +459,9 @@ def rtfd_hikari(
         yield respond(f"{HIKARI_BASE_URL}/hikari")
         return
 
-    yield defer()
-
     if not objects.objects:
+        # only defer when fetching the objects
+        yield defer()
         yield objects.init_cache(ctx.app)
 
     if not (
@@ -472,7 +472,7 @@ def rtfd_hikari(
             )
         ]
     ):
-        raise RuntimeError("Couldn't find anything...")  # ephemeral
+        raise RuntimeError("Couldn't find anything...")  # ephemeral if not deferred
 
     chunks = chunk_from_list(entries, 2_048)
     length = len(chunks)
