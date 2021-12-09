@@ -489,4 +489,4 @@ def extension_initializer(handler: GatewayCommandHandler) -> None:
     if HAS_SPOTIFY_VARS:
         handler.set_data(SpotifyClient(cast(Nokari, handler.app)), suppress=True)
 
-    handler.set_data(HikariObjects, suppress=True)
+    handler.set_data(HikariObjects(), suppress=True)
