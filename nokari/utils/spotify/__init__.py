@@ -294,7 +294,6 @@ class SpotifyClient:
         self,
         metadata: SongMetadata,
         hidden: bool,
-        color_mode: str,
     ) -> typing.Tuple[Image.Image, typing.Optional[_SpotifyCardMetadata]]:
         metadata.album = f"on {metadata.album}"
 
@@ -308,7 +307,7 @@ class SpotifyClient:
             height -= self.SIDE_GAP
 
         rgbs, im = await self._get_album_and_colors(
-            metadata.album_cover_url, height, color_mode or "downscale"
+            metadata.album_cover_url, height, "downscale"
         )
 
         width = (
@@ -405,7 +404,6 @@ class SpotifyClient:
         self,
         metadata: SongMetadata,
         hidden: bool,
-        color_mode: str,
     ) -> typing.Tuple[Image.Image, typing.Optional[_SpotifyCardMetadata]]:
         width = self.WIDTH
 
@@ -418,7 +416,7 @@ class SpotifyClient:
             height -= decrement
 
         rgbs, im = await self._get_album_and_colors(
-            metadata.album_cover_url, height, color_mode or "top-bottom blur"
+            metadata.album_cover_url, height, "top-bottom blur"
         )
 
         def wrapper(
@@ -603,12 +601,11 @@ class SpotifyClient:
         buffer: BytesIO,
         data: typing.Union[hikari.User, Track],
         hidden: bool,
-        color_mode: str,
         style: str = "2",
     ) -> None:
         func = f"_generate_base_card{style}"
         metadata = self._get_data(data)
-        canvas, card_data = await getattr(self, func)(metadata, hidden, color_mode)
+        canvas, card_data = await getattr(self, func)(metadata, hidden)
 
         if card_data is not None:
 

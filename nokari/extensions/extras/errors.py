@@ -1,10 +1,11 @@
 import logging
-import typing
+from typing import Callable, Dict, Protocol, Type, TypeVar
 
 import hikari
 from hikari.interactions.command_interactions import CommandInteraction
 from hikari.messages import MessageFlag
 
+from kita.contexts import Context
 from kita.errors import (
     CheckAnyError,
     CheckError,
@@ -18,31 +19,31 @@ from kita.errors import (
 from kita.events import CommandFailureEvent
 from kita.extensions import listener
 from kita.utils import find
-from nokari.core import Context
 
-_ErrorHandlerT = typing.TypeVar(
-    "_ErrorHandlerT",
-    bound=typing.Callable[
-        [Context, KitaError, hikari.Embed],
-        typing.Literal[None],
-    ],
-)
+_ExcT = TypeVar("_ExcT", bound=Exception)
+
+
+class _ErrorHandler(Protocol[_ExcT]):
+    def __call__(self, ctx: Context, error: _ExcT, embed: hikari.Embed) -> None:
+        ...
+
+
 _LOGGER = logging.getLogger("nokari.plugins.extras.errors")
 
 
 def handle(
-    *errors: Exception,
-) -> typing.Callable[[_ErrorHandlerT], _ErrorHandlerT]:
+    *errors: Type[_ExcT],
+) -> Callable[[_ErrorHandler[_ExcT]], _ErrorHandler[_ExcT]]:
     def decorator(
-        func: _ErrorHandlerT,
-    ) -> _ErrorHandlerT:
+        func: _ErrorHandler[_ExcT],
+    ) -> _ErrorHandler[_ExcT]:
         func.__errors__ = errors  # type: ignore
         return func
 
     return decorator
 
 
-handlers: typing.Dict[str, _ErrorHandlerT] = {}
+handlers: Dict[Type[_ExcT], _ErrorHandler[_ExcT]] = {}
 
 
 @listener()
@@ -56,7 +57,7 @@ async def on_error(event: CommandFailureEvent) -> None:
         icon=interaction.user.avatar_url or interaction.user.default_avatar_url,
     )
     error = event.exception
-    class_t = error if hasattr(error, "__mro__") else error.__class__
+    class_t = error if isinstance(error, type) else error.__class__
     func = handlers.get(
         class_t,
         handlers.get(
@@ -64,7 +65,7 @@ async def on_error(event: CommandFailureEvent) -> None:
             if (
                 parent := find(
                     lambda cls: cls in handlers,
-                    class_t.__mro__,
+                    getattr(class_t, "__mro__", []),
                 )
             )
             else None
@@ -86,7 +87,7 @@ async def on_error(event: CommandFailureEvent) -> None:
 
 @handle(CommandOnCooldownError)
 def handle_command_on_cooldown(
-    _ctx: Context,
+    ctx: Context,
     error: CommandOnCooldownError,
     embed: hikari.Embed,
 ) -> None:
@@ -96,7 +97,7 @@ def handle_command_on_cooldown(
 
 @handle(CommandRuntimeError)
 def handle_command_invocation_error(
-    _ctx: Context,
+    ctx: Context,
     error: CommandRuntimeError,
     embed: hikari.Embed,
 ) -> None:
@@ -105,7 +106,7 @@ def handle_command_invocation_error(
 
 @handle(MissingPermissionsError)
 def handle_missing_required_permission(
-    _ctx: Context,
+    ctx: Context,
     error: MissingPermissionsError,
     embed: hikari.Embed,
 ) -> None:
@@ -115,8 +116,8 @@ def handle_missing_required_permission(
 
 
 @handle(MissingAnyPermissionsError)
-def handle_missing_required_permission(
-    _ctx: Context,
+def handle_missing_any_required_permission(
+    ctx: Context,
     error: MissingAnyPermissionsError,
     embed: hikari.Embed,
 ) -> None:
@@ -128,7 +129,7 @@ def handle_missing_required_permission(
 
 @handle(CheckError, MissingCommandCallbackError, CheckAnyError)
 def handle_converter_failure(
-    _ctx: Context,
+    ctx: Context,
     error: KitaError,
     embed: hikari.Embed,
 ) -> None:

@@ -7,9 +7,20 @@ import logging
 import os
 import shutil
 import sys
-import typing
 import weakref
 from contextlib import suppress
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Coroutine,
+    Dict,
+    Iterator,
+    Mapping,
+    Protocol,
+    Union,
+    cast,
+)
 
 import aiohttp
 import asyncpg
@@ -20,7 +31,7 @@ from hikari.events.interaction_events import InteractionCreateEvent
 from hikari.impl.bot import GatewayBot
 from hikari.interactions.base_interactions import ResponseType
 from hikari.interactions.component_interactions import ComponentInteraction
-from hikari.messages import ButtonStyle
+from hikari.messages import ButtonStyle, Message
 from hikari.snowflakes import Snowflake
 from lru import LRU  # pylint: disable=no-name-in-module
 
@@ -28,7 +39,6 @@ from kita.checks import owner_only, with_check
 from kita.command_handlers import GatewayCommandHandler
 from kita.commands import command
 from kita.data import data
-from kita.errors import KitaError
 from kita.options import with_option
 from nokari.core import constants
 from nokari.core.cache import Cache
@@ -36,16 +46,16 @@ from nokari.core.context import Context
 from nokari.core.entity_factory import EntityFactory
 from nokari.utils import db, human_timedelta
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from nokari.utils.paginator import Paginator
 
 __all__ = ("Nokari",)
 _LOGGER = logging.getLogger("nokari.core.bot")
 
 
-class Messageable(typing.Protocol):
-    respond: typing.Callable[..., typing.Coroutine[None, None, hikari.Message]]
-    send: typing.Callable[..., typing.Coroutine[None, None, hikari.Message]]
+class Messageable(Protocol):
+    respond: Callable[..., Coroutine[None, None, hikari.Message]]
+    send: Callable[..., Coroutine[None, None, hikari.Message]]
 
 
 class Nokari(GatewayBot):
@@ -83,7 +93,7 @@ class Nokari(GatewayBot):
         self._entity_factory = self._rest._entity_factory = EntityFactory(self)
 
         # A mapping from user ids to their sync ids
-        self._sync_ids: typing.Dict[Snowflake, str] = {}
+        self._sync_ids: Dict[Snowflake, str] = {}
 
         # Command handler
         self.handler = GatewayCommandHandler(
@@ -100,13 +110,15 @@ class Nokari(GatewayBot):
         self.default_prefixes = ["nokari", "n!"]
 
         # Paginators
-        self.paginators: typing.Mapping[
-            Snowflake, Paginator
-        ] = weakref.WeakValueDictionary()
+        self.paginators: Mapping[Snowflake, Paginator] = weakref.WeakValueDictionary()
 
         self.subscribe(hikari.StartingEvent, self.on_starting)
         self.subscribe(hikari.StartedEvent, self.on_started)
         self.subscribe(hikari.StoppingEvent, self.on_closing)
+
+    @property
+    def cache(self) -> Cache:
+        return self._cache
 
     async def _setup_topgg_clients(self) -> None:
         if constants.TOPGG_WEBHOOK_AUTH:
@@ -164,7 +176,7 @@ class Nokari(GatewayBot):
             if not raw:
                 return
 
-            await self.rest.edit_message(*raw.split("-"), "Successfully restarted!")
+            await self.rest.edit_message(*raw.split("-"), "Successfully restarted!")  # type: ignore
 
         await self._setup_topgg_clients()
 
@@ -188,7 +200,7 @@ class Nokari(GatewayBot):
     @property
     def session(self) -> aiohttp.ClientSession | None:
         """Returns a ClientSession."""
-        return self.rest._get_live_attributes().client_session
+        return self.rest._get_live_attributes().client_session  # type: ignore
 
     @property
     def pool(self) -> asyncpg.Pool | None:
@@ -201,7 +213,7 @@ class Nokari(GatewayBot):
             self.handler.set_data(pool)
 
     @property
-    def raw_extensions(self) -> typing.Iterator[str]:
+    def raw_extensions(self) -> Iterator[str]:
         """
         Returns the plugins' path component.
 
@@ -242,7 +254,7 @@ class Nokari(GatewayBot):
     # pylint: disable=lost-exception
     async def prompt(
         self,
-        messageable: Messageable,
+        messageable: Union[Context, Messageable],
         message: str,
         *,
         author_id: int,
@@ -254,7 +266,10 @@ class Nokari(GatewayBot):
             color = messageable.color
             send = messageable.respond
         else:
-            send = getattr(messageable, "channel", messageable).send
+            send = cast(
+                Callable[..., Coroutine[Any, Any, Message]],
+                getattr(messageable, "channel", messageable).send,
+            )
 
         embed = hikari.Embed(description=message, color=color)
         component = (
@@ -299,9 +314,10 @@ class Nokari(GatewayBot):
             if delete_after:
                 await msg.delete()
             else:
-                for c in component._components:
+                for c in component._components:  # type: ignore
                     c._is_disabled = True
 
+                assert isinstance(event.interaction, ComponentInteraction)
                 await event.interaction.create_initial_response(
                     ResponseType.MESSAGE_UPDATE, component=component
                 )
@@ -322,19 +338,19 @@ def extension() -> None:
 @extension.command("reload", "Reloads extensions.")
 @with_check(owner_only)
 @with_option(OptionType.STRING, "extensions", "The extensions to reload.")
-async def reload_plugin(ctx: Context = data(Context), extensions="*") -> None:
+async def reload_plugin(ctx: Context = data(Context), extensions: str = "*") -> None:
     await ctx.execute_extensions(ctx.handler.reload_extension, extensions)
 
 
 @extension.command("unload", "Unloads extensions.")
 @with_check(owner_only)
 @with_option(OptionType.STRING, "extensions", "The extensions to unload.")
-async def unload_plugin(ctx: Context = data(Context), extensions="*") -> None:
+async def unload_plugin(ctx: Context = data(Context), extensions: str = "*") -> None:
     await ctx.execute_extensions(ctx.handler.unload_extension, extensions)
 
 
 @extension.command("load", "Loads extensions.")
 @with_check(owner_only)
 @with_option(OptionType.STRING, "extensions", "The extensions to load.")
-async def load_plugin(ctx: Context = data(Context), extensions="*") -> None:
-    await ctx.execute_extensions(ctx.handler.load_extension, extension)
+async def load_plugin(ctx: Context = data(Context), extensions: str = "*") -> None:
+    await ctx.execute_extensions(ctx.handler.load_extension, extensions)

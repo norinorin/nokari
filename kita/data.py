@@ -54,11 +54,17 @@ class DataContainerMixin:
         self._lookup_cache: Dict[Type, Any] = {}
 
     def set_data(
-        self: DataContainerT, data_: Any, *, override: bool = False
+        self: DataContainerT,
+        data_: Any,
+        *,
+        override: bool = False,
+        suppress: bool = False,
     ) -> DataContainerT:
         type_ = type(data_)
         if not override and type_ in self._data:
-            raise RuntimeError(f"{type_} already exists.")
+            if not suppress:
+                raise RuntimeError(f"{type_} already exists.")
+            return self
 
         # exclude the type itself and object
         for sup in type_.mro()[1:-1]:

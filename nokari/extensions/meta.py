@@ -31,6 +31,7 @@ def get_info(
     owner: bool = False,
 ) -> None:
     """Modify the embed to contain the statistics."""
+    assert isinstance(ctx.app, Nokari)
     total_members = sum(
         [g.member_count for g in app.cache.get_available_guilds_view().values()]
     )
@@ -174,7 +175,7 @@ async def source(ctx: Context = data(Context), obj: Optional[str] = None) -> Non
 
     lines, lineno = inspect.getsourcelines(actual_obj)
     hash_jump = f"#L{lineno}-L{lineno+len(lines)-1}"
-    blob = os.path.relpath(sys.modules[actual_obj.__module__].__file__)
+    blob = os.path.relpath(cast(str, sys.modules[actual_obj.__module__].__file__))
 
     stdout, stderr = await run_command_in_shell("git rev-parse HEAD")
     commit_hash = stdout.strip() if not stderr else "master"

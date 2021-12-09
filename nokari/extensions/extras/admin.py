@@ -11,7 +11,7 @@ from contextlib import redirect_stdout, suppress
 from inspect import getsource
 from io import StringIO
 from types import TracebackType
-from typing import Iterator, List, Optional, Tuple, Type, Union
+from typing import Any, Generator, Iterator, List, Optional, Tuple, Type, Union
 
 from hikari.commands import OptionType
 from hikari.interactions.command_interactions import CommandInteraction
@@ -184,7 +184,7 @@ async def _eval(command: str, ctx: Context = data(Context)) -> None:
         exec(compile(parsed, filename=filename, mode="exec"), env)
         with redirect_stdout(stdout):
             t0 = time.monotonic()
-            result = str(await env[fn_name]()).replace("`", ZWS_ACUTE)
+            result = str(await env[fn_name]()).replace("`", ZWS_ACUTE)  # type: ignore
     except Exception:
         raw_error = (
             (
@@ -236,7 +236,7 @@ async def shell(command: str, ctx: Context = data(Context)) -> None:
 @with_check(owner_only)
 def restart(
     interaction: CommandInteraction = data(CommandInteraction),
-) -> Iterator[Response]:
+) -> Generator[Any, Any, None]:
     """Just to check whether or not the -OO flag was present."""
 
     yield respond("Restarting...")

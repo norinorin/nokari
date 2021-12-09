@@ -35,7 +35,7 @@ def _ensure_args(args: Tuple[Any, ...]) -> Tuple[Any, ...]:
 
 
 class Response:
-    __slots__ = ("type", "defer", "_args", "_kwargs")
+    __slots__ = ("type", "_args", "_kwargs")
 
     def __init__(self, type_: str, *args: Any, **kwargs: Any):
         self.type = type_
@@ -60,7 +60,12 @@ class Response:
                 ResponseType.DEFERRED_MESSAGE_CREATE
             )
             ctx.n_message += 1
+            ctx.deferring = True
         elif self.type == CREATE:
+            if ctx.deferring:
+                self.type = EDIT
+                return await self.execute(ctx)
+
             if not ctx.n_message:  # initial
                 res = await interaction.create_initial_response(
                     *_ensure_args(args), **kwargs
@@ -70,6 +75,9 @@ class Response:
 
             ctx.n_message += 1
         elif self.type == EDIT:
+            if ctx.deferring:
+                ctx.deferring = False
+
             if ctx.n_message == 1:
                 res = await interaction.edit_initial_response(*args, **kwargs)
             else:

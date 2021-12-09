@@ -3,14 +3,26 @@
 import asyncio
 import logging
 import textwrap
+from asyncio.tasks import Task
 from contextlib import suppress
 from datetime import datetime, timedelta, timezone
 from itertools import zip_longest
-from typing import Any, AsyncIterator, Coroutine, Final, List, Optional, Tuple, cast
+from typing import (
+    Any,
+    AsyncIterator,
+    Coroutine,
+    Final,
+    List,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 
 import hikari
 from asyncpg import Pool
 from asyncpg.exceptions import PostgresConnectionError
+from hikari.channels import GuildTextChannel
 from hikari.commands import OptionType
 from hikari.interactions.command_interactions import CommandInteraction
 from hikari.messages import Message
@@ -19,13 +31,13 @@ from tabulate import tabulate
 
 from kita.command_handlers import GatewayCommandHandler
 from kita.commands import command
-from kita.contexts import Context
 from kita.cooldowns import user_hash_getter, with_cooldown
 from kita.data import data
 from kita.extensions import finalizer, initializer, listener
 from kita.options import with_option
 from kita.responses import Response, edit, respond
 from nokari.core.bot import Nokari
+from nokari.core.context import Context
 from nokari.utils import db, plural, timers
 from nokari.utils.chunker import chunk, simple_chunk
 from nokari.utils.converters import parse_time
@@ -58,11 +70,12 @@ class ReminderCore:
     def __init__(self, app: Nokari):
         self.app = app
         self.event = asyncio.Event()
-        self.task = None
-        self.current_timer = None
+        self.task: Optional[Task[None]] = None
+        self.current_timer: Optional[timers.Timer] = None
 
     @property
-    def pool(self) -> Optional[Pool]:
+    def pool(self) -> Pool:
+        assert self.app.pool is not None
         return self.app.pool
 
     def refresh_task(self) -> None:
@@ -151,7 +164,7 @@ class ReminderCore:
                     RETURNING id;
                 """
 
-        row = await self.app.pool.fetchrow(
+        row = await self.pool.fetchrow(
             query, event, {"args": args, "kwargs": kwargs}, when, now, interval
         )
         timer.id = row[0]
@@ -316,7 +329,7 @@ async def on_reminder(event: ReminderTimerEvent) -> None:
     channel_id, author_id, message = event.timer.args
 
     channel = (
-        event.app.cache.get_guild_channel(channel_id)
+        cast(Optional[GuildTextChannel], event.app.cache.get_guild_channel(channel_id))
         or event.app.cache.get_user(author_id)
         or await event.app.rest.fetch_user(author_id)
     )
@@ -455,11 +468,12 @@ async def reminder_info(
         or await ctx.app.rest.fetch_user(author_id)
     )
 
-    has_guild = hasattr(channel, "guild_id")
-    if (msg_id := extra["kwargs"].get("message_id")) and has_guild:
+    if (msg_id := extra["kwargs"].get("message_id")) and (
+        guild_id := getattr(channel, "guild_id", None)
+    ):
         embed.add_field(
             name="Jump URL",
-            value=f'[Click here](https://discordapp.com/channels/{channel.guild_id}/{channel.id}/{msg_id} "Jump to the message.")',
+            value=f'[Click here](https://discordapp.com/channels/{guild_id}/{channel.id}/{msg_id} "Jump to the message.")',
         )
 
     await ctx.respond(embed=embed)

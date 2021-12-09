@@ -43,7 +43,7 @@ class WebhookExecutor:
             app.rest.execute_webhook, int(webhook_id), webhook_token
         )
 
-    def __call__(self, *args, **kwargs) -> Any:
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         return self.webhook_token(*args, **kwargs)
 
 
@@ -87,7 +87,8 @@ if GUILD_LOGS_WEBHOOK_URL:
     async def on_guild_leave(
         event: GuildLeaveEvent, executor: WebhookExecutor = data(WebhookExecutor)
     ) -> None:
-        await executor(event.old_guild, Color.of("#FF0000"), "(-)")
+        # no clue why mypy complains that old_guild doesn't exist
+        await executor(event.old_guild, Color.of("#FF0000"), "(-)")  # type: ignore
 
 
 @initializer
