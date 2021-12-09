@@ -16,7 +16,6 @@ from colorthief import ColorThief
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from kita.utils import find
-from nokari.core.bot import Nokari
 from nokari.utils import caches
 from nokari.utils.algorithm import get_alt_color, get_luminance
 from nokari.utils.formatter import get_timestamp as format_time
@@ -43,6 +42,7 @@ from .typings import (
 
 if typing.TYPE_CHECKING:
     from nokari.core import Context
+    from nokari.core.bot import Nokari
 
     from .typings import T
 

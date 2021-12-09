@@ -1,4 +1,5 @@
 """A module that contains a paginator implementation."""
+from __future__ import annotations
 
 import asyncio
 from contextlib import suppress
@@ -20,21 +21,14 @@ from typing import (
 )
 
 import hikari
-from hikari import (
-    ButtonStyle,
-    GuildMessageCreateEvent,
-    InteractionCreateEvent,
-    InteractiveButtonTypesT,
-    snowflakes,
-    undefined,
-)
+from hikari import ButtonStyle, InteractiveButtonTypesT, snowflakes, undefined
 from hikari.impl.special_endpoints import _ButtonBuilder
 from hikari.interactions.component_interactions import ComponentInteraction
 
-from nokari.core.bot import Nokari
 from nokari.utils import maybe_await
 
 if TYPE_CHECKING:
+    from nokari.core.bot import Nokari
     from nokari.core.context import Context
 
 __all__: Final[List[str]] = ["EmptyPages", "Paginator"]

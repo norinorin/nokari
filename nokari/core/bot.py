@@ -45,9 +45,6 @@ from nokari.core.context import Context
 from nokari.core.entity_factory import EntityFactory
 from nokari.utils import db, human_timedelta
 
-if TYPE_CHECKING:
-    from nokari.utils.paginator import Paginator
-
 __all__ = ("Nokari",)
 _LOGGER = logging.getLogger("nokari.core.bot")
 

@@ -88,7 +88,7 @@ if GUILD_LOGS_WEBHOOK_URL:
         event: GuildLeaveEvent, executor: WebhookExecutor = data(WebhookExecutor)
     ) -> None:
         # no clue why mypy complains that old_guild doesn't exist
-        await executor(event.old_guild, Color.of("#FF0000"), "(-)")  # type: ignore
+        await executor(event.old_guild, Color.of("#FF0000"), "(-)")
 
 
 @initializer
