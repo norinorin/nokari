@@ -136,7 +136,7 @@ def stats(
     embed = hikari.Embed(title="Stats")
     get_info(
         ctx,
-        cast(Nokari, ctx.app),
+        ctx.app,
         embed,
         process,
         owner=ctx.interaction.user.id in ctx.handler.owner_ids,

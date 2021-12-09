@@ -138,8 +138,8 @@ class ReminderCore:
         await asyncio.sleep(seconds)
         self.app.dispatch(timer.event(app=self.app, timer=timer))
 
-    async def create_timer(self, *args: Any, **kwargs: Any) -> timers.Timer:
-        event, when, *args = args
+    async def create_timer(self, *args_: Any, **kwargs: Any) -> timers.Timer:
+        event, when, *args = args_
 
         now = kwargs.pop("created_at", datetime.now(timezone.utc))
         interval = kwargs.pop("interval", None)

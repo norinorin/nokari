@@ -2,15 +2,27 @@
 from __future__ import annotations
 
 import re
-import typing
+from typing import (
+    Any,
+    AnyStr,
+    Callable,
+    Final,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
 
-__all__: typing.Final[typing.List[str]] = ["get_luminance", "get_alt_color", "search"]
-T = typing.TypeVar("T")
+__all__: Final[List[str]] = ["get_luminance", "get_alt_color", "search"]
+T = TypeVar("T")
 
 # pylint: disable=keyword-arg-before-vararg
-def get_luminance(
-    rgb: typing.Optional[typing.Sequence[int]] = None, *args: int
-) -> float:
+def get_luminance(rgb: Optional[Sequence[int]] = None, *args: int) -> float:
     """Gets the luminance of an RGB."""
 
     if rgb is None:
@@ -23,10 +35,10 @@ def get_luminance(
 
 
 def get_alt_color(
-    rgb: typing.Sequence[int],
+    rgb: Sequence[int],
     intensity: int = 20,
-    _cmp: typing.Optional[typing.Sequence[int]] = None,
-) -> typing.Tuple[int, ...]:
+    _cmp: Optional[Sequence[int]] = None,
+) -> Tuple[int, ...]:
     """Gets a darker/lighter color."""
 
     _cmp = _cmp or rgb
@@ -42,17 +54,27 @@ def get_alt_color(
     return tuple(ret)
 
 
+@overload
+def search(iterable: Iterable[AnyStr], term: str) -> List[AnyStr]:
+    ...
+
+
+@overload
+def search(iterable: Iterable[T], term: str, key: Callable[[T], str]) -> List[T]:
+    ...
+
+
 def search(
-    iterable: typing.Iterable[T],
+    iterable: Any,
     term: str,
-    key: typing.Callable[[T], typing.Any] | None,
-) -> typing.List[T]:
-    pattern = ".*?".join(map(re.escape, term))
+    key: Any = None,
+) -> Any:
+    pattern: re.Pattern[str] = re.compile(".*?".join(map(re.escape, term)))
     results = sorted(
         [
             (len(match.groups()), match.start(), item)
             for item in iterable
-            if (match := re.search(pattern, key(item) if key else item))
+            if (match := re.search(pattern, cast(str, key(item) if key else item)))
         ],
         reverse=True,
         key=(lambda x: (*x[:2], key(x[2]))) if key else None,

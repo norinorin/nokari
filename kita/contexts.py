@@ -19,7 +19,14 @@ ContextT = TypeVar("ContextT", bound="Context")
 
 
 class Context:
-    __slots__ = ("event", "n_message", "last_message", "handler", "command")
+    __slots__ = (
+        "event",
+        "n_message",
+        "last_message",
+        "handler",
+        "command",
+        "deferring",
+    )
 
     def __init__(self, event: InteractionCreateEvent, handler: GatewayCommandHandler):
         self.event = event

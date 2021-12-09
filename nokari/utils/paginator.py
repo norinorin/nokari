@@ -9,7 +9,9 @@ from typing import (
     Coroutine,
     Dict,
     Final,
+    Generic,
     List,
+    Literal,
     Optional,
     Tuple,
     TypeVar,
@@ -18,10 +20,18 @@ from typing import (
 )
 
 import hikari
-from hikari import snowflakes, undefined
+from hikari import (
+    ButtonStyle,
+    GuildMessageCreateEvent,
+    InteractionCreateEvent,
+    InteractiveButtonTypesT,
+    snowflakes,
+    undefined,
+)
 from hikari.impl.special_endpoints import _ButtonBuilder
 from hikari.interactions.component_interactions import ComponentInteraction
 
+from nokari.core.bot import Nokari
 from nokari.utils import maybe_await
 
 if TYPE_CHECKING:
@@ -85,7 +95,7 @@ class ButtonWrapper:
         self.button._is_disabled = bool(await maybe_await(self.disable_if, paginator))
 
 
-class Paginator:
+class Paginator(Generic[_T]):
     """A helper class for interactive menus with interactions."""
 
     # pylint: disable=too-many-instance-attributes
@@ -111,16 +121,16 @@ class Paginator:
     def __init__(
         self,
         ctx: "Context",
-        pages: Optional[_Pages] = None,
+        pages: Optional[_Pages[_T]] = None,
         *,
-        callback: Optional[_Callback] = None,
+        callback: Optional[_Callback[_T]] = None,
     ):
         self.ctx: "Context" = ctx
 
         self.index: int = 0
         self.length: int = 0
 
-        self._pages: _Pages = pages if pages is not None else []
+        self._pages: _Pages[_T] = pages if pages is not None else []
         self._task: Optional[asyncio.Task] = None
         self._buttons: Dict[str, ButtonWrapper] = {}
         self._callback = callback
@@ -140,7 +150,12 @@ class Paginator:
         """Returns whether or not the message is paginated."""
         return self.length > 1
 
-    def add_page(self, pages: Union[_T, _Pages]) -> None:
+    @property
+    def app(self) -> Nokari:
+        assert isinstance(self.ctx.app, Nokari)
+        return self.ctx.app
+
+    def add_page(self, pages: Union[_T, _Pages[_T]]) -> None:
         """Appends the content or extends the pages if a list was passed."""
         if isinstance(pages, list):
             self._pages.extend(pages)
@@ -153,7 +168,7 @@ class Paginator:
         callback: _ButtonCallback,
         /,
         *,
-        style: Union[int, hikari.ButtonStyle],
+        style: Union[InteractiveButtonTypesT, Literal[ButtonStyle.LINK, 5]],
         custom_id: Optional[str] = None,
         emoji: undefined.UndefinedOr[
             Union[snowflakes.Snowflakeish, hikari.Emoji]
@@ -172,13 +187,13 @@ class Paginator:
 
         # pylint: disable=unsubscriptable-object
         self._buttons[custom_id] = ButtonWrapper(
-            cast(_ButtonBuilder, self.component._components[-1]), callback, disable_if
+            cast(_ButtonBuilder, self.component._components[-1]), callback, disable_if  # type: ignore
         )
 
     def button(
         self,
         *,
-        style: Union[int, hikari.ButtonStyle],
+        style: Union[InteractiveButtonTypesT, Literal[ButtonStyle.LINK, 5]],
         custom_id: Optional[str],
         emoji: undefined.UndefinedOr[
             Union[snowflakes.Snowflakeish, hikari.Emoji]
@@ -219,7 +234,7 @@ class Paginator:
         with suppress(AttributeError):
             del self._pages
 
-    async def get_page(self) -> Union[hikari.Embed, str]:
+    async def get_page(self) -> _T:
         """
         Calls a callback if present, otherwise just get it from the cache.
         This is useful for lazy pages loading.
@@ -240,8 +255,11 @@ class Paginator:
         options = await self.kwargs
         options.pop("response_type", None)
 
-        await self.ctx.respond(**options)
-        self.message = await self.ctx.interaction.fetch_initial_response()
+        if self.ctx.component_interaction:
+            self.message = await self.ctx.interaction.edit_initial_response(**options)
+        else:
+            await self.ctx.respond(**options)
+            self.message = await self.ctx.interaction.fetch_initial_response()
 
         if not self.is_paginated:
             self.clean_up()
@@ -269,21 +287,13 @@ class Paginator:
 
         This method will return a message if return_message was set to True.
         """
-
-        paginators = self.ctx.app.paginators
-
-        if paginator := paginators.get(self.ctx.event.message.id):
-            await paginator.stop(False)
-
-        paginators[self.ctx.event.message.id] = self
-
         # Interactions' lifetime is 15 minutes.
         if timeout > 900:
             raise RuntimeError("timeout can't be greater than 15 minutes.")
 
         message_check = message_check or (
             lambda x: x.author_id == self.ctx.interaction.user.id
-            and x.channel_id == self.ctx.channel_id
+            and x.channel_id == self.ctx.interaction.channel_id
         )
 
         interaction_check = interaction_check or (
@@ -295,7 +305,7 @@ class Paginator:
 
         while True:
             try:
-                events = [
+                events: List[Any] = [
                     self.ctx.app.wait_for(
                         hikari.InteractionCreateEvent,
                         timeout=timeout,

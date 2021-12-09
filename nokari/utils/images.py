@@ -1,14 +1,14 @@
 """A module that contains helper function for image generating purpose."""
 
-import typing
 from functools import cache  # type: ignore
+from typing import Final, List, Tuple, cast
 
 import numexpr
 import numpy
 from PIL import Image, ImageDraw, ImageFilter
 
 U_CHAR_OVERFLOW: int = 2 << 7
-__all__: typing.Final[typing.List[str]] = [
+__all__: Final[List[str]] = [
     "has_transparency",
     "round_corners",
     "get_dominant_color",
@@ -25,7 +25,7 @@ def has_transparency(im: Image.Image) -> bool:
 
 
 @cache
-def _get_alpha_mask(size: typing.Tuple[int, int], rad: int) -> Image.Image:
+def _get_alpha_mask(size: Tuple[int, int], rad: int) -> Image.Image:
     """Gets the alpha mask."""
     alpha, circle = Image.new("L", size, 255), Image.new("L", (rad * 2, rad * 2), 0)
     draw = ImageDraw.Draw(circle)
@@ -51,7 +51,7 @@ def round_corners(im: Image.Image, rad: int) -> None:
     im.putalpha(_get_alpha_mask(im.size, rad))
 
 
-def get_dominant_color(im: Image.Image) -> typing.Tuple[int, ...]:
+def get_dominant_color(im: Image.Image) -> Tuple[int, ...]:
     """Gets the color with the most occurences."""
     arr = numpy.array(im)
     a2D = arr.reshape(-1, arr.shape[-1])
@@ -66,9 +66,12 @@ def get_dominant_color(im: Image.Image) -> typing.Tuple[int, ...]:
         "ucs": U_CHAR_OVERFLOW,
     }
 
-    return numpy.unravel_index(
-        numpy.bincount(numexpr.evaluate("r*ucs*ucs+g*ucs+b", env)).argmax(),
-        (U_CHAR_OVERFLOW,) * 3,
+    return cast(
+        Tuple[int, ...],
+        numpy.unravel_index(
+            numpy.bincount(numexpr.evaluate("r*ucs*ucs+g*ucs+b", env)).argmax(),
+            (U_CHAR_OVERFLOW,) * 3,
+        ),
     )
 
 
@@ -82,7 +85,7 @@ def right_fade(im: Image.Image, rad: int = 100) -> Image.Image:
     m_w, m_h = mask.size
     drawmask = ImageDraw.Draw(mask)
     drawmask.rectangle(
-        [m_w - rad * 3, 0, m_w, m_h],
+        (m_w - rad * 3, 0, m_w, m_h),
         fill=0,
     )
 

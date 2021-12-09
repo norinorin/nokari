@@ -162,12 +162,12 @@ if HAS_SPOTIFY_VARS:
 
         audio_features = await spotify_track.get_audio_features()
 
-        album = await spotify_client._get_album(spotify_track.album_cover_url)
-        colors = spotify_client._get_colors(
-            BytesIO(album), "top-bottom blur", spotify_track.album_cover_url
+        album_byte = await spotify_client.get_album(spotify_track.album_cover_url)
+        colors = spotify_client.get_colors(
+            BytesIO(album_byte), "top-bottom blur", spotify_track.album_cover_url
         )
         spotify_code_url = spotify_track.get_code_url(hikari.Color.from_rgb(*colors[0]))
-        spotify_code = await spotify_client._get_spotify_code(spotify_code_url)
+        spotify_code = await spotify_client.get_spotify_code(spotify_code_url)
 
         embed = (
             hikari.Embed(
@@ -177,7 +177,7 @@ if HAS_SPOTIFY_VARS:
                 f"on {spotify_track.formatted_url}**\n"
                 f"**Release date**: {discord_timestamp(spotify_track.album.release_date, fmt='d')}",
             )
-            .set_thumbnail(album)
+            .set_thumbnail(album_byte)
             .set_image(spotify_code)
         )
 
@@ -224,25 +224,27 @@ if HAS_SPOTIFY_VARS:
     ) -> Any:
         yield defer()
 
-        artist: Optional[Artist] = await spotify_client.get_item(ctx, artist, Artist)
+        spotify_artist: Optional[Artist] = await spotify_client.get_item(
+            ctx, artist, Artist
+        )
 
-        if not artist:
+        if not spotify_artist:
             return
 
         cover: Optional[bytes]
-        if artist.cover_url:
-            cover = await spotify_client._get_album(artist.cover_url)
-            colors = spotify_client._get_colors(
-                BytesIO(cover), "top-bottom blur", artist.cover_url
+        if spotify_artist.cover_url:
+            cover = await spotify_client.get_album(spotify_artist.cover_url)
+            colors = spotify_client.get_colors(
+                BytesIO(cover), "top-bottom blur", spotify_artist.cover_url
             )[0]
         else:
             cover = None
             colors = (0, 0, 0)
 
-        spotify_code_url = artist.get_code_url(hikari.Color.from_rgb(*colors))
-        spotify_code = await spotify_client._get_spotify_code(spotify_code_url)
+        spotify_code_url = spotify_artist.get_code_url(hikari.Color.from_rgb(*colors))
+        spotify_code = await spotify_client.get_spotify_code(spotify_code_url)
 
-        top_tracks = await artist.get_top_tracks()
+        top_tracks = await spotify_artist.get_top_tracks()
         chunks = chunk_from_list(
             [
                 f"{idx}. {track.formatted_url} - \N{fire} {track.popularity}"
@@ -257,16 +259,18 @@ if HAS_SPOTIFY_VARS:
             hikari.Embed(title="Artist Info")
             .set_thumbnail(cover)
             .set_image(spotify_code)
-            .add_field(name="Name", value=artist.formatted_url)
+            .add_field(name="Name", value=spotify_artist.formatted_url)
             .add_field(
                 name="Follower Count",
-                value=f"{plural(artist.follower_count):follower,}",
+                value=f"{plural(spotify_artist.follower_count):follower,}",
             )
-            .add_field(name="Popularity", value=f"\N{fire} {artist.popularity}")
+            .add_field(name="Popularity", value=f"\N{fire} {spotify_artist.popularity}")
         )
 
-        if artist.genres:
-            initial_embed.add_field(name="Genres", value=", ".join(artist.genres))
+        if spotify_artist.genres:
+            initial_embed.add_field(
+                name="Genres", value=", ".join(spotify_artist.genres)
+            )
 
         if chunk := chunks.pop(0):
             initial_embed.add_field(
@@ -274,6 +278,7 @@ if HAS_SPOTIFY_VARS:
                 value=chunk,
             )
 
+        length = 1
         if chunks:
             # TODO: implement higher level API for this
             length = len(chunks) + 1
@@ -306,13 +311,13 @@ if HAS_SPOTIFY_VARS:
         if not (spotify_album := await spotify_client.get_item(ctx, album, Album)):
             return
 
-        cover = await spotify_client._get_album(spotify_album.cover_url)
-        colors = spotify_client._get_colors(
+        cover = await spotify_client.get_album(spotify_album.cover_url)
+        colors = spotify_client.get_colors(
             BytesIO(cover), "top-bottom blur", spotify_album.cover_url
         )[0]
 
         spotify_code_url = spotify_album.get_code_url(hikari.Color.from_rgb(*colors))
-        spotify_code = await spotify_client._get_spotify_code(spotify_code_url)
+        spotify_code = await spotify_client.get_spotify_code(spotify_code_url)
 
         disc_offsets = {
             1: 0,
@@ -368,6 +373,7 @@ if HAS_SPOTIFY_VARS:
             value=chunks.pop(0),
         )
 
+        length = 1
         if chunks:
             length = len(chunks) + 1
             initial_embed.set_footer(text=f"Page 1/{length}")
@@ -450,7 +456,7 @@ def rtfd_hikari(
         return respond(f"{HIKARI_BASE_URL}/hikari")
 
     if not objects.objects:
-        yield objects.init_cache(cast(Nokari, ctx.app))
+        yield objects.init_cache(ctx.app)
 
     if not (
         entries := [
@@ -481,6 +487,6 @@ def rtfd_hikari(
 @initializer
 def extension_initializer(handler: GatewayCommandHandler) -> None:
     if HAS_SPOTIFY_VARS:
-        handler.set_data(SpotifyClient(handler.app), suppress=True)
+        handler.set_data(SpotifyClient(cast(Nokari, handler.app)), suppress=True)
 
     handler.set_data(HikariObjects, suppress=True)

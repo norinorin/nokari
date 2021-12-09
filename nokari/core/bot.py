@@ -7,7 +7,6 @@ import logging
 import os
 import shutil
 import sys
-import weakref
 from contextlib import suppress
 from typing import (
     TYPE_CHECKING,
@@ -109,16 +108,13 @@ class Nokari(GatewayBot):
         # Default prefixes
         self.default_prefixes = ["nokari", "n!"]
 
-        # Paginators
-        self.paginators: Mapping[Snowflake, Paginator] = weakref.WeakValueDictionary()
-
         self.subscribe(hikari.StartingEvent, self.on_starting)
         self.subscribe(hikari.StartedEvent, self.on_started)
         self.subscribe(hikari.StoppingEvent, self.on_closing)
 
     @property
     def cache(self) -> Cache:
-        return self._cache
+        return self._cache  # type: ignore
 
     async def _setup_topgg_clients(self) -> None:
         if constants.TOPGG_WEBHOOK_AUTH:
@@ -165,7 +161,7 @@ class Nokari(GatewayBot):
     async def on_started(self, _: hikari.StartedEvent) -> None:
         self.launch_time = datetime.datetime.now(datetime.timezone.utc)
 
-        if sys.argv[-1] == "init":
+        if sys.argv[-1] == "init" and self.pool:
             await db.create_tables(self.pool)
 
         with suppress(FileNotFoundError):
@@ -282,9 +278,12 @@ class Nokari(GatewayBot):
             .add_to_container()
         )
 
-        if not (msg := await send(embed=embed, component=component)):
+        maybe_msg = await send(embed=embed, component=component)
+        if not maybe_msg:
             assert isinstance(messageable, Context)
             msg = await messageable.interaction.fetch_initial_response()
+        else:
+            msg = maybe_msg
 
         confirm = False
 
@@ -308,7 +307,7 @@ class Nokari(GatewayBot):
                 InteractionCreateEvent, predicate=predicate, timeout=timeout
             )
         except asyncio.TimeoutError:
-            pass
+            return False
 
         try:
             if delete_after:

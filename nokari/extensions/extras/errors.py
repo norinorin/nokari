@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, Dict, Protocol, Type, TypeVar
+from typing import Any, Callable, Dict, Type, TypeVar
 
 import hikari
 from hikari.interactions.command_interactions import CommandInteraction
@@ -23,27 +23,25 @@ from kita.utils import find
 _ExcT = TypeVar("_ExcT", bound=Exception)
 
 
-class _ErrorHandler(Protocol[_ExcT]):
-    def __call__(self, ctx: Context, error: _ExcT, embed: hikari.Embed) -> None:
-        ...
-
-
 _LOGGER = logging.getLogger("nokari.plugins.extras.errors")
 
 
 def handle(
     *errors: Type[_ExcT],
-) -> Callable[[_ErrorHandler[_ExcT]], _ErrorHandler[_ExcT]]:
+) -> Callable[
+    [Callable[[Context, _ExcT, hikari.Embed], None]],
+    Callable[[Context, _ExcT, hikari.Embed], None],
+]:
     def decorator(
-        func: _ErrorHandler[_ExcT],
-    ) -> _ErrorHandler[_ExcT]:
+        func: Callable[[Context, _ExcT, hikari.Embed], None],
+    ) -> Callable[[Context, _ExcT, hikari.Embed], None]:
         func.__errors__ = errors  # type: ignore
         return func
 
     return decorator
 
 
-handlers: Dict[Type[_ExcT], _ErrorHandler[_ExcT]] = {}
+handlers: Dict[Any, Any] = {}
 
 
 @listener()
@@ -58,6 +56,7 @@ async def on_error(event: CommandFailureEvent) -> None:
     )
     error = event.exception
     class_t = error if isinstance(error, type) else error.__class__
+    class_t = getattr(class_t, "__cause__", None) or class_t
     func = handlers.get(
         class_t,
         handlers.get(

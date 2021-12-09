@@ -16,6 +16,7 @@ from colorthief import ColorThief
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from kita.utils import find
+from nokari.core.bot import Nokari
 from nokari.utils import caches
 from nokari.utils.algorithm import get_alt_color, get_luminance
 from nokari.utils.formatter import get_timestamp as format_time
@@ -68,7 +69,7 @@ class SpotifyClient:
     SIDE_GAP = 50
     WIDTH = 1_280
 
-    def __init__(self, bot: core.Nokari) -> None:
+    def __init__(self, bot: Nokari) -> None:
         self.bot = bot
         self.cache = SpotifyCache()
         self.rest = SpotifyRest()
@@ -122,7 +123,7 @@ class SpotifyClient:
         return base
 
     @caches.cache(20)
-    async def _get_album(self, album_url: str) -> bytes:
+    async def get_album(self, album_url: str) -> bytes:
         if self.bot.session is None:
             raise RuntimeError("Missing ClientSession...")
 
@@ -130,7 +131,7 @@ class SpotifyClient:
             return await r.read()
 
     @caches.cache(20)
-    async def _get_spotify_code(self, spotify_code_url: str) -> bytes:
+    async def get_spotify_code(self, spotify_code_url: str) -> bytes:
         """
         Duplicates of _get_album as it isn't supposed to share the cache
         """
@@ -143,15 +144,15 @@ class SpotifyClient:
     async def _get_album_and_colors(
         self, album_url: str, height: int, mode: str
     ) -> typing.Tuple[typing.Tuple[_RGB, _RGBs], Image.Image]:
-        album = BytesIO(await self._get_album(album_url))
+        album = BytesIO(await self.get_album(album_url))
         colors = await self.bot.loop.run_in_executor(
-            self.bot.executor, self._get_colors, album, mode, album_url
+            self.bot.executor, self.get_colors, album, mode, album_url
         )
         return colors, Image.open(album).convert("RGBA").resize((height,) * 2)
 
     @caches.cache(20)
     @staticmethod
-    def _get_colors(
+    def get_colors(
         image: BytesIO,
         mode: str = "full",
         image_url: str = "",  # necessary for caching
@@ -210,9 +211,9 @@ class SpotifyClient:
 
         return dom_color, palette
 
-    code_cache = _get_spotify_code.cache  # type: ignore
-    album_cache = _get_album.cache  # type: ignore
-    color_cache = _get_colors.cache  # type: ignore
+    code_cache = get_spotify_code.cache  # type: ignore
+    album_cache = get_album.cache  # type: ignore
+    color_cache = get_colors.cache  # type: ignore
 
     @typing.overload
     @staticmethod
@@ -729,8 +730,7 @@ class SpotifyClient:
 
         if (
             act := find(
-                lambda x: x.name
-                and x.name == "Spotify"
+                lambda x: x.name == "Spotify"
                 and x.type is hikari.ActivityType.LISTENING,
                 presence.activities,
             )
@@ -856,12 +856,11 @@ class SpotifyClient:
         }
         items = await self.search(q, type)
         title, format = tnf[type.type]
-        return await self.pick_from_sequence(ctx, q, items, title, format)
+        return await self.pick_from_sequence(ctx, items, title, format)
 
     async def pick_from_sequence(
         self,
         ctx: Context,
-        query: str,
         /,
         seq: typing.Sequence[T],
         title: typing.Tuple[str, str],
@@ -889,11 +888,14 @@ class SpotifyClient:
                 shorten(f"{idx}. {format.format(item=item)}"), str(idx - 1)
             ).add_to_menu()
 
-        respond = await ctx.respond(
+        msg: hikari.Message
+        maybe_msg = await ctx.respond(
             content=title[not seq], component=menu.add_to_container()
         )
-        if not respond:
-            respond = await ctx.interaction.fetch_initial_response()
+        if not maybe_msg:
+            msg = await ctx.interaction.fetch_initial_response()
+        else:
+            msg = maybe_msg
 
         with suppress(asyncio.TimeoutError):
             event = await self.bot.wait_for(
@@ -901,19 +903,20 @@ class SpotifyClient:
                 predicate=lambda e: isinstance(
                     e.interaction, hikari.ComponentInteraction
                 )
-                and e.interaction.message.id == respond.id
+                and e.interaction.message.id == msg.id
                 and e.interaction.user.id == ctx.interaction.user.id
-                and e.interaction.channel_id == ctx.channel_id
+                and e.interaction.channel_id == ctx.interaction.channel_id
                 and e.interaction.custom_id == custom_id,
                 timeout=60,
             )
-            ctx.interaction = interaction = event.interaction
+            assert isinstance(event.interaction, hikari.ComponentInteraction)
+            ctx.component_interaction = interaction = event.interaction
             await interaction.create_initial_response(
                 response_type=hikari.ResponseType.DEFERRED_MESSAGE_UPDATE
             )
             return seq[int(interaction.values[0])]
 
-        await respond.delete()
+        await msg.delete()
         return None
 
     async def get_audio_features(self, _id: str) -> AudioFeatures:

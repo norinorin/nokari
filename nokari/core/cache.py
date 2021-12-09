@@ -3,9 +3,10 @@ from __future__ import annotations
 import typing
 import weakref
 
-from hikari import ActivityType, guilds, messages, presences, snowflakes, users
+from hikari import ActivityType, guilds, presences, snowflakes, users
+from hikari.api import cache
 from hikari.impl.cache import CacheImpl
-from hikari.internal import cache
+from hikari.internal import cache as cache_util
 
 from kita.utils import get
 
@@ -21,12 +22,12 @@ class Cache(CacheImpl):
     # Just a way to get users' Spotify presences
     _presences_garbage: typing.ClassVar[
         typing.MutableMapping[
-            snowflakes.Snowflake, weakref.WeakSet[cache.MemberPresenceData]
+            snowflakes.Snowflake, weakref.WeakSet[cache_util.MemberPresenceData]
         ]
     ] = {}
 
     def _add_presence_ref(
-        self, user_id: snowflakes.Snowflake, presence: cache.MemberPresenceData
+        self, user_id: snowflakes.Snowflake, presence: cache_util.MemberPresenceData
     ) -> None:
         # dunno if this is atomic, w/e
         try:
@@ -81,12 +82,12 @@ class Cache(CacheImpl):
 
     def _garbage_collect_member(
         self,
-        guild_record: cache.GuildRecord,
-        member: cache.RefCell[cache.MemberData],
+        guild_record: cache_util.GuildRecord,
+        member: cache_util.RefCell[cache_util.MemberData],
         *,
         decrement: typing.Optional[int] = None,
         deleting: bool = False,
-    ) -> typing.Optional[cache.RefCell[cache.MemberData]]:
+    ) -> typing.Optional[cache_util.RefCell[cache_util.MemberData]]:
         try:
             return super()._garbage_collect_member(
                 guild_record, member, decrement=decrement, deleting=deleting
@@ -98,24 +99,20 @@ class Cache(CacheImpl):
 
     def _set_member(
         self, member: guilds.Member, /, *, is_reference: bool = True
-    ) -> cache.RefCell[cache.MemberData]:
+    ) -> cache_util.RefCell[cache_util.MemberData]:
         # not sure if returning None would break something, but w/e
         if (me := self._app.get_me()) is None or me.id != member.id:
             return None  # type: ignore
 
         return super()._set_member(member, is_reference=is_reference)
 
-    def clear_messages(self) -> cache.CacheView[snowflakes.Snowflake, messages.Message]:
-        self._app.responses_cache.clear()
-        return super().clear_messages()
-
     def _garbage_collect_message(
         self,
-        message: cache.RefCell[cache.MessageData],
+        message: cache_util.RefCell[cache_util.MessageData],
         *,
         decrement: typing.Optional[int] = None,
         override_ref: bool = False,
-    ) -> typing.Optional[cache.RefCell[cache.MessageData]]:
+    ) -> typing.Optional[cache_util.RefCell[cache_util.MessageData]]:
         if decrement is not None:
             self._increment_ref_count(message, -decrement)
 
@@ -133,11 +130,13 @@ class Cache(CacheImpl):
                     guild_record, message.object.member, decrement=1
                 )
 
-        if not (referenced_message := message.object.referenced_message) and (
-            message_reference := message.object.message_reference
+        if (
+            not (referenced_message := message.object.referenced_message)
+            and (message_reference := message.object.message_reference)
+            and (msg_id := message_reference.id)
         ):
             referenced_message = self._message_entries.get(
-                msg_id := message_reference.id
+                msg_id
             ) or self._referenced_messages.get(msg_id)
 
         if referenced_message:
@@ -152,5 +151,4 @@ class Cache(CacheImpl):
         if message.object.id in self._referenced_messages:
             del self._referenced_messages[message.object.id]
 
-        self._app.responses_cache.pop(message.object.id, None)
         return message

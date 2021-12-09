@@ -2,32 +2,42 @@
 from __future__ import annotations
 
 import logging
-from typing import Awaitable, Callable, Optional
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional
 
 import hikari
 
 from kita.contexts import Context as Context_
 from nokari.utils.perms import has_channel_perms, has_guild_perms
 
+if TYPE_CHECKING:
+    from nokari.core.bot import Nokari
+
 __all__ = ("Context",)
 _LOGGER = logging.getLogger("nokari.core.context")
 
 
 class Context(Context_):
-    __slots__ = ()
+    __slots__ = ("component_interaction",)
+    app: Nokari
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.component_interaction: Optional[hikari.ComponentInteraction] = None
+        super().__init__(*args, **kwargs)
 
     @property
     def me(self) -> Optional[hikari.Member]:
         """Returns the Member object of the bot iself if applicable."""
-        return (
-            self.interaction.guild_id
-            and (me := self.handler.app.get_me())
-            and self.handler.app.cache.get_member(self.interaction.guild_id, me.id)
-        )
+        if not self.interaction.guild_id:
+            return None
+
+        if not (me := self.app.get_me()):
+            return None
+
+        return self.app.cache.get_member(self.interaction.guild_id, me.id)
 
     def execute_extensions(
         self, func: Callable[[str], None], plugins: str
-    ) -> Awaitable[hikari.Message]:
+    ) -> Awaitable[Optional[hikari.Message]]:
         """A helper methods for loading, unloading, and reloading extensions."""
         if plugins in ("all", "*"):
             plugins_set = set(self.app.raw_extensions)
@@ -92,6 +102,9 @@ class Context(Context_):
         taking channel overwrites into account.
         """
         if (member := member or self.me) is None:
-            raise RuntimeError("Couldn't resolve the Member object of the bot")
+            raise RuntimeError("couldn't resolve the Member object of the bot")
 
-        return has_channel_perms(self.app, member, self.channel, perms)
+        if not (channel := self.interaction.get_channel()):
+            raise RuntimeError("couldn't resolve the channel")
+
+        return has_channel_perms(self.app, member, channel, perms)
