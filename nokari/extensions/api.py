@@ -15,7 +15,7 @@ from kita.command_handlers import GatewayCommandHandler
 from kita.commands import command
 from kita.cooldowns import user_hash_getter, with_cooldown
 from kita.data import data
-from kita.extensions import initializer
+from kita.extensions import finalizer, initializer
 from kita.options import with_option
 from kita.responses import Response, defer, respond
 from nokari.core import Context, Nokari
@@ -496,3 +496,8 @@ def extension_initializer(handler: GatewayCommandHandler) -> None:
         handler.set_data(SpotifyClient(cast(Nokari, handler.app)), suppress=True)
 
     handler.set_data(HikariObjects(), suppress=True)
+
+
+@finalizer
+def extension_finalizer(handler: GatewayCommandHandler) -> None:
+    del handler._data[HikariObjects]
