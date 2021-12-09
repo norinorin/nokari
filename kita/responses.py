@@ -68,8 +68,6 @@ class Response:
         if self.type == CREATE:
             if ctx.deferring:
                 self.type = EDIT
-                self.kwargs.pop("flags", None)
-                self.kwargs.pop("tts", None)
                 return await self.execute(ctx)
 
             if not ctx.n_message:  # initial
@@ -83,6 +81,10 @@ class Response:
         elif self.type == EDIT:
             if ctx.deferring:
                 ctx.deferring = False
+                # this is useful if you're not sure
+                # whether or not it's deferring.
+                self.kwargs.pop("flags", None)
+                self.kwargs.pop("tts", None)
 
             if ctx.n_message < 2:
                 res = await interaction.edit_initial_response(*args, **kwargs)
