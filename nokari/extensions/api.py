@@ -117,7 +117,7 @@ if HAS_SPOTIFY_VARS:
         album: bool = False,
         member: Optional[Snowflake] = None,
         hidden: bool = False,
-        style: str = "1",
+        style: str = "2",
     ) -> Any:
         yield defer()
 
