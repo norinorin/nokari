@@ -86,7 +86,7 @@ def owner_only(
     handler: GatewayCommandHandler = data(GatewayCommandHandler),
 ) -> Literal[True]:
     if interaction.user.id not in handler.owner_ids:
-        raise OwnerOnlyError("command {interaction.command_name!r} is owner only.")
+        raise OwnerOnlyError(f"command {interaction.command_name!r} is owner only.")
     return True
 
 

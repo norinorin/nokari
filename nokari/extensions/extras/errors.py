@@ -12,10 +12,13 @@ from kita.errors import (
     CheckError,
     CommandOnCooldownError,
     CommandRuntimeError,
+    DMOnlyError,
+    GuildOnlyError,
     KitaError,
     MissingAnyPermissionsError,
     MissingCommandCallbackError,
     MissingPermissionsError,
+    OwnerOnlyError,
 )
 from kita.events import CommandFailureEvent
 from kita.extensions import listener
@@ -128,7 +131,14 @@ def handle_missing_any_required_permission(
     )
 
 
-@handle(CheckError, MissingCommandCallbackError, CheckAnyError)
+@handle(
+    CheckError,
+    MissingCommandCallbackError,
+    CheckAnyError,
+    OwnerOnlyError,
+    DMOnlyError,
+    GuildOnlyError,
+)
 def handle_general_error(
     ctx: Context,
     error: KitaError,
