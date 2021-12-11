@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 __all__ = "Response", "respond", "edit", "defer"
 CREATE = sys.intern("create")
 EDIT = sys.intern("edit")
-DEFER = sys.intern("DEFER")
+DEFER = sys.intern("defer")
 
 
 def respond(*args: Any, **kwargs: Any) -> Response:
