@@ -120,7 +120,7 @@ def listener(
         if event is None:
             if (
                 param := next(iter(cast_func.__signature__.parameters.values()))
-            ) is inspect.Signature.empty:
+            ).annotation is param.empty:
                 raise RuntimeError(
                     "please either provide the event type or annotate the event parameter."
                 )
