@@ -56,7 +56,8 @@ class Response:
         interaction = ctx.interaction
         res: Optional[Message] = None
         if self.type == DEFER:
-            if ctx.deferring:
+            if ctx.n_message:
+                # we've responded, won't be able to defer
                 return None
 
             await interaction.create_initial_response(

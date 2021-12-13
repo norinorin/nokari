@@ -250,7 +250,9 @@ class Paginator(Generic[_T]):
         options.pop("response_type", None)
 
         if self.ctx.component_interaction:
-            self.message = await self.ctx.interaction.edit_initial_response(**options)
+            self.message = await self.ctx.component_interaction.edit_initial_response(
+                **options
+            )
         else:
             await self.ctx.respond(**options)
             self.message = await self.ctx.interaction.fetch_initial_response()
