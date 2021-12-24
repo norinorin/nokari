@@ -363,14 +363,15 @@ class Paginator:
 
         if isinstance(content, hikari.Embed):
             kwargs["embed"] = content
+            kwargs["content"] = None
 
             if not content.color:
                 content.color = self.ctx.color
         else:
+            kwargs["embeds"] = []
             kwargs["content"] = content
 
-        if self.is_paginated:
-            kwargs["component"] = self.component
+        kwargs["components"] = [self.component] if self.is_paginated else []
 
         await asyncio.gather(
             *[

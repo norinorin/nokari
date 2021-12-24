@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import logging
 import re
 import typing
 from dataclasses import dataclass
@@ -15,6 +16,7 @@ if typing.TYPE_CHECKING:
 
 _RGB = typing.Tuple[int, ...]
 T = typing.TypeVar("T", bound="BaseSpotify")
+_LOGGER = logging.getLogger("nokari.utils.spotify.typings")
 
 
 class _SpotifyCardMetadata(typing.TypedDict):
@@ -79,13 +81,16 @@ class BaseSpotify:
             {k: v for k, v in payload.items() if k in merged_annotations},
         )
 
-        if "url" in merged_annotations:
-            kwargs["url"] = payload["external_urls"]["spotify"]
+        if "url" in merged_annotations and "external_urls" in payload:
+            _LOGGER.debug("%s", payload["external_urls"])
+            kwargs["url"] = payload["external_urls"].get("spotify", "")
 
-        if "cover_url" in merged_annotations and "images" in payload:
-            kwargs["cover_url"] = (
-                images[0]["url"] if (images := payload["images"]) else ""
-            )
+        if "images" in payload:
+            url = images[0]["url"] if (images := payload["images"]) else ""
+            if "cover_url" in merged_annotations:
+                kwargs["cover_url"] = url
+            elif "avatar_url" in merged_annotations:
+                kwargs["avatar_url"] = url
 
         if "follower_count" in merged_annotations and "followers" in payload:
             kwargs["follower_count"] = payload["followers"]["total"]
@@ -241,9 +246,48 @@ class Album(SimplifiedAlbum):
         return self.copyrights.get("Phonogram")
 
 
+@dataclass()
+class User(BaseSpotify):
+    display_name: str
+    url: str
+    follower_count: int = 0
+    avatar_url: str = ""
+    type: typing.ClassVar[typing.Literal["user"]] = "user"
+
+    def __str__(self) -> str:
+        return self.display_name
+
+
+@dataclass()
+class SimplifiedPlaylist(BaseSpotify, SpotifyCodeable):
+    url: str
+    description: str
+    cover_url: str
+    name: str
+    owner: User
+    public: bool
+    tracks: typing.List[SimplifiedTrack]
+    type: typing.ClassVar[typing.Literal["playlist"]] = "playlist"
+    colaborative: bool = False
+
+
+@dataclass()
+class Playlist(SimplifiedPlaylist):
+    total_tracks: int = 0
+    follower_count: int = 0
+
+
 class Copyrights(typing.TypedDict, total=False):
     Copyright: str
     Phonogram: str
+
+
+class ArtistOverview(typing.TypedDict):
+    verified: bool
+    top_tracks: typing.List[typing.Tuple[str, int]]
+    monthly_listeners: int
+    follower_count: int
+    top_cities: typing.List[typing.Tuple[str, int]]
 
 
 class Spotify:
@@ -316,11 +360,15 @@ def convert_data(
                 if (_type := c["type"]) and (cp := mapping[_type])
             }
 
-        elif k == "tracks":
+        elif k == "tracks" and "items" in d[k]:
+            # TODO: lazy fetch the tracks
             d[k] = [
-                SimplifiedTrack.from_dict(client, track)
-                for track in d["tracks"]["items"]
+                SimplifiedTrack.from_dict(client, track.get("track", track))
+                for track in d[k]["items"]
             ]
+
+        elif k == "owner":
+            d[k] = User.from_dict(client, d[k])
 
         elif isinstance(v, dict):
             d[k] = convert_data(client, d[k])

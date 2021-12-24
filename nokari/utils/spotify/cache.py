@@ -10,14 +10,18 @@ if typing.TYPE_CHECKING:
 
 
 class SpotifyCache:
+    # pylint: disable=too-many-instance-attributes
     def __init__(self) -> None:
         self._tracks = LRU(50)
         self._artists = LRU(50)
         self._audio_features = LRU(50)
         self._top_tracks = LRU(50)
+        self._user_playlists = LRU(50)
         self._albums = LRU(50)
+        self._users = LRU(50)
+        self._playlists = LRU(50)
         self._queries: typing.Dict[str, LRU] = {
-            i: LRU(50) for i in ("artist", "track", "album")
+            i: LRU(50) for i in ("artist", "track", "album", "playlist")
         }
         self._task: asyncio.Task[None] = asyncio.create_task(self.start_clear_loop())
 
@@ -66,6 +70,18 @@ class SpotifyCache:
     @property
     def top_tracks(self) -> LRU:
         return self._top_tracks
+
+    @property
+    def user_playlists(self) -> LRU:
+        return self._user_playlists
+
+    @property
+    def users(self) -> LRU:
+        return self._users
+
+    @property
+    def playlists(self) -> LRU:
+        return self._playlists
 
     @property
     def queries(self) -> typing.Dict[str, LRU]:

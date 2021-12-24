@@ -273,7 +273,7 @@ class Utils(Plugin):
             if not records:
                 return get_embed("There is nothing here yet ._.", 0, 1, 1, "prolog"), 1
 
-            table: typing.List[typing.Union[str]] = sum(
+            table: typing.List[str] = sum(
                 [
                     list(
                         zip_longest(
