@@ -25,7 +25,7 @@ from hikari import ButtonStyle, InteractiveButtonTypesT, snowflakes, undefined
 from hikari.impl.special_endpoints import _ButtonBuilder
 from hikari.interactions.component_interactions import ComponentInteraction
 
-from nokari.utils import maybe_await
+from kita.utils import maybe_await
 
 if TYPE_CHECKING:
     from nokari.core.bot import Nokari

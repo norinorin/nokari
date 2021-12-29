@@ -24,6 +24,7 @@ __all__ = (
     "find",
     "get",
     "get_exc_info",
+    "maybe_await",
 )
 T = TypeVar("T")
 
@@ -115,3 +116,7 @@ def is_command_parent(obj: Any) -> TypeGuard[CommandCallback]:
 
 def is_listener(obj: Any) -> TypeGuard[EventCallback]:
     return getattr(obj, "__is_listener__", False)
+
+
+async def maybe_await(func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    return await ret if inspect.isawaitable(ret := func(*args, **kwargs)) else ret

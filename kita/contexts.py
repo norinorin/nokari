@@ -62,7 +62,7 @@ class Context:
         return edit(*args, **kwargs).execute(self)
 
     async def _resolve_ret_val(self, obj: Any) -> Any:
-        if inspect.iscoroutine(obj):
+        if inspect.isawaitable(obj):
             obj = await obj
 
         if isinstance(obj, Response):

@@ -15,6 +15,7 @@ from typing import (
     Optional,
     Protocol,
     Set,
+    Tuple,
     Type,
     TypeVar,
     Union,
@@ -47,6 +48,10 @@ __all__ = (
     "ExtensionFinalizer",
     "EventCallback",
     "SignatureAware",
+    "HashGetter",
+    "LimitGetter",
+    "PeriodGetter",
+    "BucketHash",
 )
 T = TypeVar("T")
 
@@ -152,4 +157,85 @@ class _EventCallbackWithData(_IEventCallback[EventT], Protocol):
 
 
 EventCallback = Union[_EventCallback[EventT], _EventCallbackWithData[EventT]]
-HashGetter = Callable[[InteractionCreateEvent], Snowflakeish]
+BucketHash = Union[Snowflakeish, Tuple[Snowflakeish, ...]]
+
+
+class _SyncHashGetter(CallableT[BucketHash], Protocol):
+    def __call__(self, event: InteractionCreateEvent) -> BucketHash:
+        ...
+
+
+class _SyncHashGetterWithData(CallableT[BucketHash], Protocol):
+    def __call__(
+        self, event: InteractionCreateEvent, *args: Any, **kwargs: Any
+    ) -> BucketHash:
+        ...
+
+
+class _AsyncHashGetter(CallableT[BucketHash], Protocol):
+    async def __call__(self, event: InteractionCreateEvent) -> BucketHash:  # type: ignore
+        ...
+
+
+class _AsyncHashGetterWithData(CallableT[BucketHash], Protocol):
+    async def __call__(  # type: ignore
+        self, event: InteractionCreateEvent, *args: Any, **kwargs: Any
+    ) -> BucketHash:
+        ...
+
+
+class _SyncLimitGetter(CallableT[int], Protocol):
+    def __call__(self, hash: BucketHash) -> int:
+        ...
+
+
+class _SyncLimitGetterWithData(CallableT[int], Protocol):
+    def __call__(self, hash: BucketHash, *args: Any, **kwargs: Any) -> int:
+        ...
+
+
+class _AsyncLimitGetter(CallableT[int], Protocol):
+    async def __call__(self, hash: BucketHash) -> int:  # type: ignore
+        ...
+
+
+class _AsyncLimitGetterWithData(CallableT[int], Protocol):
+    async def __call__(self, hash: BucketHash, *args: Any, **kwargs: Any) -> int:  # type: ignore
+        ...
+
+
+class _SyncPeriodGetter(CallableT[float], Protocol):
+    def __call__(self, hash: BucketHash) -> float:
+        ...
+
+
+class _SyncPeriodGetterWithData(CallableT[float], Protocol):
+    def __call__(self, hash: BucketHash, *args: Any, **kwargs: Any) -> float:
+        ...
+
+
+class _AsyncPeriodGetter(CallableT[float], Protocol):
+    async def __call__(self, hash: BucketHash) -> float:  # type: ignore
+        ...
+
+
+class _AsyncPeriodGetterWithData(CallableT[float], Protocol):
+    async def __call__(self, hash: BucketHash, *args: Any, **kwargs: Any) -> float:  # type: ignore
+        ...
+
+
+HashGetter = Union[
+    _SyncHashGetter, _SyncHashGetterWithData, _AsyncHashGetter, _AsyncHashGetterWithData
+]
+LimitGetter = Union[
+    _SyncLimitGetter,
+    _SyncLimitGetterWithData,
+    _AsyncLimitGetter,
+    _AsyncLimitGetterWithData,
+]
+PeriodGetter = Union[
+    _SyncPeriodGetter,
+    _SyncPeriodGetterWithData,
+    _AsyncPeriodGetter,
+    _AsyncPeriodGetterWithData,
+]

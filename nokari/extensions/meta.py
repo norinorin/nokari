@@ -19,7 +19,7 @@ from kita.responses import Response, edit, respond
 from nokari.core import Context
 from nokari.core.bot import Nokari
 from nokari.extensions.extras.admin import run_command_in_shell
-from nokari.utils import converters, human_timedelta, paginator, plural, spotify
+from nokari.utils import human_timedelta, paginator, plural, spotify
 
 
 # pylint: disable=too-many-locals

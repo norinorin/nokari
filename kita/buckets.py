@@ -3,12 +3,14 @@ from __future__ import annotations
 import asyncio
 import logging
 from time import monotonic
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union, cast
 
 from hikari.events.interaction_events import InteractionCreateEvent
-from hikari.snowflakes import Snowflakeish
 
-from kita.typedefs import HashGetter
+from kita.typedefs import BucketHash, HashGetter, LimitGetter, PeriodGetter
+
+if TYPE_CHECKING:
+    from kita.command_handlers import GatewayCommandHandler
 
 EXPIRE_AFTER = 30.0
 
@@ -23,21 +25,24 @@ class EmptyBucketError(Exception):
 
 
 class Bucket:
-    __slots__ = ("manager", "tokens", "reset_at", "hash")
+    __slots__ = ("manager", "tokens", "reset_at", "hash", "limit", "period")
 
-    def __init__(self, manager: BucketManager, hash_: Snowflakeish) -> None:
+    def __init__(self, manager: BucketManager, hash_: BucketHash) -> None:
         self.manager: BucketManager = manager
         self.tokens: int = 0
         self.reset_at: float = 0.0
         self.hash = hash_
+        self.limit: int
+        self.period: float
 
-    @property
-    def limit(self) -> int:
-        return self.manager.limit
+    def set_constraints(
+        self, limit: Optional[int] = None, period: Optional[float] = None
+    ) -> None:
+        if limit is not None:
+            self.limit = limit
 
-    @property
-    def period(self) -> float:
-        return self.manager.period
+        if period is not None:
+            self.period = period
 
     def consume_token(self) -> None:
         self.tokens -= 1
@@ -73,7 +78,7 @@ class Bucket:
 
     def __repr__(self) -> str:
         return (
-            f"<Bucket {self.manager.name!r} "
+            f"<Bucket manager={self.manager.name!r} "
             f"limit={self.limit} period={self.period} "
             f"tokens={self.tokens} next_window={self.next_window}>"
         )
@@ -82,18 +87,47 @@ class Bucket:
 class BucketManager:
     __slots__ = ("name", "buckets", "hash_getter", "period", "limit", "gc_task")
 
-    def __init__(self, name: str, hash_getter: HashGetter, limit: int, period: float):
+    def __init__(
+        self,
+        name: str,
+        hash_getter: HashGetter,
+        limit: Union[LimitGetter, int],
+        period: Union[PeriodGetter, float],
+    ):
         self.name = name
-        self.buckets: Dict[Snowflakeish, Bucket] = {}
+        self.buckets: Dict[BucketHash, Bucket] = {}
         self.hash_getter = hash_getter
         self.limit = limit
         self.period = period
         self.gc_task: Optional[asyncio.Task[None]] = None
 
-    def get_bucket(self, event: InteractionCreateEvent) -> Bucket:
-        bucket_hash = self.hash_getter(event)
+    async def get_limit(self, handler: GatewayCommandHandler, hash_: BucketHash) -> int:
+        return (
+            await handler._invoke_callback(self.limit, hash_)
+            if callable(self.limit)
+            else self.limit
+        )
+
+    async def get_period(
+        self, handler: GatewayCommandHandler, hash_: BucketHash
+    ) -> float:
+        return (
+            await handler._invoke_callback(self.period, hash_)
+            if callable(self.period)
+            else self.period
+        )
+
+    async def get_or_create_bucket(
+        self, handler: GatewayCommandHandler, event: InteractionCreateEvent
+    ) -> Bucket:
+        bucket_hash = await handler._invoke_callback(self.hash_getter, event)
         if not (bucket := self.buckets.get(bucket_hash)):
             self.buckets[bucket_hash] = bucket = Bucket(self, bucket_hash)
+
+            bucket.set_constraints(
+                await self.get_limit(handler, bucket_hash),
+                await self.get_period(handler, bucket_hash),
+            )
 
         self.ensure_gc_task()
         return bucket

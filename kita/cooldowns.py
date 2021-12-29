@@ -5,7 +5,16 @@ from hikari.interactions.command_interactions import CommandInteraction
 from hikari.snowflakes import Snowflakeish
 
 from kita.buckets import BucketManager
-from kita.typedefs import CallableProto, HashGetter, ICommandCallback
+from kita.command_handlers import GatewayCommandHandler
+from kita.data import data
+from kita.typedefs import (
+    BucketHash,
+    CallableProto,
+    HashGetter,
+    ICommandCallback,
+    LimitGetter,
+    PeriodGetter,
+)
 from kita.utils import ensure_bucket_manager, is_command
 
 __all__ = (
@@ -42,6 +51,22 @@ def channel_hash_getter(event: InteractionCreateEvent) -> Snowflakeish:
     return interaction.channel_id
 
 
+def exclusive_period_getter(period: float, *exclude: BucketHash) -> PeriodGetter:
+    def _period_getter(hash: BucketHash) -> float:
+        return 0.0 if hash in exclude else period
+
+    return _period_getter
+
+
+def exclusive_owner_period_getter(period: float) -> PeriodGetter:
+    def _period_getter(
+        hash: BucketHash, handler: GatewayCommandHandler = data(GatewayCommandHandler)
+    ) -> float:
+        return 0.0 if hash in handler.owner_ids else period
+
+    return _period_getter
+
+
 @overload
 def with_cooldown(
     arg: ICommandCallback, /
@@ -51,7 +76,10 @@ def with_cooldown(
 
 @overload
 def with_cooldown(
-    arg: HashGetter, /, limit: int, period: float
+    arg: HashGetter,
+    /,
+    limit: Union[LimitGetter, int],
+    period: Union[PeriodGetter, float],
 ) -> Callable[[CallableProto], ICommandCallback]:
     ...
 

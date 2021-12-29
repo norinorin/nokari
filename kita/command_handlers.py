@@ -274,7 +274,7 @@ class GatewayCommandHandler(DataContainerMixin):
 
         if bucket_manager := cb.__bucket_manager__:
             try:
-                bucket_manager.get_bucket(event).acquire()
+                (await bucket_manager.get_or_create_bucket(self, event)).acquire()
             except EmptyBucketError as exc:
                 await self._dispatch_command_failure(
                     ctx,
