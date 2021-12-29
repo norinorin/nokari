@@ -68,4 +68,8 @@ for var in (
 
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
-GUILD_IDS = {int(i) for i in os.getenv("GUILD_IDS", "").split(",")}
+GUILD_IDS = (
+    {int(i.strip()) for i in os.getenv("GUILD_IDS", "").split(",")}
+    if (RAW_GUILD_IDS := os.getenv("GUILD_IDS", ""))
+    else None
+)
