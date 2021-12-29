@@ -3,62 +3,58 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-import functools
-import importlib
 import logging
 import os
 import shutil
 import sys
-import typing
-import weakref
 from contextlib import suppress
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Coroutine,
+    Dict,
+    Iterator,
+    Mapping,
+    Protocol,
+    Union,
+    cast,
+)
 
 import aiohttp
 import asyncpg
 import hikari
-import lightbulb
+import topgg
+from hikari.commands import OptionType
 from hikari.events.interaction_events import InteractionCreateEvent
+from hikari.impl.bot import GatewayBot
 from hikari.interactions.base_interactions import ResponseType
 from hikari.interactions.component_interactions import ComponentInteraction
-from hikari.messages import ButtonStyle
+from hikari.messages import ButtonStyle, Message
 from hikari.snowflakes import Snowflake
-from lightbulb import checks, commands
-from lightbulb.utils import maybe_await
 from lru import LRU  # pylint: disable=no-name-in-module
 
+from kita.checks import owner_only, with_check
+from kita.command_handlers import GatewayCommandHandler
+from kita.commands import command
+from kita.data import data
+from kita.options import with_option
 from nokari.core import constants
 from nokari.core.cache import Cache
-from nokari.core.commands import command, group
 from nokari.core.context import Context
 from nokari.core.entity_factory import EntityFactory
 from nokari.utils import db, human_timedelta
 
-if typing.TYPE_CHECKING:
-    from nokari.utils.paginator import Paginator
-
-__all__: typing.Final[typing.List[str]] = ["Nokari"]
-_CommandOrPluginT = typing.TypeVar(
-    "_CommandOrPluginT", bound=typing.Union[lightbulb.Plugin, lightbulb.Command]
-)
+__all__ = ("Nokari",)
 _LOGGER = logging.getLogger("nokari.core.bot")
 
 
-def _get_prefixes(bot: lightbulb.Bot, message: hikari.Message) -> typing.List[str]:
-    if not hasattr(bot, "prefixes"):
-        return bot.default_prefixes
-
-    prefixes = bot.prefixes
-    return prefixes.get(message.guild_id, bot.default_prefixes) + prefixes.get(
-        message.author.id, []
-    )
+class Messageable(Protocol):
+    respond: Callable[..., Coroutine[None, None, hikari.Message]]
+    send: Callable[..., Coroutine[None, None, hikari.Message]]
 
 
-class Messageable(typing.Protocol):
-    respond: typing.Callable[..., typing.Coroutine[None, None, hikari.Message]]
-    send: typing.Callable[..., typing.Coroutine[None, None, hikari.Message]]
-
-
-class Nokari(lightbulb.Bot):
+class Nokari(GatewayBot):
     """The custom command handler class."""
 
     # pylint: disable=too-many-instance-attributes
@@ -77,9 +73,6 @@ class Nokari(lightbulb.Bot):
             | hikari.Intents.GUILD_MEMBERS
             | hikari.Intents.GUILD_MESSAGE_REACTIONS
             | hikari.Intents.GUILD_PRESENCES,
-            insensitive_commands=True,
-            prefix=lightbulb.when_mentioned_or(_get_prefixes),
-            owner_ids=[265080794911866881],
             logs=constants.LOG_LEVEL,
         )
 
@@ -96,17 +89,15 @@ class Nokari(lightbulb.Bot):
         self._entity_factory = self._rest._entity_factory = EntityFactory(self)
 
         # A mapping from user ids to their sync ids
-        self._sync_ids: typing.Dict[Snowflake, str] = {}
+        self._sync_ids: Dict[Snowflake, str] = {}
 
-        # Responses cache
-        self._resp_cache = LRU(1024)
+        # Command handler
+        self.handler = GatewayCommandHandler(
+            self, constants.GUILD_IDS, context_type=Context
+        )
 
         # Non-modular commands
-        _ = [
-            self.add_command(g)
-            for g in globals().values()
-            if isinstance(g, commands.Command)
-        ]
+        self.handler.add_command(extension)
 
         # Set Launch time
         self.launch_time: datetime.datetime | None = None
@@ -114,36 +105,61 @@ class Nokari(lightbulb.Bot):
         # Default prefixes
         self.default_prefixes = ["nokari", "n!"]
 
-        # Paginators
-        self.paginators: typing.Mapping[
-            Snowflake, Paginator
-        ] = weakref.WeakValueDictionary()
+        self.subscribe(hikari.StartingEvent, self.on_starting)
+        self.subscribe(hikari.StartedEvent, self.on_started)
+        self.subscribe(hikari.StoppingEvent, self.on_closing)
 
-    # pylint: disable=redefined-outer-name
-    @functools.wraps(lightbulb.Bot._invoke_command)
-    async def _invoke_command(
-        self,
-        command: commands.Command,
-        context: Context,
-        args: typing.Sequence[typing.Any],
-        kwargs: typing.Mapping[str, typing.Any],
-    ) -> None:
-        if getattr(command, "disabled", False):
-            return
+    @property
+    def cache(self) -> Cache:
+        return self._cache  # type: ignore
 
-        return await super()._invoke_command(command, context, args, kwargs)
+    async def _setup_topgg_clients(self) -> None:
+        if constants.TOPGG_WEBHOOK_AUTH:
+            self.webhook_manager = (
+                topgg.WebhookManager()
+                .endpoint()
+                .type(topgg.WebhookType.BOT)
+                .route("/dblwebhook")
+                .auth(constants.TOPGG_WEBHOOK_AUTH)
+                .callback(lambda data: _LOGGER.info("Receives vote %s", data))
+                .add_to_manager()
+            )
 
-    @functools.wraps(lightbulb.Bot.start)
-    async def start(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+        if constants.TOPGG_TOKEN:
+            me = self.get_me()
+            assert me is not None
+            self.dblclient = topgg.DBLClient(
+                constants.TOPGG_TOKEN, default_bot_id=me.id
+            )
+            (
+                self.dblclient.autopost()
+                .on_success(lambda: _LOGGER.info("Successfully posted stats"))
+                .stats(
+                    lambda: topgg.StatsWrapper(
+                        guild_count=len(self.cache.get_guilds_view()),
+                        shard_count=self.shard_count,
+                    )
+                )
+                .start()
+            )
+
+    async def _close_topgg_clients(self) -> None:
+        if webhook_manager := getattr(self, "webhook_maanger", None):
+            await webhook_manager.close()
+
+        if dblclient := getattr(self, "dblclient", None):
+            _LOGGER.info("Closing...")
+            await dblclient.close()
+
+    async def on_starting(self, _: hikari.StartingEvent) -> None:
         await self.create_pool()
         self.load_extensions()
-        await super().start(*args, **kwargs)
+
+    async def on_started(self, _: hikari.StartedEvent) -> None:
         self.launch_time = datetime.datetime.now(datetime.timezone.utc)
 
-        if sys.argv[-1] == "init":
+        if sys.argv[-1] == "init" and self.pool:
             await db.create_tables(self.pool)
-
-        await self._load_prefixes()
 
         with suppress(FileNotFoundError):
             with open("tmp/restarting", "r", encoding="utf-8") as fp:
@@ -153,18 +169,16 @@ class Nokari(lightbulb.Bot):
             if not raw:
                 return
 
-            await self.rest.edit_message(*raw.split("-"), "Successfully restarted!")
+            await self.rest.edit_message(*raw.split("-"), "Successfully restarted!")  # type: ignore
 
-    @functools.wraps(lightbulb.Bot.close)
-    async def close(self, *args: typing.Any, **kwargs: typing.Any) -> None:
-        if utils := self.get_plugin("Utils"):
-            utils.plugin_remove()
+        await self._setup_topgg_clients()
 
+    async def on_closing(self, _: hikari.StoppingEvent) -> None:
         if self.pool:
             await self.pool.close()
             delattr(self, "_pool")
 
-        await super().close(*args, **kwargs)
+        await self._close_topgg_clients()
 
     @property
     def default_color(self) -> hikari.Color:
@@ -179,12 +193,7 @@ class Nokari(lightbulb.Bot):
     @property
     def session(self) -> aiohttp.ClientSession | None:
         """Returns a ClientSession."""
-        return self.rest._get_live_attributes().client_session
-
-    @property
-    def responses_cache(self) -> LRU:
-        """Returns a mapping from message IDs to its response message IDs."""
-        return self._resp_cache
+        return self.rest._get_live_attributes().client_session  # type: ignore
 
     @property
     def pool(self) -> asyncpg.Pool | None:
@@ -194,63 +203,24 @@ class Nokari(lightbulb.Bot):
         """Creates a connection pool."""
         if pool := await db.create_pool():
             self._pool = pool
-
-    async def _load_prefixes(self) -> None:
-        if self.pool:
-            self.prefixes = {
-                record["hash"]: record["prefixes"]
-                for record in await self.pool.fetch("SELECT * FROM prefixes")
-            }
-
-    async def _resolve_prefix(self, message: hikari.Message) -> str | None:
-        """Case-insensitive prefix resolver."""
-        prefixes = await maybe_await(self.get_prefix, self, message)
-
-        if isinstance(prefixes, str):
-            prefixes = [prefixes]
-
-        prefixes.sort(key=len, reverse=True)
-
-        if message.content is not None:
-            lowered_content = message.content.lower()
-            content_length = len(lowered_content)
-            for prefix in prefixes:
-                prefix = prefix.strip()
-                if lowered_content.startswith(prefix):
-                    while (prefix_length := len(prefix)) < content_length and (
-                        next_char := lowered_content[prefix_length : prefix_length + 1]
-                    ).isspace():
-                        prefix += next_char
-                        continue
-                    return prefix
-        return None
-
-    def get_context(
-        self,
-        message: hikari.Message,
-        prefix: str,
-        invoked_with: str,
-        invoked_command: commands.Command,
-    ) -> Context:
-        """Gets custom Context object."""
-        return Context(self, message, prefix, invoked_with, invoked_command)
+            self.handler.set_data(pool)
 
     @property
-    def raw_plugins(self) -> typing.Iterator[str]:
+    def raw_extensions(self) -> Iterator[str]:
         """
         Returns the plugins' path component.
 
         I can actually do the following:
             return (
                 f"{'.'.join(i.parts)}[:-3]"
-                for i in Path("nokari/plugins").rglob("[!_]*.py")
+                for i in Path("nokari/extensions").rglob("[!_]*.py")
             )
 
         Though, I found os.walk() is ~57%–70% faster (it shouldn't matter, but w/e.)
         """
         return (
             f"{path.strip('/').replace('/', '.')}.{file[:-3]}"
-            for path, _, files in os.walk("nokari/plugins/")
+            for path, _, files in os.walk("nokari/extensions/")
             for file in files
             if file.endswith(".py")
             and "__pycache__" not in path
@@ -267,31 +237,32 @@ class Nokari(lightbulb.Bot):
         )
 
     def load_extensions(self) -> None:
-        """Loads all the plugins."""
-        for extension in self.raw_plugins:
+        """Loads all the extensions."""
+        for extension in self.raw_extensions:
             try:
-                self.load_extension(extension)
-            except lightbulb.errors.ExtensionMissingLoad:
-                _LOGGER.error("%s is missing load function", extension)
-            except lightbulb.errors.ExtensionAlreadyLoaded:
-                pass
-            except lightbulb.errors.ExtensionError as _e:
-                _LOGGER.error("%s failed to load", exc_info=_e)
+                self.handler.load_extension(extension)
+            except Exception as _e:
+                _LOGGER.error("%s failed to load", extension, exc_info=_e)
 
     # pylint: disable=lost-exception
     async def prompt(
         self,
-        messageable: Messageable,
+        messageable: Union[Context, Messageable],
         message: str,
         *,
         author_id: int,
         timeout: float = 60.0,
         delete_after: bool = False,
     ) -> bool:
+        color = self.default_color
         if isinstance(messageable, Context):
             color = messageable.color
+            send = messageable.respond
         else:
-            color = self.default_color
+            send = cast(
+                Callable[..., Coroutine[Any, Any, Message]],
+                getattr(messageable, "channel", messageable).send,
+            )
 
         embed = hikari.Embed(description=message, color=color)
         component = (
@@ -304,8 +275,12 @@ class Nokari(lightbulb.Bot):
             .add_to_container()
         )
 
-        messageable = getattr(messageable, "channel", messageable)
-        msg = await messageable.send(embed=embed, component=component)
+        maybe_msg = await send(embed=embed, component=component)
+        if not maybe_msg:
+            assert isinstance(messageable, Context)
+            msg = await messageable.interaction.fetch_initial_response()
+        else:
+            msg = maybe_msg
 
         confirm = False
 
@@ -329,15 +304,16 @@ class Nokari(lightbulb.Bot):
                 InteractionCreateEvent, predicate=predicate, timeout=timeout
             )
         except asyncio.TimeoutError:
-            pass
+            return False
 
         try:
             if delete_after:
                 await msg.delete()
             else:
-                for c in component._components:
+                for c in component._components:  # type: ignore
                     c._is_disabled = True
 
+                assert isinstance(event.interaction, ComponentInteraction)
                 await event.interaction.create_initial_response(
                     ResponseType.MESSAGE_UPDATE, component=component
                 )
@@ -349,72 +325,28 @@ class Nokari(lightbulb.Bot):
         """Temp fix until lightbub updates."""
         return self.get_me()
 
-    def add_plugin(
-        self, plugin: lightbulb.Plugin | typing.Type[lightbulb.Plugin]
-    ) -> None:
-        if getattr(plugin, "__requires_db__", False) and self.pool is None:
-            if (name := getattr(plugin, "name", None)) is None:
-                name = plugin.__class__.name  # type: ignore
 
-            _LOGGER.warning("Not loading %s plugin as it requires DB", name)
-            return None
-
-        return super().add_plugin(plugin)
+@command("extension", "Extension utilities.")
+def extension() -> None:
+    ...
 
 
-@lightbulb.check(checks.owner_only)
-@group(name="reload")
-async def reload_plugin(ctx: Context, *, plugins: str = "*") -> None:
-    """Reloads certain or all the plugins."""
-    await ctx.execute_plugins(ctx.bot.reload_extension, plugins)
+@extension.command("reload", "Reloads extensions.")
+@with_check(owner_only)
+@with_option(OptionType.STRING, "extensions", "The extensions to reload.")
+async def reload_plugin(ctx: Context = data(Context), extensions: str = "*") -> None:
+    await ctx.execute_extensions(ctx.handler.reload_extension, extensions)
 
 
-@lightbulb.check(checks.owner_only)
-@command(name="unload")
-async def unload_plugin(ctx: Context, *, plugins: str = "*") -> None:
-    """Unloads certain or all the plugins."""
-    await ctx.execute_plugins(ctx.bot.unload_extension, plugins)
+@extension.command("unload", "Unloads extensions.")
+@with_check(owner_only)
+@with_option(OptionType.STRING, "extensions", "The extensions to unload.")
+async def unload_plugin(ctx: Context = data(Context), extensions: str = "*") -> None:
+    await ctx.execute_extensions(ctx.handler.unload_extension, extensions)
 
 
-@lightbulb.check(checks.owner_only)
-@command(name="load")
-async def load_plugin(ctx: Context, *, plugins: str = "*") -> None:
-    """Loads certain or all the plugins."""
-    await ctx.execute_plugins(ctx.bot.load_extension, plugins)
-
-
-@reload_plugin.command(name="module")
-async def reload_module(ctx: Context, *, modules: str) -> None:
-    """Hot-reload modules."""
-    modules = set(modules.split())
-    failed = set()
-    parents = set()
-    for mod in modules:
-        parents.add(".".join(mod.split(".")[:-1]))
-        try:
-            module = sys.modules[mod]
-            importlib.reload(module)
-        except Exception as e:  # pylint: disable=broad-except
-            _LOGGER.error("Failed to reload %s", mod, exc_info=e)
-            failed.add((mod, e.__class__.__name__))
-
-    for parent in parents:
-        parent_split = parent.split(".")
-        for idx in reversed(range(1, len(parent_split) + 1)):
-            try:
-                module = sys.modules[".".join(parent_split[:idx])]
-                importlib.reload(module)
-            except Exception as e:  # pylint: disable=broad-except
-                _LOGGER.error("Failed to reload parent %s", parent, exc_info=e)
-
-    loaded = "\n".join(f"+ {i}" for i in modules ^ {x[0] for x in failed})
-    failed = "\n".join(f"- {m} {e}" for m, e in failed)
-    await ctx.respond(f"```diff\n{loaded}\n{failed}```")
-
-
-def requires_db(command_or_plugin: _CommandOrPluginT) -> _CommandOrPluginT:
-    if isinstance(command_or_plugin, commands.Command):
-        command_or_plugin.disabled = True
-    else:
-        command_or_plugin.__requires_db__ = True
-    return command_or_plugin
+@extension.command("load", "Loads extensions.")
+@with_check(owner_only)
+@with_option(OptionType.STRING, "extensions", "The extensions to load.")
+async def load_plugin(ctx: Context = data(Context), extensions: str = "*") -> None:
+    await ctx.execute_extensions(ctx.handler.load_extension, extensions)

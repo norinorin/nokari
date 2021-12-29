@@ -2,154 +2,45 @@
 from __future__ import annotations
 
 import logging
-import time
-import typing
-from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional
 
 import hikari
-import lightbulb
-from hikari import Message, PartialMessage
-from hikari import embeds as embeds_
-from hikari import files, guilds, snowflakes, undefined, users
-from hikari.api import special_endpoints
 
+from kita.contexts import Context as Context_
 from nokari.utils.perms import has_channel_perms, has_guild_perms
 
-if typing.TYPE_CHECKING:
-    from nokari.utils.paginator import Paginator
+if TYPE_CHECKING:
+    from nokari.core.bot import Nokari
 
-__all__: typing.Final[typing.List[str]] = ["Context"]
+__all__ = ("Context",)
 _LOGGER = logging.getLogger("nokari.core.context")
 
 
-class Context(lightbulb.Context):
-    """Custom Context class with overriden methods."""
+class Context(Context_):
+    __slots__ = ("component_interaction",)
+    app: Nokari
 
-    __slots__: typing.List[str] = ["parsed_arg", "interaction"]
-
-    def __init__(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.component_interaction: Optional[hikari.ComponentInteraction] = None
         super().__init__(*args, **kwargs)
-        self.parsed_arg: SimpleNamespace | None = None
-        self.interaction: hikari.ComponentInteraction | None = None
-
-    async def respond(  # pylint: disable=arguments-differ,too-many-locals
-        self,
-        content: undefined.UndefinedOr[typing.Any] = undefined.UNDEFINED,
-        *,
-        attachment: undefined.UndefinedOr[files.Resourceish] = undefined.UNDEFINED,
-        attachments: undefined.UndefinedOr[
-            typing.Sequence[files.Resourceish]
-        ] = undefined.UNDEFINED,
-        component: undefined.UndefinedOr[
-            special_endpoints.ComponentBuilder
-        ] = undefined.UNDEFINED,
-        components: undefined.UndefinedOr[
-            typing.Sequence[special_endpoints.ComponentBuilder]
-        ] = undefined.UNDEFINED,
-        embed: undefined.UndefinedOr[embeds_.Embed] = undefined.UNDEFINED,
-        embeds: undefined.UndefinedOr[
-            typing.Sequence[embeds_.Embed]
-        ] = undefined.UNDEFINED,
-        nonce: undefined.UndefinedOr[str] = undefined.UNDEFINED,
-        tts: undefined.UndefinedOr[bool] = undefined.UNDEFINED,
-        reply: typing.Union[
-            undefined.UndefinedType, snowflakes.SnowflakeishOr[PartialMessage], bool
-        ] = undefined.UNDEFINED,
-        mentions_everyone: undefined.UndefinedOr[bool] = undefined.UNDEFINED,
-        mentions_reply: undefined.UndefinedOr[bool] = undefined.UNDEFINED,
-        user_mentions: undefined.UndefinedOr[
-            typing.Union[snowflakes.SnowflakeishSequence[users.PartialUser], bool]
-        ] = undefined.UNDEFINED,
-        role_mentions: undefined.UndefinedOr[
-            typing.Union[snowflakes.SnowflakeishSequence[guilds.PartialRole], bool]
-        ] = undefined.UNDEFINED,
-    ) -> Message:
-        """Overrides respond method for command invoke on message edit support."""
-        if isinstance(embed, hikari.Embed) and embed.color is None:
-            embed.color = self.color
-
-        if embeds:
-            for embed_ in embeds:
-                if embed_.color is None:
-                    embed_.color = self.color
-
-        if self.parsed_arg and self.parsed_arg.time:
-            time_taken = (
-                f"That took {round((time.time()-self.parsed_arg.time)*1000, 2)}ms!"
-            )
-            content = f"{(content or '')[:2000-len(time_taken)-2]}\n\n{time_taken}"
-
-        if self.interaction:
-            # assume it's been deferred
-            await self.interaction.edit_initial_response(
-                content=content or None,
-                embed=embed or None,
-                attachment=attachment,
-                attachments=attachments,
-                components=components or [],
-                mentions_everyone=mentions_everyone,
-                user_mentions=user_mentions,
-                role_mentions=role_mentions,
-            )
-            return self.interaction.message
-
-        if (
-            resp := self.bot.cache.get_message(
-                self.bot.responses_cache.get(self.message_id, 0)
-            )
-        ) is not None and self.edited_timestamp:
-            return await resp.edit(
-                content=content or None,
-                embed=embed or None,
-                attachment=attachment,
-                attachments=attachments,
-                component=component or None,
-                replace_attachments=True,
-                mentions_reply=mentions_reply,
-                mentions_everyone=mentions_everyone,
-                user_mentions=user_mentions,
-                role_mentions=role_mentions,
-            )
-
-        if resp is None:
-            self.bot.responses_cache.pop(self.message_id, None)
-
-        resp = await super().respond(
-            content=content,
-            embed=embed,
-            embeds=embeds,
-            component=component,
-            components=components,
-            attachment=attachment,
-            attachments=attachments,
-            nonce=nonce,
-            tts=tts,
-            reply=reply,
-            mentions_everyone=mentions_everyone,
-            user_mentions=user_mentions,
-            role_mentions=role_mentions,
-            mentions_reply=mentions_reply,
-        )
-
-        self.bot.responses_cache[self.message_id] = resp.id
-
-        return resp
 
     @property
-    def me(self) -> typing.Optional[hikari.Member]:
+    def me(self) -> Optional[hikari.Member]:
         """Returns the Member object of the bot iself if applicable."""
-        return (
-            self.guild_id
-            and (me := self.bot.get_me())
-            and self.bot.cache.get_member(self.guild_id, me.id)
-        )
+        if not self.interaction.guild_id:
+            return None
 
-    def execute_plugins(
-        self, func: typing.Callable[[str], None], plugins: str
-    ) -> typing.Awaitable[hikari.Message]:
-        """A helper methods for loading, unloading, and reloading external plugins."""
+        if not (me := self.app.get_me()):
+            return None
+
+        return self.app.cache.get_member(self.interaction.guild_id, me.id)
+
+    def execute_extensions(
+        self, func: Callable[[str], None], plugins: str
+    ) -> Awaitable[Optional[hikari.Message]]:
+        """A helper methods for loading, unloading, and reloading extensions."""
         if plugins in ("all", "*"):
-            plugins_set = set(self.bot.raw_plugins)
+            plugins_set = set(self.app.raw_extensions)
         else:
             plugins_set = set(
                 sum(
@@ -164,8 +55,8 @@ class Context(lightbulb.Context):
         for plugin in plugins_set:
             try:
                 func(
-                    f"nokari.plugins.{plugin}"
-                    if not plugin.startswith("nokari.plugins.")
+                    f"nokari.extensions.{plugin}"
+                    if not plugin.startswith("nokari.extensions.")
                     else plugin
                 )
             except Exception as _e:  # pylint: disable=broad-except
@@ -190,27 +81,30 @@ class Context(lightbulb.Context):
             if self.me
             and (top_role := self.me.get_top_role())
             and (color := top_role.color) != hikari.Colour.from_rgb(0, 0, 0)
-            else self.bot.default_color
+            else self.handler.app.default_color  # type: ignore
         )
 
     def has_guild_perms(
-        self, perms: hikari.Permissions, member: typing.Optional[hikari.Member] = None
+        self, perms: hikari.Permissions, member: Optional[hikari.Member] = None
     ) -> bool:
         """Returns whether or not a member has certain guild permissions."""
 
         if (member := member or self.me) is None:
             raise RuntimeError("Couldn't resolve the Member object of the bot")
 
-        return has_guild_perms(self.bot, member, perms)
+        return has_guild_perms(self.app, member, perms)
 
     def has_channel_perms(
-        self, perms: hikari.Permissions, member: typing.Optional[hikari.Member] = None
+        self, perms: hikari.Permissions, member: Optional[hikari.Member] = None
     ) -> bool:
         """
         Returns whether or not a member has certain permissions,
         taking channel overwrites into account.
         """
         if (member := member or self.me) is None:
-            raise RuntimeError("Couldn't resolve the Member object of the bot")
+            raise RuntimeError("couldn't resolve the Member object of the bot")
 
-        return has_channel_perms(self.bot, member, self.channel, perms)
+        if not (channel := self.interaction.get_channel()):
+            raise RuntimeError("couldn't resolve the channel")
+
+        return has_channel_perms(self.app, member, channel, perms)

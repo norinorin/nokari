@@ -11,7 +11,8 @@ disable=
     protected-access,
     too-few-public-methods,
     format,
-    cyclic-import
+    cyclic-import,
+    redefined-builtin
 
 [BASIC]
 argument-naming-style=snake_case
@@ -32,3 +33,4 @@ min-similarity-lines=4
 
 [DESIGN]
 max-parents=8
+max-args=10

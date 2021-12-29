@@ -51,6 +51,8 @@ DISCORD_BROWSER: str
 SPOTIPY_CLIENT_ID: str
 SPOTIPY_CLIENT_SECRET: str
 GUILD_LOGS_WEBHOOK_URL: str
+TOPGG_WEBHOOK_AUTH: str
+TOPGG_TOKEN: str
 
 for var in (
     "DISCORD_BOT_TOKEN",
@@ -59,8 +61,15 @@ for var in (
     "SPOTIPY_CLIENT_ID",
     "SPOTIPY_CLIENT_SECRET",
     "GUILD_LOGS_WEBHOOK_URL",
+    "TOPGG_TOKEN",
+    "TOPGG_WEBHOOK_AUTH",
 ):
     globals()[var] = os.getenv(var)
 
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+GUILD_IDS = (
+    {int(i.strip()) for i in os.getenv("GUILD_IDS", "").split(",")}
+    if (RAW_GUILD_IDS := os.getenv("GUILD_IDS", ""))
+    else None
+)

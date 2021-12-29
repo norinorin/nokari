@@ -17,6 +17,6 @@ if os.name != "nt":
 
 
 if browser := constants.DISCORD_BROWSER:
-    monkey_patch.set_browser(constants.DISCORD_BROWSER)
+    monkey_patch.set_browser(browser)
 
 Nokari().run()
